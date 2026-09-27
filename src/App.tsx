@@ -5,7 +5,16 @@ import { INITIAL_ACCOUNTS, INITIAL_TRANSACTIONS } from './utils/demoData';
 import { DEFAULT_CATEGORY_MAPPINGS, DEFAULT_AUTO_RULES, getParentCategory, autoCategorize } from './utils/categorizer';
 import { computeTransactions, autoAllocatePayments, addPaymentAllocation, removePaymentAllocation } from './utils/paymentAllocation';
 import { supabase } from './utils/supabaseClient';
-import { fetchUserData, syncLocalDataToCloud, signOutUser } from './services/supabaseService';
+import {
+  fetchUserData,
+  syncLocalDataToCloud,
+  signOutUser,
+  deleteCloudAccount,
+  deleteCloudTransaction,
+  deleteCloudCategory,
+  deleteCloudRule,
+  deleteCloudBudget
+} from './services/supabaseService';
 import { Header } from './components/Header';
 import { MetricCards } from './components/MetricCards';
 import { Filters } from './components/Filters';
@@ -83,6 +92,23 @@ export function App() {
     localStorage.setItem(STORAGE_KEY_BUDGETS, JSON.stringify(budgets));
   }, [budgets]);
 
+  // Auth & Cloud State
+  const [currentUser, setCurrentUser] = useState<any>(null);
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+
+  // Auto-sync with Supabase Cloud whenever state changes for logged in user
+  useEffect(() => {
+    if (currentUser?.id) {
+      syncLocalDataToCloud(currentUser.id, {
+        accounts,
+        categoryMappings,
+        autoRules,
+        budgets,
+        transactions
+      });
+    }
+  }, [currentUser, accounts, categoryMappings, autoRules, budgets, transactions]);
+
   // Active view tab
   const [activeTab, setActiveTab] = useState<'dashboard' | 'transactions'>('dashboard');
 
@@ -98,10 +124,6 @@ export function App() {
     onlyPendingTC: false
   });
 
-  // Auth & Cloud State
-  const [currentUser, setCurrentUser] = useState<any>(null);
-  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
-
   // Modals state
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [isAccountModalOpen, setIsAccountModalOpen] = useState(false);
@@ -113,13 +135,24 @@ export function App() {
   const loadCloudData = async (userId: string) => {
     try {
       const data = await fetchUserData(userId);
-      if (data.accounts.length > 0) setAccounts(data.accounts);
-      if (data.categoryMappings.length > 0) setCategoryMappings(data.categoryMappings);
-      if (data.autoRules.length > 0) setAutoRules(data.autoRules);
-      if (data.budgets.length > 0) setBudgets(data.budgets);
-      if (data.transactions.length > 0) setTransactions(data.transactions);
+      if (data.accounts.length > 0) {
+        setAccounts(data.accounts);
+        setCategoryMappings(data.categoryMappings);
+        setAutoRules(data.autoRules);
+        setBudgets(data.budgets);
+        setTransactions(data.transactions);
+      } else {
+        // If cloud data is empty (first login), migrate current local state to cloud
+        await syncLocalDataToCloud(userId, {
+          accounts,
+          categoryMappings,
+          autoRules,
+          budgets,
+          transactions
+        });
+      }
     } catch (err) {
-      console.error('Error al cargar datos desde Supabase:', err);
+      console.error('Error al cargar/sincronizar datos desde Supabase:', err);
     }
   };
 
@@ -256,6 +289,7 @@ export function App() {
   };
 
   const handleDeleteAccount = (accId: string) => {
+    if (currentUser) deleteCloudAccount(currentUser.id, accId);
     setAccounts((prev) => prev.filter((a) => a.id !== accId));
     setTransactions((prev) => prev.filter((t) => t.accountId !== accId));
   };
@@ -289,6 +323,7 @@ export function App() {
   };
 
   const handleDeleteCategory = (categoryId: string) => {
+    if (currentUser) deleteCloudCategory(currentUser.id, categoryId);
     setCategoryMappings((prev) => prev.filter((c) => c.id !== categoryId));
   };
 
@@ -312,6 +347,7 @@ export function App() {
   };
 
   const handleDeleteAutoRule = (ruleId: string) => {
+    if (currentUser) deleteCloudRule(currentUser.id, ruleId);
     setAutoRules((prev) => prev.filter((r) => r.id !== ruleId));
   };
 
@@ -340,6 +376,7 @@ export function App() {
   };
 
   const handleDeleteBudget = (budgetId: string) => {
+    if (currentUser) deleteCloudBudget(currentUser.id, budgetId);
     setBudgets((prev) => prev.filter((b) => b.id !== budgetId));
   };
 
@@ -350,6 +387,7 @@ export function App() {
   };
 
   const handleDeleteTransaction = (id: string) => {
+    if (currentUser) deleteCloudTransaction(currentUser.id, id);
     setTransactions((prev) => prev.filter((tx) => tx.id !== id));
   };
 

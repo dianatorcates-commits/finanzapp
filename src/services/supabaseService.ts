@@ -230,3 +230,24 @@ export async function syncLocalDataToCloud(
     return false;
   }
 }
+
+export async function deleteCloudAccount(userId: string, accountId: string) {
+  await supabase.from('accounts').delete().eq('id', accountId).eq('user_id', userId);
+}
+
+export async function deleteCloudTransaction(userId: string, txId: string) {
+  await supabase.from('transactions').delete().eq('id', txId).eq('user_id', userId);
+}
+
+export async function deleteCloudCategory(userId: string, categoryId: string) {
+  await supabase.from('category_mappings').delete().eq('id', categoryId).eq('user_id', userId);
+}
+
+export async function deleteCloudRule(userId: string, ruleId: string) {
+  await supabase.from('auto_rules').delete().eq('id', ruleId).eq('user_id', userId);
+}
+
+export async function deleteCloudBudget(userId: string, budgetId: string) {
+  await supabase.from('category_budgets').delete().eq('id', budgetId).eq('user_id', userId);
+}
+
