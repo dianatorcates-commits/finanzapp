@@ -166,7 +166,8 @@ export async function syncLocalDataToCloud(
         currency: a.currency || 'CLP',
         credit_limit: a.creditLimit
       }));
-      await supabase.from('accounts').upsert(accountsPayload, { onConflict: 'id' });
+      const { error: accErr } = await supabase.from('accounts').upsert(accountsPayload, { onConflict: 'id' });
+      if (accErr) console.error('Error syncing accounts to cloud:', accErr);
     }
 
     // 2. Upsert Categories
@@ -177,7 +178,8 @@ export async function syncLocalDataToCloud(
         name: c.name,
         subcategories: c.subcategories
       }));
-      await supabase.from('category_mappings').upsert(categoriesPayload, { onConflict: 'id' });
+      const { error: catErr } = await supabase.from('category_mappings').upsert(categoriesPayload, { onConflict: 'id' });
+      if (catErr) console.error('Error syncing categories to cloud:', catErr);
     }
 
     // 3. Upsert Auto Rules
@@ -189,7 +191,8 @@ export async function syncLocalDataToCloud(
         category: r.category,
         subcategory: r.subcategory
       }));
-      await supabase.from('auto_rules').upsert(rulesPayload, { onConflict: 'id' });
+      const { error: ruleErr } = await supabase.from('auto_rules').upsert(rulesPayload, { onConflict: 'id' });
+      if (ruleErr) console.error('Error syncing auto_rules to cloud:', ruleErr);
     }
 
     // 4. Upsert Budgets
@@ -200,7 +203,8 @@ export async function syncLocalDataToCloud(
         category_name: b.categoryName,
         monthly_limit: b.monthlyLimit
       }));
-      await supabase.from('category_budgets').upsert(budgetsPayload, { onConflict: 'id' });
+      const { error: bdgErr } = await supabase.from('category_budgets').upsert(budgetsPayload, { onConflict: 'id' });
+      if (bdgErr) console.error('Error syncing budgets to cloud:', bdgErr);
     }
 
     // 5. Upsert Transactions
@@ -221,7 +225,8 @@ export async function syncLocalDataToCloud(
         installment_current: t.installments?.current,
         installment_total: t.installments?.total
       }));
-      await supabase.from('transactions').upsert(txsPayload, { onConflict: 'id' });
+      const { error: txErr } = await supabase.from('transactions').upsert(txsPayload, { onConflict: 'id' });
+      if (txErr) console.error('Error syncing transactions to cloud:', txErr);
     }
 
     return true;
