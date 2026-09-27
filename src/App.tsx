@@ -26,6 +26,7 @@ import { AccountManagerModal } from './components/AccountManagerModal';
 import { CategoryManagerModal } from './components/CategoryManagerModal';
 import { BudgetAndRulesModal } from './components/BudgetAndRulesModal';
 import { AuthModal } from './components/AuthModal';
+import { LandingPage } from './components/LandingPage';
 import { PieChart, ListFilter, ShieldCheck } from 'lucide-react';
 
 const STORAGE_KEY_ACCOUNTS = 'finanzapp_accounts_v1';
@@ -95,6 +96,7 @@ export function App() {
   // Auth & Cloud State
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+  const [viewMode, setViewMode] = useState<'landing' | 'app'>('landing');
 
   // Auto-sync with Supabase Cloud whenever state changes for logged in user
   useEffect(() => {
@@ -161,13 +163,19 @@ export function App() {
     supabase.auth.getSession().then(({ data: { session } }) => {
       const user = session?.user ?? null;
       setCurrentUser(user);
-      if (user) loadCloudData(user.id);
+      if (user) {
+        setViewMode('app');
+        loadCloudData(user.id);
+      }
     });
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       const user = session?.user ?? null;
       setCurrentUser(user);
-      if (user) loadCloudData(user.id);
+      if (user) {
+        setViewMode('app');
+        loadCloudData(user.id);
+      }
     });
 
     return () => subscription.unsubscribe();
@@ -176,6 +184,17 @@ export function App() {
   const handleSignOut = async () => {
     await signOutUser();
     setCurrentUser(null);
+    setViewMode('landing');
+    // Reset state to original demo state
+    setAccounts(INITIAL_ACCOUNTS);
+    setTransactions(INITIAL_TRANSACTIONS);
+    setCategoryMappings(DEFAULT_CATEGORY_MAPPINGS);
+    setAutoRules(DEFAULT_AUTO_RULES);
+    setBudgets([
+      { id: 'b-1', categoryName: 'Alimentación & Gastronomía', monthlyLimit: 350000 },
+      { id: 'b-2', categoryName: 'Transporte & Movilidad', monthlyLimit: 120000 },
+      { id: 'b-3', categoryName: 'Compras & Estilo de Vida', monthlyLimit: 200000 }
+    ]);
   };
 
   // Normalize transactions dynamically to guarantee parent category & subcategory resolution
@@ -430,6 +449,26 @@ export function App() {
     XLSX.utils.book_append_sheet(workbook, worksheet, 'Movimientos');
     XLSX.writeFile(workbook, `FinanzApp_Cartola_${new Date().toISOString().split('T')[0]}.xlsx`);
   };
+
+  // 1. Render Landing Page if user is logged out and in landing viewMode
+  if (!currentUser && viewMode === 'landing') {
+    return (
+      <>
+        <LandingPage
+          onOpenAuth={() => setIsAuthModalOpen(true)}
+          onTryDemo={() => setViewMode('app')}
+        />
+
+        {/* Auth Modal */}
+        {isAuthModalOpen && (
+          <AuthModal
+            onClose={() => setIsAuthModalOpen(false)}
+            onSuccess={() => setIsAuthModalOpen(false)}
+          />
+        )}
+      </>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 flex flex-col font-sans">
