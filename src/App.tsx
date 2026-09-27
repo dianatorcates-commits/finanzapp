@@ -1,0 +1,523 @@
+import React, { useState, useEffect, useMemo } from 'react';
+import * as XLSX from 'xlsx';
+import { Account, Transaction, ComputedTransaction, FilterState, CategoryMapping, AutoCategoryRule, CategoryBudget } from './types';
+import { INITIAL_ACCOUNTS, INITIAL_TRANSACTIONS } from './utils/demoData';
+import { DEFAULT_CATEGORY_MAPPINGS, DEFAULT_AUTO_RULES, getParentCategory, autoCategorize } from './utils/categorizer';
+import { computeTransactions, autoAllocatePayments, addPaymentAllocation, removePaymentAllocation } from './utils/paymentAllocation';
+import { Header } from './components/Header';
+import { MetricCards } from './components/MetricCards';
+import { Filters } from './components/Filters';
+import { ChartsDashboard } from './components/ChartsDashboard';
+import { TransactionTable } from './components/TransactionTable';
+import { PaymentModal } from './components/PaymentModal';
+import { ImportModal } from './components/ImportModal';
+import { AccountManagerModal } from './components/AccountManagerModal';
+import { CategoryManagerModal } from './components/CategoryManagerModal';
+import { BudgetAndRulesModal } from './components/BudgetAndRulesModal';
+import { PieChart, ListFilter, ShieldCheck } from 'lucide-react';
+
+const STORAGE_KEY_ACCOUNTS = 'finanzapp_accounts_v1';
+const STORAGE_KEY_TRANSACTIONS = 'finanzapp_transactions_v1';
+const STORAGE_KEY_CATEGORY_MAPPINGS = 'finanzapp_category_mappings_v1';
+const STORAGE_KEY_AUTO_RULES = 'finanzapp_auto_rules_v1';
+const STORAGE_KEY_BUDGETS = 'finanzapp_budgets_v1';
+
+export function App() {
+  // 1. State for Accounts
+  const [accounts, setAccounts] = useState<Account[]>(() => {
+    const saved = localStorage.getItem(STORAGE_KEY_ACCOUNTS);
+    return saved ? JSON.parse(saved) : INITIAL_ACCOUNTS;
+  });
+
+  // 2. State for Category & Subcategory Mappings
+  const [categoryMappings, setCategoryMappings] = useState<CategoryMapping[]>(() => {
+    const saved = localStorage.getItem(STORAGE_KEY_CATEGORY_MAPPINGS);
+    return saved ? JSON.parse(saved) : DEFAULT_CATEGORY_MAPPINGS;
+  });
+
+  // 3. State for Transactions
+  const [transactions, setTransactions] = useState<Transaction[]>(() => {
+    const saved = localStorage.getItem(STORAGE_KEY_TRANSACTIONS);
+    return saved ? JSON.parse(saved) : INITIAL_TRANSACTIONS;
+  });
+
+  // 4. State for Auto-Categorization Rules
+  const [autoRules, setAutoRules] = useState<AutoCategoryRule[]>(() => {
+    const saved = localStorage.getItem(STORAGE_KEY_AUTO_RULES);
+    return saved ? JSON.parse(saved) : DEFAULT_AUTO_RULES;
+  });
+
+  // 5. State for Category Budgets
+  const [budgets, setBudgets] = useState<CategoryBudget[]>(() => {
+    const saved = localStorage.getItem(STORAGE_KEY_BUDGETS);
+    return saved
+      ? JSON.parse(saved)
+      : [
+          { id: 'b-1', categoryName: 'Alimentación & Gastronomía', monthlyLimit: 350000 },
+          { id: 'b-2', categoryName: 'Transporte & Movilidad', monthlyLimit: 120000 },
+          { id: 'b-3', categoryName: 'Compras & Estilo de Vida', monthlyLimit: 200000 }
+        ];
+  });
+
+  // Save to localStorage
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEY_ACCOUNTS, JSON.stringify(accounts));
+  }, [accounts]);
+
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEY_TRANSACTIONS, JSON.stringify(transactions));
+  }, [transactions]);
+
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEY_CATEGORY_MAPPINGS, JSON.stringify(categoryMappings));
+  }, [categoryMappings]);
+
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEY_AUTO_RULES, JSON.stringify(autoRules));
+  }, [autoRules]);
+
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEY_BUDGETS, JSON.stringify(budgets));
+  }, [budgets]);
+
+  // Active view tab
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'transactions'>('dashboard');
+
+  // Filter State
+  const [filters, setFilters] = useState<FilterState>({
+    month: 'ALL',
+    accountId: 'ALL',
+    accountType: 'ALL',
+    transactionType: 'ALL',
+    categories: [],
+    subcategories: [],
+    searchQuery: '',
+    onlyPendingTC: false
+  });
+
+  // Modals state
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+  const [isAccountModalOpen, setIsAccountModalOpen] = useState(false);
+  const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
+  const [isBudgetModalOpen, setIsBudgetModalOpen] = useState(false);
+  const [selectedPurchaseForPayment, setSelectedPurchaseForPayment] = useState<ComputedTransaction | null>(null);
+
+  // Normalize transactions dynamically to guarantee parent category & subcategory resolution
+  const normalizedTransactions = useMemo(() => {
+    return transactions.map((tx) => {
+      const subcategory = tx.subcategory || tx.category || 'Otros Gastos';
+      const category = getParentCategory(subcategory, categoryMappings);
+      return {
+        ...tx,
+        category,
+        subcategory
+      };
+    });
+  }, [transactions, categoryMappings]);
+
+  // Compute transactions with payment allocations
+  const computedTransactions = useMemo(() => {
+    return computeTransactions(normalizedTransactions);
+  }, [normalizedTransactions]);
+
+  // Extract available months/periods for filter
+  const availableMonths = useMemo(() => {
+    const months = new Set<string>();
+    computedTransactions.forEach((tx) => {
+      const p = tx.period || (tx.date ? tx.date.substring(0, 7) : '');
+      if (p) months.add(p);
+    });
+    return Array.from(months).sort().reverse();
+  }, [computedTransactions]);
+
+  // Filter transactions
+  const filteredTransactions = useMemo(() => {
+    return computedTransactions.filter((tx) => {
+      // Month / Period Filter
+      const txPeriod = tx.period || (tx.date ? tx.date.substring(0, 7) : '');
+      if (filters.month !== 'ALL' && txPeriod !== filters.month) return false;
+
+      // Account Filter
+      if (filters.accountId !== 'ALL' && tx.accountId !== filters.accountId) return false;
+
+      // Account Type Filter
+      if (filters.accountType !== 'ALL') {
+        const acc = accounts.find((a) => a.id === tx.accountId);
+        if (acc?.type !== filters.accountType) return false;
+      }
+
+      // Transaction Type Filter
+      if (filters.transactionType !== 'ALL' && tx.transactionType !== filters.transactionType) return false;
+
+      // General Category Multi-Select Filter (Checks both direct category and resolved parent category)
+      if (filters.categories && filters.categories.length > 0) {
+        const parentCat = getParentCategory(tx.subcategory || tx.category, categoryMappings);
+        const matchesCat = filters.categories.includes(tx.category) || filters.categories.includes(parentCat);
+        if (!matchesCat) {
+          return false;
+        }
+      }
+
+      // Subcategories Multi-Select Filter
+      if (filters.subcategories && filters.subcategories.length > 0) {
+        const effectiveSub = tx.subcategory || tx.category;
+        if (!filters.subcategories.includes(effectiveSub)) {
+          return false;
+        }
+      }
+
+      // Search Query
+      if (filters.searchQuery.trim()) {
+        const q = filters.searchQuery.toLowerCase();
+        const matchDesc = tx.description.toLowerCase().includes(q);
+        const matchRaw = tx.rawDescription.toLowerCase().includes(q);
+        const matchCategory = (tx.category || '').toLowerCase().includes(q);
+        const matchSubcategory = (tx.subcategory || '').toLowerCase().includes(q);
+        if (!matchDesc && !matchRaw && !matchCategory && !matchSubcategory) return false;
+      }
+
+      // Only Pending TC
+      if (filters.onlyPendingTC) {
+        const acc = accounts.find((a) => a.id === tx.accountId);
+        if (acc?.type !== 'credit_card') return false;
+        if (tx.transactionType === 'pago_tc' || tx.netAmount <= 0) return false;
+      }
+
+      return true;
+    });
+  }, [computedTransactions, filters, accounts, categoryMappings]);
+
+  // Handlers
+  const handleAutoAllocate = () => {
+    const updated = autoAllocatePayments(
+      transactions,
+      filters.accountId === 'ALL' ? undefined : filters.accountId
+    );
+    setTransactions(updated);
+  };
+
+  const handleResetDemo = () => {
+    if (window.confirm('¿Restablecer todos los datos a la cartola de ejemplo original?')) {
+      setAccounts(INITIAL_ACCOUNTS);
+      setTransactions(INITIAL_TRANSACTIONS);
+      setCategoryMappings(DEFAULT_CATEGORY_MAPPINGS);
+    }
+  };
+
+  const handleImportTransactions = (newTxs: Transaction[]) => {
+    setTransactions((prev) => [...newTxs, ...prev]);
+  };
+
+  const handleAddAccount = (newAcc: Account) => {
+    setAccounts((prev) => [...prev, newAcc]);
+  };
+
+  const handleDeleteAccount = (accId: string) => {
+    setAccounts((prev) => prev.filter((a) => a.id !== accId));
+    setTransactions((prev) => prev.filter((t) => t.accountId !== accId));
+  };
+
+  // Category & Subcategory Handlers
+  const handleAddCategory = (categoryName: string) => {
+    setCategoryMappings((prev) => [
+      ...prev,
+      {
+        id: `cat-${Date.now()}`,
+        name: categoryName,
+        subcategories: []
+      }
+    ]);
+  };
+
+  const handleAddSubcategory = (parentCategoryName: string, subcategoryName: string) => {
+    setCategoryMappings((prev) =>
+      prev.map((cat) => {
+        if (cat.name === parentCategoryName) {
+          if (!cat.subcategories.includes(subcategoryName)) {
+            return {
+              ...cat,
+              subcategories: [...cat.subcategories, subcategoryName]
+            };
+          }
+        }
+        return cat;
+      })
+    );
+  };
+
+  const handleDeleteCategory = (categoryId: string) => {
+    setCategoryMappings((prev) => prev.filter((c) => c.id !== categoryId));
+  };
+
+  const handleDeleteSubcategory = (parentCategoryName: string, subcategoryName: string) => {
+    setCategoryMappings((prev) =>
+      prev.map((cat) => {
+        if (cat.name === parentCategoryName) {
+          return {
+            ...cat,
+            subcategories: cat.subcategories.filter((s) => s !== subcategoryName)
+          };
+        }
+        return cat;
+      })
+    );
+  };
+
+  // Auto Rules & Budgets Handlers
+  const handleAddAutoRule = (newRule: AutoCategoryRule) => {
+    setAutoRules((prev) => [newRule, ...prev]);
+  };
+
+  const handleDeleteAutoRule = (ruleId: string) => {
+    setAutoRules((prev) => prev.filter((r) => r.id !== ruleId));
+  };
+
+  const handleApplyRulesToExisting = () => {
+    setTransactions((prev) =>
+      prev.map((tx) => {
+        const res = autoCategorize(tx.description, tx.amount, undefined, categoryMappings, autoRules);
+        return {
+          ...tx,
+          category: res.category,
+          subcategory: res.subcategory,
+          transactionType: res.transactionType
+        };
+      })
+    );
+  };
+
+  const handleSaveBudget = (categoryName: string, monthlyLimit: number) => {
+    setBudgets((prev) => {
+      const exists = prev.find((b) => b.categoryName === categoryName);
+      if (exists) {
+        return prev.map((b) => (b.categoryName === categoryName ? { ...b, monthlyLimit } : b));
+      }
+      return [...prev, { id: `b-${Date.now()}`, categoryName, monthlyLimit }];
+    });
+  };
+
+  const handleDeleteBudget = (budgetId: string) => {
+    setBudgets((prev) => prev.filter((b) => b.id !== budgetId));
+  };
+
+  const handleUpdateTransaction = (id: string, updates: Partial<Transaction>) => {
+    setTransactions((prev) =>
+      prev.map((tx) => (tx.id === id ? { ...tx, ...updates } : tx))
+    );
+  };
+
+  const handleDeleteTransaction = (id: string) => {
+    setTransactions((prev) => prev.filter((tx) => tx.id !== id));
+  };
+
+  const handleAddManualTransaction = (newTx: Transaction) => {
+    setTransactions((prev) => [newTx, ...prev]);
+  };
+
+  const handleAddAllocation = (purchaseId: string, paymentId: string, amount: number) => {
+    setTransactions((prev) => addPaymentAllocation(prev, purchaseId, paymentId, amount));
+  };
+
+  const handleRemoveAllocation = (purchaseId: string, allocationId: string) => {
+    setTransactions((prev) => removePaymentAllocation(prev, purchaseId, allocationId));
+  };
+
+  // Export to Excel
+  const handleExportExcel = () => {
+    const exportData = filteredTransactions.map((tx) => {
+      const acc = accounts.find((a) => a.id === tx.accountId);
+      return {
+        'ID Transacción': tx.id,
+        'Fecha': tx.date,
+        'Período Asignado': tx.period || tx.date.substring(0, 7),
+        'Cuenta / Tarjeta': acc?.name || 'N/A',
+        'Tipo Cuenta': acc?.type || 'N/A',
+        'Descripción': tx.description,
+        'Categoría General': tx.category,
+        'Subcategoría': tx.subcategory || tx.category,
+        'Tipo Transacción': tx.transactionType,
+        'Monto Cuota / Facturado': tx.amount,
+        'Monto Total Compra': tx.originalTotalAmount || tx.amount,
+        'Abonos / Pagos Asociados': tx.totalAllocated,
+        'Monto Real Utilizado': tx.netAmount,
+        'Estado Pago': tx.isFullyPaid ? 'Pagado Total' : tx.totalAllocated > 0 ? 'Pagado Parcial' : 'Pendiente'
+      };
+    });
+
+    const worksheet = XLSX.utils.json_to_sheet(exportData);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Movimientos');
+    XLSX.writeFile(workbook, `FinanzApp_Cartola_${new Date().toISOString().split('T')[0]}.xlsx`);
+  };
+
+  return (
+    <div className="min-h-screen bg-slate-50 text-slate-900 flex flex-col font-sans">
+      
+      {/* Header / Navbar */}
+      <Header
+        accounts={accounts}
+        activeAccountId={filters.accountId}
+        onSelectAccount={(id) => setFilters((prev) => ({ ...prev, accountId: id }))}
+        onOpenImport={() => setIsImportModalOpen(true)}
+        onOpenAccountModal={() => setIsAccountModalOpen(true)}
+        onOpenCategoryModal={() => setIsCategoryModalOpen(true)}
+        onOpenBudgetModal={() => setIsBudgetModalOpen(true)}
+        onAutoAllocate={handleAutoAllocate}
+        onResetDemo={handleResetDemo}
+        onExport={handleExportExcel}
+      />
+
+      {/* Main Container */}
+      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        
+        {/* Metric Cards Summary */}
+        <MetricCards
+          computedTransactions={computedTransactions}
+          accounts={accounts}
+          activeAccountId={filters.accountId}
+        />
+
+        {/* View Tabs */}
+        <div className="flex items-center justify-between border-b border-slate-200 mb-6 bg-white rounded-xl p-1 shadow-sm border">
+          <div className="flex space-x-1">
+            <button
+              onClick={() => setActiveTab('dashboard')}
+              className={`flex items-center gap-2 px-4 py-2 text-xs font-bold rounded-lg transition ${
+                activeTab === 'dashboard'
+                  ? 'bg-slate-900 text-white shadow-sm'
+                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+              }`}
+            >
+              <PieChart className="w-4 h-4" />
+              <span>Resumen & Gráficos</span>
+            </button>
+            <button
+              onClick={() => setActiveTab('transactions')}
+              className={`flex items-center gap-2 px-4 py-2 text-xs font-bold rounded-lg transition ${
+                activeTab === 'transactions'
+                  ? 'bg-slate-900 text-white shadow-sm'
+                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+              }`}
+            >
+              <ListFilter className="w-4 h-4" />
+              <span>Transacciones & Asociación de Pagos</span>
+            </button>
+          </div>
+
+          <div className="hidden sm:flex items-center text-xs text-slate-500 pr-3 gap-1">
+            <ShieldCheck className="w-4 h-4 text-emerald-600" />
+            <span>Monto Real Utilizado Calculado</span>
+          </div>
+        </div>
+
+        {/* Filters */}
+        <Filters
+          filters={filters}
+          accounts={accounts}
+          categoryMappings={categoryMappings}
+          availableMonths={availableMonths}
+          onChange={setFilters}
+          onReset={() =>
+            setFilters({
+              month: 'ALL',
+              accountId: 'ALL',
+              accountType: 'ALL',
+              transactionType: 'ALL',
+              categories: [],
+              subcategories: [],
+              searchQuery: '',
+              onlyPendingTC: false
+            })
+          }
+        />
+
+        {/* Tab Views */}
+        {activeTab === 'dashboard' ? (
+          <ChartsDashboard
+            computedTransactions={filteredTransactions}
+            accounts={accounts}
+            budgets={budgets}
+            onOpenBudgetModal={() => setIsBudgetModalOpen(true)}
+          />
+        ) : (
+          <TransactionTable
+            transactions={filteredTransactions}
+            accounts={accounts}
+            categoryMappings={categoryMappings}
+            onOpenPaymentModal={(p) => setSelectedPurchaseForPayment(p)}
+            onUpdateTransaction={handleUpdateTransaction}
+            onDeleteTransaction={handleDeleteTransaction}
+            onAddTransaction={handleAddManualTransaction}
+          />
+        )}
+
+      </main>
+
+      {/* Payment Association Modal */}
+      {selectedPurchaseForPayment && (
+        <PaymentModal
+          purchase={selectedPurchaseForPayment}
+          allTransactions={computedTransactions}
+          account={accounts.find((a) => a.id === selectedPurchaseForPayment.accountId)}
+          onClose={() => setSelectedPurchaseForPayment(null)}
+          onAddAllocation={handleAddAllocation}
+          onRemoveAllocation={handleRemoveAllocation}
+        />
+      )}
+
+      {/* Import Modal */}
+      {isImportModalOpen && (
+        <ImportModal
+          accounts={accounts}
+          onClose={() => setIsImportModalOpen(false)}
+          onImport={handleImportTransactions}
+        />
+      )}
+
+      {/* Account Manager Modal */}
+      {isAccountModalOpen && (
+        <AccountManagerModal
+          accounts={accounts}
+          onClose={() => setIsAccountModalOpen(false)}
+          onAddAccount={handleAddAccount}
+          onDeleteAccount={handleDeleteAccount}
+        />
+      )}
+
+      {/* Category & Subcategory Manager Modal */}
+      {isCategoryModalOpen && (
+        <CategoryManagerModal
+          categoryMappings={categoryMappings}
+          onClose={() => setIsCategoryModalOpen(false)}
+          onAddCategory={handleAddCategory}
+          onAddSubcategory={handleAddSubcategory}
+          onDeleteCategory={handleDeleteCategory}
+          onDeleteSubcategory={handleDeleteSubcategory}
+        />
+      )}
+
+      {/* Budget & Auto-Rules Manager Modal */}
+      {isBudgetModalOpen && (
+        <BudgetAndRulesModal
+          categoryMappings={categoryMappings}
+          autoRules={autoRules}
+          budgets={budgets}
+          onClose={() => setIsBudgetModalOpen(false)}
+          onAddRule={handleAddAutoRule}
+          onDeleteRule={handleDeleteAutoRule}
+          onApplyRulesToExisting={handleApplyRulesToExisting}
+          onSaveBudget={handleSaveBudget}
+          onDeleteBudget={handleDeleteBudget}
+        />
+      )}
+
+      {/* Footer */}
+      <footer className="bg-slate-900 text-slate-400 text-xs py-4 border-t border-slate-800 mt-auto">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+          <p>© 2026 FinanzApp - Control Inteligente de Cartolas Bancarias & Tarjetas de Crédito</p>
+        </div>
+      </footer>
+
+    </div>
+  );
+}
