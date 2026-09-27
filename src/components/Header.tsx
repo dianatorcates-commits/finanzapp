@@ -1,15 +1,18 @@
 import React from 'react';
-import { Wallet, Upload, CreditCard, RefreshCw, Link2, PlusCircle, Download, Tag, Sparkles } from 'lucide-react';
+import { Wallet, Upload, CreditCard, RefreshCw, Link2, PlusCircle, Download, Tag, Sparkles, User, LogOut, Cloud } from 'lucide-react';
 import { Account } from '../types';
 
 interface HeaderProps {
   accounts: Account[];
   activeAccountId: string;
+  currentUser?: any;
   onSelectAccount: (id: string) => void;
   onOpenImport: () => void;
   onOpenAccountModal: () => void;
   onOpenCategoryModal: () => void;
   onOpenBudgetModal: () => void;
+  onOpenAuthModal: () => void;
+  onSignOut: () => void;
   onAutoAllocate: () => void;
   onResetDemo: () => void;
   onExport: () => void;
@@ -18,11 +21,14 @@ interface HeaderProps {
 export const Header: React.FC<HeaderProps> = ({
   accounts,
   activeAccountId,
+  currentUser,
   onSelectAccount,
   onOpenImport,
   onOpenAccountModal,
   onOpenCategoryModal,
   onOpenBudgetModal,
+  onOpenAuthModal,
+  onSignOut,
   onAutoAllocate,
   onResetDemo,
   onExport
@@ -132,6 +138,29 @@ export const Header: React.FC<HeaderProps> = ({
             >
               <RefreshCw className="w-3.5 h-3.5" />
             </button>
+
+            {/* Auth / Cloud Login Button */}
+            {currentUser ? (
+              <div className="flex items-center gap-2 bg-sky-950/80 border border-sky-500/40 px-3 py-1.5 rounded-lg text-xs font-semibold text-sky-200">
+                <Cloud className="w-3.5 h-3.5 text-sky-400" />
+                <span className="max-w-[120px] truncate">{currentUser.email}</span>
+                <button
+                  onClick={onSignOut}
+                  title="Cerrar Sesión"
+                  className="text-slate-400 hover:text-rose-400 ml-1 p-0.5 rounded transition"
+                >
+                  <LogOut className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            ) : (
+              <button
+                onClick={onOpenAuthModal}
+                className="flex items-center gap-1.5 bg-sky-500 hover:bg-sky-400 text-slate-950 px-3 py-1.5 rounded-lg text-xs font-bold transition shadow-sm"
+              >
+                <User className="w-3.5 h-3.5" />
+                <span>Iniciar Sesión</span>
+              </button>
+            )}
 
           </div>
 

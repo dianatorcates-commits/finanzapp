@@ -4,6 +4,8 @@ import { Account, Transaction, ComputedTransaction, FilterState, CategoryMapping
 import { INITIAL_ACCOUNTS, INITIAL_TRANSACTIONS } from './utils/demoData';
 import { DEFAULT_CATEGORY_MAPPINGS, DEFAULT_AUTO_RULES, getParentCategory, autoCategorize } from './utils/categorizer';
 import { computeTransactions, autoAllocatePayments, addPaymentAllocation, removePaymentAllocation } from './utils/paymentAllocation';
+import { supabase } from './utils/supabaseClient';
+import { fetchUserData, syncLocalDataToCloud, signOutUser } from './services/supabaseService';
 import { Header } from './components/Header';
 import { MetricCards } from './components/MetricCards';
 import { Filters } from './components/Filters';
@@ -14,6 +16,7 @@ import { ImportModal } from './components/ImportModal';
 import { AccountManagerModal } from './components/AccountManagerModal';
 import { CategoryManagerModal } from './components/CategoryManagerModal';
 import { BudgetAndRulesModal } from './components/BudgetAndRulesModal';
+import { AuthModal } from './components/AuthModal';
 import { PieChart, ListFilter, ShieldCheck } from 'lucide-react';
 
 const STORAGE_KEY_ACCOUNTS = 'finanzapp_accounts_v1';
@@ -95,12 +98,52 @@ export function App() {
     onlyPendingTC: false
   });
 
+  // Auth & Cloud State
+  const [currentUser, setCurrentUser] = useState<any>(null);
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+
   // Modals state
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [isAccountModalOpen, setIsAccountModalOpen] = useState(false);
   const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
   const [isBudgetModalOpen, setIsBudgetModalOpen] = useState(false);
   const [selectedPurchaseForPayment, setSelectedPurchaseForPayment] = useState<ComputedTransaction | null>(null);
+
+  // Load cloud data from Supabase if user is logged in
+  const loadCloudData = async (userId: string) => {
+    try {
+      const data = await fetchUserData(userId);
+      if (data.accounts.length > 0) setAccounts(data.accounts);
+      if (data.categoryMappings.length > 0) setCategoryMappings(data.categoryMappings);
+      if (data.autoRules.length > 0) setAutoRules(data.autoRules);
+      if (data.budgets.length > 0) setBudgets(data.budgets);
+      if (data.transactions.length > 0) setTransactions(data.transactions);
+    } catch (err) {
+      console.error('Error al cargar datos desde Supabase:', err);
+    }
+  };
+
+  // Auth Listener
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      const user = session?.user ?? null;
+      setCurrentUser(user);
+      if (user) loadCloudData(user.id);
+    });
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      const user = session?.user ?? null;
+      setCurrentUser(user);
+      if (user) loadCloudData(user.id);
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
+
+  const handleSignOut = async () => {
+    await signOutUser();
+    setCurrentUser(null);
+  };
 
   // Normalize transactions dynamically to guarantee parent category & subcategory resolution
   const normalizedTransactions = useMemo(() => {
@@ -357,11 +400,14 @@ export function App() {
       <Header
         accounts={accounts}
         activeAccountId={filters.accountId}
+        currentUser={currentUser}
         onSelectAccount={(id) => setFilters((prev) => ({ ...prev, accountId: id }))}
         onOpenImport={() => setIsImportModalOpen(true)}
         onOpenAccountModal={() => setIsAccountModalOpen(true)}
         onOpenCategoryModal={() => setIsCategoryModalOpen(true)}
         onOpenBudgetModal={() => setIsBudgetModalOpen(true)}
+        onOpenAuthModal={() => setIsAuthModalOpen(true)}
+        onSignOut={handleSignOut}
         onAutoAllocate={handleAutoAllocate}
         onResetDemo={handleResetDemo}
         onExport={handleExportExcel}
@@ -508,6 +554,16 @@ export function App() {
           onApplyRulesToExisting={handleApplyRulesToExisting}
           onSaveBudget={handleSaveBudget}
           onDeleteBudget={handleDeleteBudget}
+        />
+      )}
+
+      {/* Auth Modal */}
+      {isAuthModalOpen && (
+        <AuthModal
+          onClose={() => setIsAuthModalOpen(false)}
+          onSuccess={() => {
+            setIsAuthModalOpen(false);
+          }}
         />
       )}
 
