@@ -7,8 +7,7 @@ import {
   CreditCard,
   Building2,
   AlertTriangle,
-  CheckSquare,
-  Square
+  RotateCcw
 } from 'lucide-react';
 import { ComputedTransaction, Account, CategoryMapping, TransactionType } from '../types';
 import { getParentCategory, TRANSACTION_TYPES } from '../utils/categorizer';
@@ -46,16 +45,18 @@ export const TransactionTable: React.FC<TransactionTableProps> = ({
   );
   const [newType, setNewType] = useState<TransactionType>('compra');
 
-  // Selection & Confirmation Modal State
+  // Selection & Bulk Modal State
   const [selectedTxIds, setSelectedTxIds] = useState<string[]>([]);
   const [deleteConfirmModal, setDeleteConfirmModal] = useState<{
     isOpen: boolean;
     idsToDelete: string[];
-    isBulk: boolean;
+    title: string;
+    message: string;
   }>({
     isOpen: false,
     idsToDelete: [],
-    isBulk: false
+    title: '',
+    message: ''
   });
 
   const allVisibleIds = React.useMemo(() => transactions.map((t) => t.id), [transactions]);
@@ -75,20 +76,45 @@ export const TransactionTable: React.FC<TransactionTableProps> = ({
     );
   };
 
-  const handleConfirmDelete = () => {
+  // Instant single row delete without popup dialogs
+  const handleSingleDelete = (id: string) => {
+    onDeleteTransaction(id);
+    setSelectedTxIds((prev) => prev.filter((i) => i !== id));
+  };
+
+  // Bulk delete confirmation execution
+  const handleConfirmBulkDelete = () => {
     const { idsToDelete } = deleteConfirmModal;
     if (idsToDelete.length === 0) return;
 
-    if (idsToDelete.length === 1) {
-      onDeleteTransaction(idsToDelete[0]);
-    } else if (onDeleteTransactionsBatch) {
+    if (onDeleteTransactionsBatch) {
       onDeleteTransactionsBatch(idsToDelete);
     } else {
       idsToDelete.forEach((id) => onDeleteTransaction(id));
     }
 
     setSelectedTxIds((prev) => prev.filter((id) => !idsToDelete.includes(id)));
-    setDeleteConfirmModal({ isOpen: false, idsToDelete: [], isBulk: false });
+    setDeleteConfirmModal({ isOpen: false, idsToDelete: [], title: '', message: '' });
+  };
+
+  const openBulkDeleteSelectedModal = () => {
+    if (selectedTxIds.length === 0) return;
+    setDeleteConfirmModal({
+      isOpen: true,
+      idsToDelete: selectedTxIds,
+      title: `¿Eliminar ${selectedTxIds.length} Movimientos Seleccionados?`,
+      message: `Vas a eliminar ${selectedTxIds.length} transacciones de forma masiva. Se borrarán inmediatamente de tu cuenta y base de datos.`
+    });
+  };
+
+  const openClearAllVisibleModal = () => {
+    if (allVisibleIds.length === 0) return;
+    setDeleteConfirmModal({
+      isOpen: true,
+      idsToDelete: allVisibleIds,
+      title: `¿Vaciar los ${allVisibleIds.length} Movimientos Visibles?`,
+      message: `Vas a eliminar todos los ${allVisibleIds.length} registros mostrados en esta vista. Se borrarán permanentemente.`
+    });
   };
 
   const handleAddSubmit = (e: React.FormEvent) => {
@@ -138,18 +164,31 @@ export const TransactionTable: React.FC<TransactionTableProps> = ({
             </span>
           </h2>
           <p className="text-xs text-slate-500 mt-0.5">
-            Asocia pagos a compras de TC para obtener el Monto Real Utilizado restante.
+            Asocia pagos a compras de TC o administra y borra movimientos masivamente.
           </p>
         </div>
 
         <div className="flex items-center gap-2 flex-wrap">
+          {/* Bulk Delete Selected Button */}
           {selectedTxIds.length > 0 && (
             <button
-              onClick={() => setDeleteConfirmModal({ isOpen: true, idsToDelete: selectedTxIds, isBulk: true })}
-              className="flex items-center gap-1.5 bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold px-3 py-2 rounded-lg transition shadow-sm animate-pulse"
+              onClick={openBulkDeleteSelectedModal}
+              className="flex items-center gap-1.5 bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold px-3 py-2 rounded-lg transition shadow-sm"
             >
               <Trash2 className="w-4 h-4" />
               <span>Eliminar Seleccionados ({selectedTxIds.length})</span>
+            </button>
+          )}
+
+          {/* Clear All Visible Transactions Button */}
+          {transactions.length > 0 && selectedTxIds.length === 0 && (
+            <button
+              onClick={openClearAllVisibleModal}
+              className="flex items-center gap-1.5 bg-slate-200 hover:bg-rose-100 text-slate-700 hover:text-rose-700 text-xs font-semibold px-3 py-2 rounded-lg transition border border-slate-300"
+              title="Borrar todas las transacciones mostradas en la tabla"
+            >
+              <Trash2 className="w-4 h-4 text-rose-600" />
+              <span>Vaciar Todo ({transactions.length})</span>
             </button>
           )}
 
@@ -266,8 +305,8 @@ export const TransactionTable: React.FC<TransactionTableProps> = ({
                   type="checkbox"
                   checked={isAllSelected}
                   onChange={toggleSelectAll}
-                  className="rounded text-sky-600 focus:ring-sky-500 cursor-pointer"
-                  title="Seleccionar / Deseleccionar Todos"
+                  className="rounded text-sky-600 focus:ring-sky-500 cursor-pointer w-4 h-4"
+                  title="Seleccionar Todos / Deseleccionar Todos"
                 />
               </th>
               <th className="py-3 px-4">Fecha / Período</th>
@@ -302,7 +341,7 @@ export const TransactionTable: React.FC<TransactionTableProps> = ({
                         type="checkbox"
                         checked={isSelected}
                         onChange={() => toggleSelectTx(tx.id)}
-                        className="rounded text-sky-600 focus:ring-sky-500 cursor-pointer"
+                        className="rounded text-sky-600 focus:ring-sky-500 cursor-pointer w-4 h-4"
                       />
                     </td>
 
@@ -445,9 +484,9 @@ export const TransactionTable: React.FC<TransactionTableProps> = ({
                           </button>
                         )}
                         <button
-                          onClick={() => setDeleteConfirmModal({ isOpen: true, idsToDelete: [tx.id], isBulk: false })}
+                          onClick={() => handleSingleDelete(tx.id)}
                           className="text-slate-400 hover:text-rose-600 p-1.5 hover:bg-rose-50 rounded-lg transition"
-                          title="Eliminar registro"
+                          title="Borrar inmediatamente de la lista"
                         >
                           <Trash2 className="w-3.5 h-3.5" />
                         </button>
@@ -467,7 +506,7 @@ export const TransactionTable: React.FC<TransactionTableProps> = ({
         </table>
       </div>
 
-      {/* Delete Confirmation Modal */}
+      {/* Single Bulk Delete Confirmation Modal (Used ONLY for multi-select or clear-all buttons) */}
       {deleteConfirmModal.isOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fadeIn">
           <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full border border-slate-200 overflow-hidden p-6 space-y-4">
@@ -476,32 +515,30 @@ export const TransactionTable: React.FC<TransactionTableProps> = ({
                 <AlertTriangle className="w-6 h-6" />
               </div>
               <div>
-                <h3 className="font-bold text-base text-slate-900">Confirmar Eliminación</h3>
-                <p className="text-xs text-slate-500">Esta acción no se puede deshacer</p>
+                <h3 className="font-bold text-base text-slate-900">{deleteConfirmModal.title}</h3>
+                <p className="text-xs text-slate-500">Confirmación de borrado masivo</p>
               </div>
             </div>
 
             <p className="text-xs text-slate-600 leading-relaxed bg-slate-50 p-3 rounded-xl border border-slate-200">
-              {deleteConfirmModal.idsToDelete.length === 1
-                ? '¿Estás seguro de que deseas eliminar este movimiento? Se borrará permanentemente de tu cuenta en la nube y local.'
-                : `¿Estás seguro de que deseas eliminar los ${deleteConfirmModal.idsToDelete.length} movimientos seleccionados? Se borrarán permanentemente de tu cuenta.`}
+              {deleteConfirmModal.message}
             </p>
 
             <div className="flex justify-end gap-2 pt-2">
               <button
                 type="button"
-                onClick={() => setDeleteConfirmModal({ isOpen: false, idsToDelete: [], isBulk: false })}
+                onClick={() => setDeleteConfirmModal({ isOpen: false, idsToDelete: [], title: '', message: '' })}
                 className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-xl transition"
               >
                 Cancelar
               </button>
               <button
                 type="button"
-                onClick={handleConfirmDelete}
+                onClick={handleConfirmBulkDelete}
                 className="px-4 py-2 bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold rounded-xl transition shadow-sm flex items-center gap-1.5"
               >
                 <Trash2 className="w-4 h-4" />
-                <span>Sí, Eliminar Definitivamente</span>
+                <span>Confirmar Borrado Masivo</span>
               </button>
             </div>
           </div>
