@@ -5,7 +5,10 @@ import {
   Plus,
   CheckCircle,
   CreditCard,
-  Building2
+  Building2,
+  AlertTriangle,
+  CheckSquare,
+  Square
 } from 'lucide-react';
 import { ComputedTransaction, Account, CategoryMapping, TransactionType } from '../types';
 import { getParentCategory, TRANSACTION_TYPES } from '../utils/categorizer';
@@ -18,6 +21,7 @@ interface TransactionTableProps {
   onOpenPaymentModal: (purchase: ComputedTransaction) => void;
   onUpdateTransaction: (id: string, updates: Partial<ComputedTransaction>) => void;
   onDeleteTransaction: (id: string) => void;
+  onDeleteTransactionsBatch?: (ids: string[]) => void;
   onAddTransaction: (newTx: any) => void;
 }
 
@@ -28,6 +32,7 @@ export const TransactionTable: React.FC<TransactionTableProps> = ({
   onOpenPaymentModal,
   onUpdateTransaction,
   onDeleteTransaction,
+  onDeleteTransactionsBatch,
   onAddTransaction
 }) => {
   const [showAddForm, setShowAddForm] = useState(false);
@@ -41,16 +46,50 @@ export const TransactionTable: React.FC<TransactionTableProps> = ({
   );
   const [newType, setNewType] = useState<TransactionType>('compra');
 
-  // Flatten all available subcategories for dropdowns
-  const allSubcategories = React.useMemo(() => {
-    const subs: { name: string; categoryName: string }[] = [];
-    categoryMappings.forEach((c) => {
-      c.subcategories.forEach((sub) => {
-        subs.push({ name: sub, categoryName: c.name });
-      });
-    });
-    return subs;
-  }, [categoryMappings]);
+  // Selection & Confirmation Modal State
+  const [selectedTxIds, setSelectedTxIds] = useState<string[]>([]);
+  const [deleteConfirmModal, setDeleteConfirmModal] = useState<{
+    isOpen: boolean;
+    idsToDelete: string[];
+    isBulk: boolean;
+  }>({
+    isOpen: false,
+    idsToDelete: [],
+    isBulk: false
+  });
+
+  const allVisibleIds = React.useMemo(() => transactions.map((t) => t.id), [transactions]);
+  const isAllSelected = allVisibleIds.length > 0 && allVisibleIds.every((id) => selectedTxIds.includes(id));
+
+  const toggleSelectAll = () => {
+    if (isAllSelected) {
+      setSelectedTxIds([]);
+    } else {
+      setSelectedTxIds(allVisibleIds);
+    }
+  };
+
+  const toggleSelectTx = (id: string) => {
+    setSelectedTxIds((prev) =>
+      prev.includes(id) ? prev.filter((i) => i !== id) : [...prev, id]
+    );
+  };
+
+  const handleConfirmDelete = () => {
+    const { idsToDelete } = deleteConfirmModal;
+    if (idsToDelete.length === 0) return;
+
+    if (idsToDelete.length === 1) {
+      onDeleteTransaction(idsToDelete[0]);
+    } else if (onDeleteTransactionsBatch) {
+      onDeleteTransactionsBatch(idsToDelete);
+    } else {
+      idsToDelete.forEach((id) => onDeleteTransaction(id));
+    }
+
+    setSelectedTxIds((prev) => prev.filter((id) => !idsToDelete.includes(id)));
+    setDeleteConfirmModal({ isOpen: false, idsToDelete: [], isBulk: false });
+  };
 
   const handleAddSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -103,13 +142,25 @@ export const TransactionTable: React.FC<TransactionTableProps> = ({
           </p>
         </div>
 
-        <button
-          onClick={() => setShowAddForm(!showAddForm)}
-          className="flex items-center gap-1.5 bg-slate-800 hover:bg-slate-700 text-white text-xs font-semibold px-3 py-2 rounded-lg transition shadow-sm self-start sm:self-auto"
-        >
-          <Plus className="w-4 h-4" />
-          <span>{showAddForm ? 'Cancelar' : 'Agregar Movimiento Manual'}</span>
-        </button>
+        <div className="flex items-center gap-2 flex-wrap">
+          {selectedTxIds.length > 0 && (
+            <button
+              onClick={() => setDeleteConfirmModal({ isOpen: true, idsToDelete: selectedTxIds, isBulk: true })}
+              className="flex items-center gap-1.5 bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold px-3 py-2 rounded-lg transition shadow-sm animate-pulse"
+            >
+              <Trash2 className="w-4 h-4" />
+              <span>Eliminar Seleccionados ({selectedTxIds.length})</span>
+            </button>
+          )}
+
+          <button
+            onClick={() => setShowAddForm(!showAddForm)}
+            className="flex items-center gap-1.5 bg-slate-800 hover:bg-slate-700 text-white text-xs font-semibold px-3 py-2 rounded-lg transition shadow-sm"
+          >
+            <Plus className="w-4 h-4" />
+            <span>{showAddForm ? 'Cancelar' : 'Agregar Movimiento Manual'}</span>
+          </button>
+        </div>
       </div>
 
       {/* Manual Add Form Drawer */}
@@ -210,6 +261,15 @@ export const TransactionTable: React.FC<TransactionTableProps> = ({
         <table className="w-full text-left text-xs border-collapse">
           <thead className="bg-slate-100 text-slate-500 uppercase tracking-wider text-[11px] font-semibold border-b border-slate-200">
             <tr>
+              <th className="py-3 px-3 text-center w-10">
+                <input
+                  type="checkbox"
+                  checked={isAllSelected}
+                  onChange={toggleSelectAll}
+                  className="rounded text-sky-600 focus:ring-sky-500 cursor-pointer"
+                  title="Seleccionar / Deseleccionar Todos"
+                />
+              </th>
               <th className="py-3 px-4">Fecha / Período</th>
               <th className="py-3 px-4">Cuenta / Tarjeta</th>
               <th className="py-3 px-4">Detalle / Comercio</th>
@@ -227,14 +287,25 @@ export const TransactionTable: React.FC<TransactionTableProps> = ({
                 const isCreditCard = account?.type === 'credit_card';
                 const isPurchase = tx.transactionType === 'compra' || tx.amount > 0;
                 const isPaymentOrIncome = tx.transactionType === 'pago_tc' || tx.transactionType === 'ingreso_venta' || tx.transactionType === 'transferencia_recibida';
+                const isSelected = selectedTxIds.includes(tx.id);
 
                 return (
                   <tr
                     key={tx.id}
                     className={`hover:bg-slate-50/80 transition ${
-                      tx.isFullyPaid ? 'bg-emerald-50/30' : ''
+                      isSelected ? 'bg-sky-50/60' : tx.isFullyPaid ? 'bg-emerald-50/30' : ''
                     }`}
                   >
+                    {/* Checkbox row selection */}
+                    <td className="py-3 px-3 text-center">
+                      <input
+                        type="checkbox"
+                        checked={isSelected}
+                        onChange={() => toggleSelectTx(tx.id)}
+                        className="rounded text-sky-600 focus:ring-sky-500 cursor-pointer"
+                      />
+                    </td>
+
                     {/* Date & Editable Assigned Period */}
                     <td className="py-3 px-4 font-mono text-slate-500 whitespace-nowrap">
                       <div className="font-semibold text-slate-800">{tx.date}</div>
@@ -374,7 +445,7 @@ export const TransactionTable: React.FC<TransactionTableProps> = ({
                           </button>
                         )}
                         <button
-                          onClick={() => onDeleteTransaction(tx.id)}
+                          onClick={() => setDeleteConfirmModal({ isOpen: true, idsToDelete: [tx.id], isBulk: false })}
                           className="text-slate-400 hover:text-rose-600 p-1.5 hover:bg-rose-50 rounded-lg transition"
                           title="Eliminar registro"
                         >
@@ -387,7 +458,7 @@ export const TransactionTable: React.FC<TransactionTableProps> = ({
               })
             ) : (
               <tr>
-                <td colSpan={8} className="py-12 text-center text-slate-400">
+                <td colSpan={9} className="py-12 text-center text-slate-400">
                   No hay movimientos cargados que coincidan con los filtros aplicados.
                 </td>
               </tr>
@@ -396,6 +467,48 @@ export const TransactionTable: React.FC<TransactionTableProps> = ({
         </table>
       </div>
 
+      {/* Delete Confirmation Modal */}
+      {deleteConfirmModal.isOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fadeIn">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full border border-slate-200 overflow-hidden p-6 space-y-4">
+            <div className="flex items-center gap-3">
+              <div className="p-3 bg-rose-50 text-rose-600 rounded-xl border border-rose-200">
+                <AlertTriangle className="w-6 h-6" />
+              </div>
+              <div>
+                <h3 className="font-bold text-base text-slate-900">Confirmar Eliminación</h3>
+                <p className="text-xs text-slate-500">Esta acción no se puede deshacer</p>
+              </div>
+            </div>
+
+            <p className="text-xs text-slate-600 leading-relaxed bg-slate-50 p-3 rounded-xl border border-slate-200">
+              {deleteConfirmModal.idsToDelete.length === 1
+                ? '¿Estás seguro de que deseas eliminar este movimiento? Se borrará permanentemente de tu cuenta en la nube y local.'
+                : `¿Estás seguro de que deseas eliminar los ${deleteConfirmModal.idsToDelete.length} movimientos seleccionados? Se borrarán permanentemente de tu cuenta.`}
+            </p>
+
+            <div className="flex justify-end gap-2 pt-2">
+              <button
+                type="button"
+                onClick={() => setDeleteConfirmModal({ isOpen: false, idsToDelete: [], isBulk: false })}
+                className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-xl transition"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmDelete}
+                className="px-4 py-2 bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold rounded-xl transition shadow-sm flex items-center gap-1.5"
+              >
+                <Trash2 className="w-4 h-4" />
+                <span>Sí, Eliminar Definitivamente</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 };
+

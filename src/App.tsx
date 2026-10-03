@@ -11,6 +11,7 @@ import {
   signOutUser,
   deleteCloudAccount,
   deleteCloudTransaction,
+  deleteCloudTransactionsBatch,
   deleteCloudCategory,
   deleteCloudRule,
   deleteCloudBudget
@@ -185,6 +186,13 @@ export function App() {
     await signOutUser();
     setCurrentUser(null);
     setViewMode('landing');
+    // Clear user local storage keys so old state doesn't persist
+    localStorage.removeItem(STORAGE_KEY_ACCOUNTS);
+    localStorage.removeItem(STORAGE_KEY_TRANSACTIONS);
+    localStorage.removeItem(STORAGE_KEY_CATEGORY_MAPPINGS);
+    localStorage.removeItem(STORAGE_KEY_AUTO_RULES);
+    localStorage.removeItem(STORAGE_KEY_BUDGETS);
+
     // Reset state to original demo state
     setAccounts(INITIAL_ACCOUNTS);
     setTransactions(INITIAL_TRANSACTIONS);
@@ -405,9 +413,19 @@ export function App() {
     );
   };
 
-  const handleDeleteTransaction = (id: string) => {
-    if (currentUser) deleteCloudTransaction(currentUser.id, id);
+  const handleDeleteTransaction = async (id: string) => {
+    if (currentUser) {
+      await deleteCloudTransaction(currentUser.id, id);
+    }
     setTransactions((prev) => prev.filter((tx) => tx.id !== id));
+  };
+
+  const handleDeleteTransactionsBatch = async (ids: string[]) => {
+    if (!ids || ids.length === 0) return;
+    if (currentUser) {
+      await deleteCloudTransactionsBatch(currentUser.id, ids);
+    }
+    setTransactions((prev) => prev.filter((tx) => !ids.includes(tx.id)));
   };
 
   const handleAddManualTransaction = (newTx: Transaction) => {
@@ -570,6 +588,7 @@ export function App() {
             onOpenPaymentModal={(p) => setSelectedPurchaseForPayment(p)}
             onUpdateTransaction={handleUpdateTransaction}
             onDeleteTransaction={handleDeleteTransaction}
+            onDeleteTransactionsBatch={handleDeleteTransactionsBatch}
             onAddTransaction={handleAddManualTransaction}
           />
         )}

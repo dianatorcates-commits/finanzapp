@@ -237,22 +237,37 @@ export async function syncLocalDataToCloud(
 }
 
 export async function deleteCloudAccount(userId: string, accountId: string) {
-  await supabase.from('accounts').delete().eq('id', accountId).eq('user_id', userId);
+  const { error: txErr } = await supabase.from('transactions').delete().eq('account_id', accountId).eq('user_id', userId);
+  if (txErr) console.error('Error deleting account transactions from cloud:', txErr);
+
+  const { error } = await supabase.from('accounts').delete().eq('id', accountId).eq('user_id', userId);
+  if (error) console.error('Error deleting account from cloud:', error);
 }
 
 export async function deleteCloudTransaction(userId: string, txId: string) {
-  await supabase.from('transactions').delete().eq('id', txId).eq('user_id', userId);
+  const { error } = await supabase.from('transactions').delete().eq('id', txId).eq('user_id', userId);
+  if (error) console.error('Error deleting transaction from cloud:', error);
+}
+
+export async function deleteCloudTransactionsBatch(userId: string, txIds: string[]) {
+  if (!txIds || txIds.length === 0) return;
+  const { error } = await supabase.from('transactions').delete().in('id', txIds).eq('user_id', userId);
+  if (error) console.error('Error batch deleting transactions from cloud:', error);
 }
 
 export async function deleteCloudCategory(userId: string, categoryId: string) {
-  await supabase.from('category_mappings').delete().eq('id', categoryId).eq('user_id', userId);
+  const { error } = await supabase.from('category_mappings').delete().eq('id', categoryId).eq('user_id', userId);
+  if (error) console.error('Error deleting category from cloud:', error);
 }
 
 export async function deleteCloudRule(userId: string, ruleId: string) {
-  await supabase.from('auto_rules').delete().eq('id', ruleId).eq('user_id', userId);
+  const { error } = await supabase.from('auto_rules').delete().eq('id', ruleId).eq('user_id', userId);
+  if (error) console.error('Error deleting auto_rule from cloud:', error);
 }
 
 export async function deleteCloudBudget(userId: string, budgetId: string) {
-  await supabase.from('category_budgets').delete().eq('id', budgetId).eq('user_id', userId);
+  const { error } = await supabase.from('category_budgets').delete().eq('id', budgetId).eq('user_id', userId);
+  if (error) console.error('Error deleting budget from cloud:', error);
 }
+
 
