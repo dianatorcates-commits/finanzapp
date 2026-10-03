@@ -251,8 +251,12 @@ export async function deleteCloudTransaction(userId: string, txId: string) {
 
 export async function deleteCloudTransactionsBatch(userId: string, txIds: string[]) {
   if (!txIds || txIds.length === 0) return;
-  const { error } = await supabase.from('transactions').delete().in('id', txIds).eq('user_id', userId);
-  if (error) console.error('Error batch deleting transactions from cloud:', error);
+  const CHUNK_SIZE = 100;
+  for (let i = 0; i < txIds.length; i += CHUNK_SIZE) {
+    const chunk = txIds.slice(i, i + CHUNK_SIZE);
+    const { error } = await supabase.from('transactions').delete().in('id', chunk).eq('user_id', userId);
+    if (error) console.error('Error batch deleting transactions chunk from cloud:', error);
+  }
 }
 
 export async function deleteCloudCategory(userId: string, categoryId: string) {

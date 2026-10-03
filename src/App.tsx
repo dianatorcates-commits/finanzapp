@@ -138,14 +138,18 @@ export function App() {
   const loadCloudData = async (userId: string) => {
     try {
       const data = await fetchUserData(userId);
-      if (data.accounts.length > 0) {
+      const cloudSyncedKey = `finanzapp_cloud_synced_${userId}`;
+      const isCloudSynced = localStorage.getItem(cloudSyncedKey);
+
+      if (isCloudSynced || data.accounts.length > 0 || data.transactions.length > 0) {
         setAccounts(data.accounts);
-        setCategoryMappings(data.categoryMappings);
-        setAutoRules(data.autoRules);
+        setCategoryMappings(data.categoryMappings.length > 0 ? data.categoryMappings : DEFAULT_CATEGORY_MAPPINGS);
+        setAutoRules(data.autoRules.length > 0 ? data.autoRules : DEFAULT_AUTO_RULES);
         setBudgets(data.budgets);
         setTransactions(data.transactions);
+        localStorage.setItem(cloudSyncedKey, 'true');
       } else {
-        // If cloud data is empty (first login), migrate current local state to cloud
+        // If cloud data is empty (first login ever), migrate current local state to cloud
         await syncLocalDataToCloud(userId, {
           accounts,
           categoryMappings,
@@ -153,6 +157,7 @@ export function App() {
           budgets,
           transactions
         });
+        localStorage.setItem(cloudSyncedKey, 'true');
       }
     } catch (err) {
       console.error('Error al cargar/sincronizar datos desde Supabase:', err);
@@ -315,8 +320,10 @@ export function App() {
     setAccounts((prev) => [...prev, newAcc]);
   };
 
-  const handleDeleteAccount = (accId: string) => {
-    if (currentUser) deleteCloudAccount(currentUser.id, accId);
+  const handleDeleteAccount = async (accId: string) => {
+    if (currentUser) {
+      await deleteCloudAccount(currentUser.id, accId);
+    }
     setAccounts((prev) => prev.filter((a) => a.id !== accId));
     setTransactions((prev) => prev.filter((t) => t.accountId !== accId));
   };
@@ -349,8 +356,10 @@ export function App() {
     );
   };
 
-  const handleDeleteCategory = (categoryId: string) => {
-    if (currentUser) deleteCloudCategory(currentUser.id, categoryId);
+  const handleDeleteCategory = async (categoryId: string) => {
+    if (currentUser) {
+      await deleteCloudCategory(currentUser.id, categoryId);
+    }
     setCategoryMappings((prev) => prev.filter((c) => c.id !== categoryId));
   };
 
@@ -373,8 +382,10 @@ export function App() {
     setAutoRules((prev) => [newRule, ...prev]);
   };
 
-  const handleDeleteAutoRule = (ruleId: string) => {
-    if (currentUser) deleteCloudRule(currentUser.id, ruleId);
+  const handleDeleteAutoRule = async (ruleId: string) => {
+    if (currentUser) {
+      await deleteCloudRule(currentUser.id, ruleId);
+    }
     setAutoRules((prev) => prev.filter((r) => r.id !== ruleId));
   };
 
@@ -402,8 +413,10 @@ export function App() {
     });
   };
 
-  const handleDeleteBudget = (budgetId: string) => {
-    if (currentUser) deleteCloudBudget(currentUser.id, budgetId);
+  const handleDeleteBudget = async (budgetId: string) => {
+    if (currentUser) {
+      await deleteCloudBudget(currentUser.id, budgetId);
+    }
     setBudgets((prev) => prev.filter((b) => b.id !== budgetId));
   };
 
