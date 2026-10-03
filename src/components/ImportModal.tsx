@@ -6,16 +6,23 @@ import { formatCLP } from './MetricCards';
 
 interface ImportModalProps {
   accounts: Account[];
+  initialAccountId?: string;
   onClose: () => void;
   onImport: (newTransactions: Transaction[]) => void;
 }
 
 export const ImportModal: React.FC<ImportModalProps> = ({
   accounts,
+  initialAccountId,
   onClose,
   onImport
 }) => {
-  const [selectedAccountId, setSelectedAccountId] = useState<string>(accounts[0]?.id || '');
+  const [selectedAccountId, setSelectedAccountId] = useState<string>(() => {
+    if (initialAccountId && accounts.some((a) => a.id === initialAccountId)) {
+      return initialAccountId;
+    }
+    return accounts[0]?.id || '';
+  });
   const [activeTab, setActiveTab] = useState<'file' | 'text'>('file');
   const [rawText, setRawText] = useState<string>('');
   const [parsedPreview, setParsedPreview] = useState<Transaction[]>([]);
@@ -25,6 +32,25 @@ export const ImportModal: React.FC<ImportModalProps> = ({
   const [bulkPeriodInput, setBulkPeriodInput] = useState<string>('');
 
   const targetAccount = accounts.find((a) => a.id === selectedAccountId);
+
+  const handleAccountChange = (newAccountId: string) => {
+    setSelectedAccountId(newAccountId);
+    const newTarget = accounts.find((a) => a.id === newAccountId);
+    if (newTarget) {
+      setParsedPreview((prev) =>
+        prev.map((tx) => ({
+          ...tx,
+          accountId: newAccountId,
+          transactionType:
+            tx.transactionType === 'pago_tc' && newTarget.type !== 'credit_card'
+              ? 'ingreso_venta'
+              : tx.transactionType === 'ingreso_venta' && newTarget.type === 'credit_card'
+              ? 'pago_tc'
+              : tx.transactionType
+        }))
+      );
+    }
+  };
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -44,7 +70,9 @@ export const ImportModal: React.FC<ImportModalProps> = ({
         const text = await file.text();
         txs = parseRawText(text, selectedAccountId, targetAccount.type);
       }
-      setParsedPreview(txs);
+      // Ensure all transactions have selectedAccountId explicitly
+      const fixedTxs = txs.map((t) => ({ ...t, accountId: selectedAccountId }));
+      setParsedPreview(fixedTxs);
     } catch (err) {
       alert('Error al leer el archivo. Revisa el formato e intenta de nuevo.');
       console.error(err);
@@ -56,7 +84,8 @@ export const ImportModal: React.FC<ImportModalProps> = ({
   const handleParseText = () => {
     if (!rawText.trim() || !selectedAccountId || !targetAccount) return;
     const txs = parseRawText(rawText, selectedAccountId, targetAccount.type);
-    setParsedPreview(txs);
+    const fixedTxs = txs.map((t) => ({ ...t, accountId: selectedAccountId }));
+    setParsedPreview(fixedTxs);
   };
 
   const handleApplyBulkPeriod = () => {
@@ -77,8 +106,12 @@ export const ImportModal: React.FC<ImportModalProps> = ({
   };
 
   const handleConfirmImport = () => {
-    if (parsedPreview.length === 0) return;
-    onImport(parsedPreview);
+    if (parsedPreview.length === 0 || !selectedAccountId) return;
+    const finalTransactions = parsedPreview.map((tx) => ({
+      ...tx,
+      accountId: selectedAccountId
+    }));
+    onImport(finalTransactions);
     onClose();
   };
 
@@ -113,7 +146,7 @@ export const ImportModal: React.FC<ImportModalProps> = ({
             </label>
             <select
               value={selectedAccountId}
-              onChange={(e) => setSelectedAccountId(e.target.value)}
+              onChange={(e) => handleAccountChange(e.target.value)}
               className="w-full py-2 px-3 text-xs bg-white border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-sky-500/20 font-medium text-slate-800"
             >
               {accounts.map((acc) => (
