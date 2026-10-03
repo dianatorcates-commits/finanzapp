@@ -32,6 +32,7 @@ export const TransactionTable: React.FC<TransactionTableProps> = ({
 }) => {
   const [showAddForm, setShowAddForm] = useState(false);
   const [newDate, setNewDate] = useState(new Date().toISOString().split('T')[0]);
+  const [newPeriod, setNewPeriod] = useState(new Date().toISOString().split('T')[0].slice(0, 7));
   const [newAccountId, setNewAccountId] = useState(accounts[0]?.id || '');
   const [newDesc, setNewDesc] = useState('');
   const [newAmount, setNewAmount] = useState('');
@@ -62,6 +63,7 @@ export const TransactionTable: React.FC<TransactionTableProps> = ({
       id: `tx-man-${Date.now()}`,
       accountId: newAccountId,
       date: newDate,
+      period: newPeriod || newDate.slice(0, 7),
       description: newDesc.trim(),
       rawDescription: newDesc.trim(),
       amount: Math.abs(numAmount),
@@ -112,15 +114,29 @@ export const TransactionTable: React.FC<TransactionTableProps> = ({
 
       {/* Manual Add Form Drawer */}
       {showAddForm && (
-        <form onSubmit={handleAddSubmit} className="p-4 bg-sky-50/60 border-b border-sky-200 grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+        <form onSubmit={handleAddSubmit} className="p-4 bg-sky-50/60 border-b border-sky-200 grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-7 gap-3">
           <div>
-            <label className="block text-[11px] font-semibold text-slate-600 mb-1">Fecha</label>
+            <label className="block text-[11px] font-semibold text-slate-600 mb-1">Fecha Compra</label>
             <input
               type="date"
               required
               value={newDate}
-              onChange={(e) => setNewDate(e.target.value)}
+              onChange={(e) => {
+                setNewDate(e.target.value);
+                setNewPeriod(e.target.value.slice(0, 7));
+              }}
               className="w-full text-xs py-1.5 px-2 bg-white border border-slate-300 rounded-lg focus:outline-none"
+            />
+          </div>
+
+          <div>
+            <label className="block text-[11px] font-semibold text-slate-600 mb-1">Mes-Período</label>
+            <input
+              type="month"
+              required
+              value={newPeriod}
+              onChange={(e) => setNewPeriod(e.target.value)}
+              className="w-full text-xs py-1.5 px-2 bg-white border border-slate-300 rounded-lg focus:outline-none font-mono"
             />
           </div>
 
@@ -183,7 +199,7 @@ export const TransactionTable: React.FC<TransactionTableProps> = ({
               type="submit"
               className="w-full bg-sky-600 hover:bg-sky-500 text-white font-bold py-1.5 px-3 rounded-lg text-xs transition shadow-sm"
             >
-              Guardar Movimiento
+              Guardar
             </button>
           </div>
         </form>
@@ -194,7 +210,7 @@ export const TransactionTable: React.FC<TransactionTableProps> = ({
         <table className="w-full text-left text-xs border-collapse">
           <thead className="bg-slate-100 text-slate-500 uppercase tracking-wider text-[11px] font-semibold border-b border-slate-200">
             <tr>
-              <th className="py-3 px-4">Fecha</th>
+              <th className="py-3 px-4">Fecha / Período</th>
               <th className="py-3 px-4">Cuenta / Tarjeta</th>
               <th className="py-3 px-4">Detalle / Comercio</th>
               <th className="py-3 px-4">Categoría / Subcategoría</th>
@@ -219,14 +235,19 @@ export const TransactionTable: React.FC<TransactionTableProps> = ({
                       tx.isFullyPaid ? 'bg-emerald-50/30' : ''
                     }`}
                   >
-                    {/* Date & Assigned Period */}
+                    {/* Date & Editable Assigned Period */}
                     <td className="py-3 px-4 font-mono text-slate-500 whitespace-nowrap">
-                      <div>{tx.date}</div>
-                      {tx.period && (
-                        <span className="inline-block mt-0.5 text-[10px] font-semibold text-sky-700 bg-sky-50 px-1.5 rounded border border-sky-200" title="Mes-Período asignado en el estado de cuenta">
-                          Mes: {tx.period}
-                        </span>
-                      )}
+                      <div className="font-semibold text-slate-800">{tx.date}</div>
+                      <div className="mt-1 flex items-center gap-1">
+                        <span className="text-[10px] text-slate-400 font-sans">Mes:</span>
+                        <input
+                          type="month"
+                          value={tx.period || tx.date.slice(0, 7)}
+                          onChange={(e) => onUpdateTransaction(tx.id, { period: e.target.value })}
+                          className="text-[10px] font-mono py-0.5 px-1 bg-sky-50 hover:bg-sky-100 border border-sky-300 text-sky-900 font-bold rounded focus:outline-none cursor-pointer"
+                          title="Haz clic para modificar el Mes-Período de facturación de esta cuota/compra"
+                        />
+                      </div>
                     </td>
 
                     {/* Account */}

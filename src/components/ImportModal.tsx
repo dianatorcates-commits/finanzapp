@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, Upload, FileText, FileSpreadsheet, Check, Sparkles } from 'lucide-react';
+import { X, Upload, FileText, FileSpreadsheet, Check, Sparkles, HelpCircle, Calendar } from 'lucide-react';
 import { Account, Transaction } from '../types';
 import { parseCSVFile, parseExcelFile, parseRawText } from '../utils/parser';
 import { formatCLP } from './MetricCards';
@@ -21,6 +21,8 @@ export const ImportModal: React.FC<ImportModalProps> = ({
   const [parsedPreview, setParsedPreview] = useState<Transaction[]>([]);
   const [isProcessing, setIsProcessing] = useState<boolean>(false);
   const [fileName, setFileName] = useState<string>('');
+  const [showFormatGuide, setShowFormatGuide] = useState<boolean>(false);
+  const [bulkPeriodInput, setBulkPeriodInput] = useState<string>('');
 
   const targetAccount = accounts.find((a) => a.id === selectedAccountId);
 
@@ -57,6 +59,23 @@ export const ImportModal: React.FC<ImportModalProps> = ({
     setParsedPreview(txs);
   };
 
+  const handleApplyBulkPeriod = () => {
+    if (!bulkPeriodInput.trim()) return;
+    const formatted = bulkPeriodInput.trim();
+    setParsedPreview((prev) =>
+      prev.map((tx) => ({
+        ...tx,
+        period: formatted
+      }))
+    );
+  };
+
+  const handleUpdatePreviewRow = (id: string, updates: Partial<Transaction>) => {
+    setParsedPreview((prev) =>
+      prev.map((tx) => (tx.id === id ? { ...tx, ...updates } : tx))
+    );
+  };
+
   const handleConfirmImport = () => {
     if (parsedPreview.length === 0) return;
     onImport(parsedPreview);
@@ -65,7 +84,7 @@ export const ImportModal: React.FC<ImportModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
-      <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full border border-slate-200 overflow-hidden flex flex-col max-h-[90vh]">
+      <div className="bg-white rounded-2xl shadow-2xl max-w-3xl w-full border border-slate-200 overflow-hidden flex flex-col max-h-[90vh]">
         
         {/* Header */}
         <div className="bg-slate-900 text-white p-4 flex items-center justify-between">
@@ -86,23 +105,80 @@ export const ImportModal: React.FC<ImportModalProps> = ({
           </button>
         </div>
 
-        {/* Account Picker */}
-        <div className="p-4 bg-slate-50 border-b border-slate-200">
-          <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
-            Cuenta o Tarjeta Destino
-          </label>
-          <select
-            value={selectedAccountId}
-            onChange={(e) => setSelectedAccountId(e.target.value)}
-            className="w-full py-2 px-3 text-xs bg-white border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-sky-500/20 font-medium text-slate-800"
+        {/* Account Picker & Format Guide Toggle */}
+        <div className="p-4 bg-slate-50 border-b border-slate-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+          <div className="w-full sm:w-2/3">
+            <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+              Cuenta o Tarjeta Destino
+            </label>
+            <select
+              value={selectedAccountId}
+              onChange={(e) => setSelectedAccountId(e.target.value)}
+              className="w-full py-2 px-3 text-xs bg-white border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-sky-500/20 font-medium text-slate-800"
+            >
+              {accounts.map((acc) => (
+                <option key={acc.id} value={acc.id}>
+                  {acc.type === 'credit_card' ? '💳 TC: ' : '🏦 '} {acc.name} ({acc.bank})
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => setShowFormatGuide(!showFormatGuide)}
+            className="flex items-center gap-1.5 text-xs text-sky-700 bg-sky-50 hover:bg-sky-100 px-3 py-2 rounded-xl border border-sky-200 font-semibold transition self-end sm:self-auto"
           >
-            {accounts.map((acc) => (
-              <option key={acc.id} value={acc.id}>
-                {acc.type === 'credit_card' ? '💳 TC: ' : '🏦 '} {acc.name} ({acc.bank})
-              </option>
-            ))}
-          </select>
+            <HelpCircle className="w-4 h-4 text-sky-600" />
+            <span>{showFormatGuide ? 'Ocultar Guía de Formato' : 'Ver Formato Recomendado'}</span>
+          </button>
         </div>
+
+        {/* Format Guide Drawer */}
+        {showFormatGuide && (
+          <div className="p-4 bg-sky-50/80 border-b border-sky-200 space-y-3 text-xs text-slate-700">
+            <div className="flex items-center justify-between">
+              <h4 className="font-bold text-slate-900 flex items-center gap-1.5">
+                <span>📋 Formato Base de Cartola Recomendado</span>
+              </h4>
+              <span className="text-[11px] text-sky-800 bg-sky-100 px-2 py-0.5 rounded-full font-medium">
+                Detección Inteligente de Columnas
+              </span>
+            </div>
+            <p className="text-slate-600 leading-relaxed">
+              FinanzApp reconoce automáticamente los encabezados de los principales bancos chilenos. Tu archivo CSV o Excel debe contener al menos las siguientes columnas clave:
+            </p>
+            
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 font-mono text-[11px]">
+              <div className="bg-white p-2.5 rounded-lg border border-sky-200">
+                <span className="font-bold text-sky-900 block">📅 1. Fecha (Obligatorio)</span>
+                <span className="text-slate-500 text-[10px]">Encabezados: Fecha, F.Transacción, Fecha Operación</span>
+                <span className="text-emerald-700 font-bold block mt-1">Ej: 15/09/2026, 2026-09-15</span>
+              </div>
+              <div className="bg-white p-2.5 rounded-lg border border-sky-200">
+                <span className="font-bold text-sky-900 block">📝 2. Descripción (Obligatorio)</span>
+                <span className="text-slate-500 text-[10px]">Encabezados: Descripción, Detalle, Glosa, Comercio</span>
+                <span className="text-slate-800 font-semibold block mt-1">Ej: SUPERMERCADO JUMBO</span>
+              </div>
+              <div className="bg-white p-2.5 rounded-lg border border-sky-200">
+                <span className="font-bold text-sky-900 block">💰 3. Monto / Cargo (Obligatorio)</span>
+                <span className="text-slate-500 text-[10px]">Encabezados: Monto, Valor, Cargo, Abono, Importe</span>
+                <span className="text-slate-900 font-bold block mt-1">Ej: 45.900, -50.000</span>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 font-mono text-[11px] pt-1">
+              <div className="bg-white p-2.5 rounded-lg border border-slate-200">
+                <span className="font-bold text-slate-800 block">🔢 4. Cuotas (Opcional)</span>
+                <span className="text-slate-500 text-[10px]">Encabezados: Cuotas, Nro Cuota (ej: 02/06)</span>
+              </div>
+              <div className="bg-white p-2.5 rounded-lg border border-slate-200">
+                <span className="font-bold text-slate-800 block">🗓️ 5. Mes-Período (Opcional)</span>
+                <span className="text-slate-500 text-[10px]">Encabezados: Mes-Periodo, Período, Ciclo (ej: 2026-03)</span>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Tabs */}
         <div className="flex border-b border-slate-200 bg-white px-4 pt-2">
@@ -144,7 +220,7 @@ export const ImportModal: React.FC<ImportModalProps> = ({
               <p className="text-xs font-bold text-slate-700">Arrastra tu cartola o haz clic para seleccionar</p>
               <p className="text-[11px] text-slate-400 mt-1">Soporta CSV, Excel (.xlsx, .xls) o texto simple</p>
               {fileName && (
-                <p className="mt-3 text-xs font-semibold text-emerald-600 bg-emerald-50 px-3 py-1 rounded-full inline-block">
+                <p className="mt-3 text-xs font-semibold text-emerald-600 bg-emerald-50 px-3 py-1 rounded-full inline-block border border-emerald-200">
                   📄 {fileName}
                 </p>
               )}
@@ -155,7 +231,7 @@ export const ImportModal: React.FC<ImportModalProps> = ({
                 Pega aquí las líneas copiadas del PDF o sitio web de tu banco:
               </label>
               <textarea
-                rows={6}
+                rows={5}
                 placeholder="Ejemplo:&#10;15/09/2026 UBER TRIPS SANTIAGO 8.500&#10;16/09/2026 SUPERMERCADO JUMBO 45.900&#10;18/09/2026 PAGO TC SANTANDER -50.000"
                 value={rawText}
                 onChange={(e) => setRawText(e.target.value)}
@@ -171,21 +247,44 @@ export const ImportModal: React.FC<ImportModalProps> = ({
             </div>
           )}
 
-          {/* Parsed Preview Table */}
+          {/* Parsed Preview Table with Period & Date Edit */}
           {parsedPreview.length > 0 && (
-            <div className="mt-4 pt-4 border-t border-slate-200">
-              <div className="flex items-center justify-between mb-2">
+            <div className="mt-4 pt-4 border-t border-slate-200 space-y-3">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 bg-sky-50/50 p-3 rounded-xl border border-sky-100">
                 <h4 className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
                   <Sparkles className="w-4 h-4 text-sky-500" />
-                  <span>Vista Previa de Transacciones Detectadas ({parsedPreview.length})</span>
+                  <span>Transacciones Detectadas ({parsedPreview.length})</span>
                 </h4>
+
+                {/* Bulk Period Selector */}
+                <div className="flex items-center gap-2">
+                  <span className="text-[11px] font-semibold text-slate-600 flex items-center gap-1">
+                    <Calendar className="w-3.5 h-3.5 text-sky-600" />
+                    <span>Asignar Período Masivo:</span>
+                  </span>
+                  <input
+                    type="month"
+                    value={bulkPeriodInput}
+                    onChange={(e) => setBulkPeriodInput(e.target.value)}
+                    className="text-xs py-1 px-2 bg-white border border-slate-300 rounded-lg focus:outline-none font-mono"
+                  />
+                  <button
+                    type="button"
+                    onClick={handleApplyBulkPeriod}
+                    disabled={!bulkPeriodInput}
+                    className="text-xs font-bold bg-sky-600 hover:bg-sky-500 disabled:bg-slate-300 text-white px-2.5 py-1 rounded-lg transition"
+                  >
+                    Aplicar
+                  </button>
+                </div>
               </div>
 
-              <div className="max-h-48 overflow-y-auto border border-slate-200 rounded-xl">
+              <div className="max-h-56 overflow-y-auto border border-slate-200 rounded-xl">
                 <table className="w-full text-left text-xs text-slate-700">
-                  <thead className="bg-slate-100 text-[11px] font-semibold text-slate-500 uppercase sticky top-0">
+                  <thead className="bg-slate-100 text-[11px] font-semibold text-slate-500 uppercase sticky top-0 z-10">
                     <tr>
-                      <th className="px-3 py-2">Fecha</th>
+                      <th className="px-3 py-2">Fecha Compra</th>
+                      <th className="px-3 py-2">Mes-Período</th>
                       <th className="px-3 py-2">Descripción</th>
                       <th className="px-3 py-2">Categoría</th>
                       <th className="px-3 py-2 text-right">Monto</th>
@@ -194,15 +293,44 @@ export const ImportModal: React.FC<ImportModalProps> = ({
                   <tbody className="divide-y divide-slate-100">
                     {parsedPreview.map((tx) => (
                       <tr key={tx.id} className="hover:bg-slate-50">
-                        <td className="px-3 py-2 text-[11px] font-mono">{tx.date}</td>
-                        <td className="px-3 py-2 font-medium truncate max-w-[180px]">{tx.description}</td>
+                        {/* Editable Date */}
+                        <td className="px-3 py-2 whitespace-nowrap">
+                          <input
+                            type="date"
+                            value={tx.date}
+                            onChange={(e) => handleUpdatePreviewRow(tx.id, { date: e.target.value })}
+                            className="text-[11px] font-mono py-0.5 px-1.5 bg-white border border-slate-300 rounded focus:outline-none"
+                          />
+                        </td>
+
+                        {/* Editable Period (YYYY-MM) */}
+                        <td className="px-3 py-2 whitespace-nowrap">
+                          <input
+                            type="month"
+                            value={tx.period || tx.date.slice(0, 7)}
+                            onChange={(e) => handleUpdatePreviewRow(tx.id, { period: e.target.value })}
+                            className="text-[11px] font-mono py-0.5 px-1.5 bg-sky-50 border border-sky-300 text-sky-900 font-semibold rounded focus:outline-none"
+                            title="Mes de facturación en el que se imputará la cuota o cobro"
+                          />
+                        </td>
+
+                        <td className="px-3 py-2 font-medium truncate max-w-[160px]" title={tx.description}>
+                          {tx.description}
+                          {tx.installments && (
+                            <span className="ml-1 text-[10px] text-amber-700 bg-amber-50 px-1 py-0.2 rounded border border-amber-200">
+                              C.{tx.installments.current}/{tx.installments.total}
+                            </span>
+                          )}
+                        </td>
+
                         <td className="px-3 py-2">
                           <span className="bg-slate-100 px-2 py-0.5 rounded text-[10px] text-slate-600 font-medium">
                             {tx.category}
                           </span>
                         </td>
+
                         <td
-                          className={`px-3 py-2 text-right font-bold ${
+                          className={`px-3 py-2 text-right font-bold whitespace-nowrap ${
                             tx.transactionType === 'pago_tc' || tx.amount < 0
                               ? 'text-emerald-600'
                               : 'text-slate-900'
@@ -245,3 +373,4 @@ export const ImportModal: React.FC<ImportModalProps> = ({
     </div>
   );
 };
+
