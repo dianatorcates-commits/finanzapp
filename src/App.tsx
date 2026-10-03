@@ -73,35 +73,41 @@ export function App() {
         ];
   });
 
-  // Save to localStorage
-  useEffect(() => {
-    localStorage.setItem(STORAGE_KEY_ACCOUNTS, JSON.stringify(accounts));
-  }, [accounts]);
-
-  useEffect(() => {
-    localStorage.setItem(STORAGE_KEY_TRANSACTIONS, JSON.stringify(transactions));
-  }, [transactions]);
-
-  useEffect(() => {
-    localStorage.setItem(STORAGE_KEY_CATEGORY_MAPPINGS, JSON.stringify(categoryMappings));
-  }, [categoryMappings]);
-
-  useEffect(() => {
-    localStorage.setItem(STORAGE_KEY_AUTO_RULES, JSON.stringify(autoRules));
-  }, [autoRules]);
-
-  useEffect(() => {
-    localStorage.setItem(STORAGE_KEY_BUDGETS, JSON.stringify(budgets));
-  }, [budgets]);
-
   // Auth & Cloud State
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [viewMode, setViewMode] = useState<'landing' | 'app'>('landing');
+  const [isCloudLoading, setIsCloudLoading] = useState(false);
 
-  // Auto-sync with Supabase Cloud whenever state changes for logged in user
+  // Save to localStorage with user-isolated keys
   useEffect(() => {
-    if (currentUser?.id) {
+    const key = currentUser?.id ? `${STORAGE_KEY_ACCOUNTS}_${currentUser.id}` : STORAGE_KEY_ACCOUNTS;
+    localStorage.setItem(key, JSON.stringify(accounts));
+  }, [accounts, currentUser]);
+
+  useEffect(() => {
+    const key = currentUser?.id ? `${STORAGE_KEY_TRANSACTIONS}_${currentUser.id}` : STORAGE_KEY_TRANSACTIONS;
+    localStorage.setItem(key, JSON.stringify(transactions));
+  }, [transactions, currentUser]);
+
+  useEffect(() => {
+    const key = currentUser?.id ? `${STORAGE_KEY_CATEGORY_MAPPINGS}_${currentUser.id}` : STORAGE_KEY_CATEGORY_MAPPINGS;
+    localStorage.setItem(key, JSON.stringify(categoryMappings));
+  }, [categoryMappings, currentUser]);
+
+  useEffect(() => {
+    const key = currentUser?.id ? `${STORAGE_KEY_AUTO_RULES}_${currentUser.id}` : STORAGE_KEY_AUTO_RULES;
+    localStorage.setItem(key, JSON.stringify(autoRules));
+  }, [autoRules, currentUser]);
+
+  useEffect(() => {
+    const key = currentUser?.id ? `${STORAGE_KEY_BUDGETS}_${currentUser.id}` : STORAGE_KEY_BUDGETS;
+    localStorage.setItem(key, JSON.stringify(budgets));
+  }, [budgets, currentUser]);
+
+  // Auto-sync with Supabase Cloud whenever state changes for logged in user (only when cloud data has finished loading)
+  useEffect(() => {
+    if (currentUser?.id && !isCloudLoading) {
       syncLocalDataToCloud(currentUser.id, {
         accounts,
         categoryMappings,
@@ -110,7 +116,7 @@ export function App() {
         transactions
       });
     }
-  }, [currentUser, accounts, categoryMappings, autoRules, budgets, transactions]);
+  }, [currentUser, isCloudLoading, accounts, categoryMappings, autoRules, budgets, transactions]);
 
   // Active view tab
   const [activeTab, setActiveTab] = useState<'dashboard' | 'transactions'>('dashboard');
@@ -136,6 +142,7 @@ export function App() {
 
   // Load cloud data from Supabase if user is logged in
   const loadCloudData = async (userId: string) => {
+    setIsCloudLoading(true);
     try {
       const data = await fetchUserData(userId);
       const cloudSyncedKey = `finanzapp_cloud_synced_${userId}`;
@@ -149,18 +156,36 @@ export function App() {
         setTransactions(data.transactions);
         localStorage.setItem(cloudSyncedKey, 'true');
       } else {
-        // If cloud data is empty (first login ever), migrate current local state to cloud
+        // First time ever logged in for this brand new user: initialize clean account & empty transactions
+        const initialUserAccounts = INITIAL_ACCOUNTS;
+        const initialUserCategories = DEFAULT_CATEGORY_MAPPINGS;
+        const initialUserRules = DEFAULT_AUTO_RULES;
+        const initialUserBudgets = [
+          { id: 'b-1', categoryName: 'Alimentación & Gastronomía', monthlyLimit: 350000 },
+          { id: 'b-2', categoryName: 'Transporte & Movilidad', monthlyLimit: 120000 },
+          { id: 'b-3', categoryName: 'Compras & Estilo de Vida', monthlyLimit: 200000 }
+        ];
+        const initialUserTransactions: Transaction[] = []; // CLEAN START FOR NEW USERS!
+
+        setAccounts(initialUserAccounts);
+        setCategoryMappings(initialUserCategories);
+        setAutoRules(initialUserRules);
+        setBudgets(initialUserBudgets);
+        setTransactions(initialUserTransactions);
+
         await syncLocalDataToCloud(userId, {
-          accounts,
-          categoryMappings,
-          autoRules,
-          budgets,
-          transactions
+          accounts: initialUserAccounts,
+          categoryMappings: initialUserCategories,
+          autoRules: initialUserRules,
+          budgets: initialUserBudgets,
+          transactions: initialUserTransactions
         });
         localStorage.setItem(cloudSyncedKey, 'true');
       }
     } catch (err) {
       console.error('Error al cargar/sincronizar datos desde Supabase:', err);
+    } finally {
+      setIsCloudLoading(false);
     }
   };
 
