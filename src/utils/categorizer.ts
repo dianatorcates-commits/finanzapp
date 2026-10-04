@@ -78,6 +78,67 @@ export function getParentCategory(subcategory: string, mappings: CategoryMapping
   return 'Otros Gastos';
 }
 
+/**
+ * Evaluates custom auto rules and default patterns against an existing transaction.
+ * Returns a CategorizationResult ONLY if a rule or pattern matches.
+ * Returns null if no rule matches, so the caller can preserve the transaction's existing category and subcategory.
+ */
+export function applyAutoRulesToTransaction(
+  tx: { description: string; category?: string; subcategory?: string; transactionType?: TransactionType; amount?: number },
+  categoryMappings: CategoryMapping[] = DEFAULT_CATEGORY_MAPPINGS,
+  customRules: AutoCategoryRule[] = []
+): CategorizationResult | null {
+  const descUpper = (tx.description || '').toUpperCase();
+
+  // 1. Check user custom auto rules first
+  if (customRules && customRules.length > 0) {
+    const matchedRule = customRules.find((rule) => rule.pattern && descUpper.includes(rule.pattern.toUpperCase()));
+    if (matchedRule) {
+      const parentCat = matchedRule.category || getParentCategory(matchedRule.subcategory, categoryMappings);
+      let ruleTxType: TransactionType = tx.transactionType || 'compra';
+
+      if (parentCat === 'Ingresos & Transferencias' || matchedRule.subcategory === 'Sueldo & Ventas') {
+        ruleTxType = 'ingreso_venta';
+      } else if (matchedRule.subcategory === 'Transferencias') {
+        ruleTxType = tx.transactionType === 'transferencia_recibida' ? 'transferencia_recibida' : 'transferencia_enviada';
+      } else if (parentCat === 'Abonos y Pagos' || matchedRule.subcategory.includes('Pago')) {
+        ruleTxType = 'pago_tc';
+      } else if (tx.transactionType === 'ingreso_venta' || tx.transactionType === 'transferencia_recibida') {
+        ruleTxType = tx.transactionType;
+      }
+
+      return {
+        category: parentCat,
+        subcategory: matchedRule.subcategory,
+        transactionType: ruleTxType
+      };
+    }
+  }
+
+  // 2. Check default auto rules (DEFAULT_AUTO_RULES: JUMBO, LIDER, UBER, NETFLIX, SPOTIFY, STARBUCKS, PAGO TC)
+  const matchedDefaultRule = DEFAULT_AUTO_RULES.find((rule) => rule.pattern && descUpper.includes(rule.pattern.toUpperCase()));
+  if (matchedDefaultRule) {
+    const parentCat = matchedDefaultRule.category || getParentCategory(matchedDefaultRule.subcategory, categoryMappings);
+    let defaultTxType: TransactionType = tx.transactionType || 'compra';
+    if (parentCat === 'Ingresos & Transferencias' || matchedDefaultRule.subcategory === 'Sueldo & Ventas') {
+      defaultTxType = 'ingreso_venta';
+    } else if (parentCat === 'Abonos y Pagos' || matchedDefaultRule.subcategory.includes('Pago')) {
+      defaultTxType = 'pago_tc';
+    } else if (tx.transactionType === 'ingreso_venta' || tx.transactionType === 'transferencia_recibida') {
+      defaultTxType = tx.transactionType;
+    }
+
+    return {
+      category: parentCat,
+      subcategory: matchedDefaultRule.subcategory,
+      transactionType: defaultTxType
+    };
+  }
+
+  // No rule matched: return null to preserve existing category/subcategory/transactionType
+  return null;
+}
+
 export function autoCategorize(
   description: string,
   rawAmount: number,

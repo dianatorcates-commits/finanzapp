@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import * as XLSX from 'xlsx';
 import { Account, Transaction, ComputedTransaction, FilterState, CategoryMapping, AutoCategoryRule, CategoryBudget } from './types';
 import { INITIAL_ACCOUNTS, INITIAL_TRANSACTIONS } from './utils/demoData';
-import { DEFAULT_CATEGORY_MAPPINGS, DEFAULT_AUTO_RULES, getParentCategory, autoCategorize } from './utils/categorizer';
+import { DEFAULT_CATEGORY_MAPPINGS, DEFAULT_AUTO_RULES, getParentCategory, autoCategorize, applyAutoRulesToTransaction } from './utils/categorizer';
 import { computeTransactions, autoAllocatePayments, addPaymentAllocation, removePaymentAllocation } from './utils/paymentAllocation';
 import { supabase } from './utils/supabaseClient';
 import {
@@ -445,28 +445,17 @@ export function App() {
   const handleApplyRulesToExisting = () => {
     setTransactions((prev) =>
       prev.map((tx) => {
-        const isIncomeOrPayment =
-          tx.transactionType === 'ingreso_venta' ||
-          tx.transactionType === 'transferencia_recibida' ||
-          tx.transactionType === 'pago_tc';
-
-        const effectiveRawAmount = isIncomeOrPayment ? -Math.abs(tx.amount) : Math.abs(tx.amount);
-
-        const res = autoCategorize(
-          tx.description,
-          effectiveRawAmount,
-          undefined,
-          categoryMappings,
-          autoRules,
-          tx.transactionType
-        );
-
-        return {
-          ...tx,
-          category: res.category,
-          subcategory: res.subcategory,
-          transactionType: res.transactionType
-        };
+        const matched = applyAutoRulesToTransaction(tx, categoryMappings, autoRules);
+        if (matched) {
+          return {
+            ...tx,
+            category: matched.category,
+            subcategory: matched.subcategory,
+            transactionType: matched.transactionType
+          };
+        }
+        // If no rule matches, preserve the transaction's existing category and subcategory
+        return tx;
       })
     );
   };
