@@ -12,6 +12,7 @@ import {
   deleteCloudAccount,
   deleteCloudTransaction,
   deleteCloudTransactionsBatch,
+  saveCloudCategory,
   deleteCloudCategory,
   deleteCloudRule,
   deleteCloudBudget
@@ -354,31 +355,47 @@ export function App() {
   };
 
   // Category & Subcategory Handlers
-  const handleAddCategory = (categoryName: string) => {
-    setCategoryMappings((prev) => [
-      ...prev,
-      {
-        id: `cat-${Date.now()}`,
-        name: categoryName,
-        subcategories: []
-      }
-    ]);
+  const handleAddCategory = async (categoryName: string) => {
+    const newCat: CategoryMapping = {
+      id: `cat-${Date.now()}`,
+      name: categoryName,
+      subcategories: []
+    };
+    if (currentUser) {
+      await saveCloudCategory(currentUser.id, newCat);
+    }
+    setCategoryMappings((prev) => [...prev, newCat]);
   };
 
-  const handleAddSubcategory = (parentCategoryName: string, subcategoryName: string) => {
+  const handleAddSubcategory = async (parentCategoryName: string, subcategoryName: string) => {
+    let targetCat: CategoryMapping | null = null;
     setCategoryMappings((prev) =>
       prev.map((cat) => {
         if (cat.name === parentCategoryName) {
           if (!cat.subcategories.includes(subcategoryName)) {
-            return {
+            targetCat = {
               ...cat,
               subcategories: [...cat.subcategories, subcategoryName]
             };
+            return targetCat;
           }
         }
         return cat;
       })
     );
+
+    if (currentUser) {
+      const existing = categoryMappings.find((c) => c.name === parentCategoryName);
+      if (existing) {
+        const updatedPayload: CategoryMapping = {
+          ...existing,
+          subcategories: existing.subcategories.includes(subcategoryName)
+            ? existing.subcategories
+            : [...existing.subcategories, subcategoryName]
+        };
+        await saveCloudCategory(currentUser.id, updatedPayload);
+      }
+    }
   };
 
   const handleDeleteCategory = async (categoryId: string) => {
@@ -388,7 +405,7 @@ export function App() {
     setCategoryMappings((prev) => prev.filter((c) => c.id !== categoryId));
   };
 
-  const handleDeleteSubcategory = (parentCategoryName: string, subcategoryName: string) => {
+  const handleDeleteSubcategory = async (parentCategoryName: string, subcategoryName: string) => {
     setCategoryMappings((prev) =>
       prev.map((cat) => {
         if (cat.name === parentCategoryName) {
@@ -400,6 +417,17 @@ export function App() {
         return cat;
       })
     );
+
+    if (currentUser) {
+      const existing = categoryMappings.find((c) => c.name === parentCategoryName);
+      if (existing) {
+        const updatedPayload: CategoryMapping = {
+          ...existing,
+          subcategories: existing.subcategories.filter((s) => s !== subcategoryName)
+        };
+        await saveCloudCategory(currentUser.id, updatedPayload);
+      }
+    }
   };
 
   // Auto Rules & Budgets Handlers

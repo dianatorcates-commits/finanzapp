@@ -259,6 +259,25 @@ export async function deleteCloudTransactionsBatch(userId: string, txIds: string
   }
 }
 
+export async function saveCloudCategory(userId: string, category: CategoryMapping) {
+  try {
+    const payload = {
+      id: category.id,
+      user_id: userId,
+      name: category.name,
+      subcategories: category.subcategories
+    };
+    const { error } = await supabase.from('category_mappings').upsert(payload, { onConflict: 'id' });
+    if (error) {
+      console.error('Error saving category to cloud:', error);
+      const { error: fallbackErr } = await supabase.from('category_mappings').upsert(payload);
+      if (fallbackErr) console.error('Fallback save category error:', fallbackErr);
+    }
+  } catch (err) {
+    console.error('Unexpected error saving category to cloud:', err);
+  }
+}
+
 export async function deleteCloudCategory(userId: string, categoryId: string) {
   const { error } = await supabase.from('category_mappings').delete().eq('id', categoryId).eq('user_id', userId);
   if (error) console.error('Error deleting category from cloud:', error);
