@@ -76,18 +76,24 @@ export const TransactionTable: React.FC<TransactionTableProps> = ({
     );
   };
 
-  // Instant single row delete without popup dialogs
-  const handleSingleDelete = (id: string) => {
-    onDeleteTransaction(id);
-    setSelectedTxIds((prev) => prev.filter((i) => i !== id));
+  // Open single delete confirmation modal
+  const openSingleDeleteModal = (tx: ComputedTransaction) => {
+    setDeleteConfirmModal({
+      isOpen: true,
+      idsToDelete: [tx.id],
+      title: '¿Eliminar Movimiento?',
+      message: `¿Estás seguro de que deseas eliminar permanentemente el registro "${tx.description}" por ${formatCLP(tx.amount)}?`
+    });
   };
 
-  // Bulk delete confirmation execution
-  const handleConfirmBulkDelete = () => {
+  // Delete confirmation execution (handles single or batch)
+  const handleConfirmDelete = () => {
     const { idsToDelete } = deleteConfirmModal;
     if (idsToDelete.length === 0) return;
 
-    if (onDeleteTransactionsBatch) {
+    if (idsToDelete.length === 1) {
+      onDeleteTransaction(idsToDelete[0]);
+    } else if (onDeleteTransactionsBatch) {
       onDeleteTransactionsBatch(idsToDelete);
     } else {
       idsToDelete.forEach((id) => onDeleteTransaction(id));
@@ -484,9 +490,9 @@ export const TransactionTable: React.FC<TransactionTableProps> = ({
                           </button>
                         )}
                         <button
-                          onClick={() => handleSingleDelete(tx.id)}
+                          onClick={() => openSingleDeleteModal(tx)}
                           className="text-slate-400 hover:text-rose-600 p-1.5 hover:bg-rose-50 rounded-lg transition"
-                          title="Borrar inmediatamente de la lista"
+                          title="Eliminar registro"
                         >
                           <Trash2 className="w-3.5 h-3.5" />
                         </button>
@@ -506,7 +512,7 @@ export const TransactionTable: React.FC<TransactionTableProps> = ({
         </table>
       </div>
 
-      {/* Single Bulk Delete Confirmation Modal (Used ONLY for multi-select or clear-all buttons) */}
+      {/* Delete Confirmation Modal */}
       {deleteConfirmModal.isOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fadeIn">
           <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full border border-slate-200 overflow-hidden p-6 space-y-4">
@@ -516,7 +522,9 @@ export const TransactionTable: React.FC<TransactionTableProps> = ({
               </div>
               <div>
                 <h3 className="font-bold text-base text-slate-900">{deleteConfirmModal.title}</h3>
-                <p className="text-xs text-slate-500">Confirmación de borrado masivo</p>
+                <p className="text-xs text-slate-500">
+                  {deleteConfirmModal.idsToDelete.length === 1 ? 'Confirmación de eliminación' : 'Confirmación de borrado masivo'}
+                </p>
               </div>
             </div>
 
@@ -534,11 +542,11 @@ export const TransactionTable: React.FC<TransactionTableProps> = ({
               </button>
               <button
                 type="button"
-                onClick={handleConfirmBulkDelete}
+                onClick={handleConfirmDelete}
                 className="px-4 py-2 bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold rounded-xl transition shadow-sm flex items-center gap-1.5"
               >
                 <Trash2 className="w-4 h-4" />
-                <span>Confirmar Borrado Masivo</span>
+                <span>{deleteConfirmModal.idsToDelete.length === 1 ? 'Sí, Eliminar' : 'Confirmar Borrado Masivo'}</span>
               </button>
             </div>
           </div>
