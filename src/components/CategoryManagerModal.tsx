@@ -40,9 +40,10 @@ export const CategoryManagerModal: React.FC<CategoryManagerModalProps> = ({
   const handleCreateSubcategory = (e: React.FormEvent) => {
     e.preventDefault();
     const trimmedSub = newSubcatName.trim();
-    if (!trimmedSub || !selectedParentCat) return;
+    const effectiveParent = selectedParentCat || categoryMappings[0]?.name || '';
+    if (!trimmedSub || !effectiveParent) return;
 
-    onAddSubcategory(selectedParentCat, trimmedSub);
+    onAddSubcategory(effectiveParent, trimmedSub);
     setNewSubcatName('');
   };
 

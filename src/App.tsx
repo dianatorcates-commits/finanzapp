@@ -158,8 +158,8 @@ export function App() {
       } else {
         // First time ever logged in for this brand new user: initialize clean account & empty transactions
         const initialUserAccounts = INITIAL_ACCOUNTS;
-        const initialUserCategories = DEFAULT_CATEGORY_MAPPINGS;
-        const initialUserRules = DEFAULT_AUTO_RULES;
+        const initialUserCategories = categoryMappings.length > 0 ? categoryMappings : DEFAULT_CATEGORY_MAPPINGS;
+        const initialUserRules = autoRules.length > 0 ? autoRules : DEFAULT_AUTO_RULES;
         const initialUserBudgets = [
           { id: 'b-1', categoryName: 'Alimentación & Gastronomía', monthlyLimit: 350000 },
           { id: 'b-2', categoryName: 'Transporte & Movilidad', monthlyLimit: 120000 },
