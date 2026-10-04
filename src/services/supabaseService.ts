@@ -1,5 +1,5 @@
 import { supabase } from '../utils/supabaseClient';
-import { Account, Transaction, CategoryMapping, AutoCategoryRule, CategoryBudget } from '../types';
+import { Account, Transaction, CategoryMapping, AutoCategoryRule, CategoryBudget, PaymentAllocation } from '../types';
 
 // ==========================================
 // 1. AUTHENTICATION SERVICES
@@ -111,24 +111,39 @@ export async function fetchUserData(userId: string) {
       monthlyLimit: parseFloat(b.monthly_limit)
     }));
 
-    const transactions: Transaction[] = (txsData || []).map((t: any) => ({
-      id: t.id,
-      accountId: t.account_id,
-      date: t.date,
-      period: t.period,
-      description: t.description,
-      rawDescription: t.raw_description || t.description,
-      amount: parseFloat(t.amount),
-      originalTotalAmount: t.original_total_amount ? parseFloat(t.original_total_amount) : undefined,
-      transactionType: t.transaction_type,
-      category: t.category,
-      subcategory: t.subcategory,
-      installments: (t.installment_current && t.installment_total) ? {
-        current: t.installment_current,
-        total: t.installment_total
-      } : undefined,
-      allocations: []
-    }));
+    const transactions: Transaction[] = (txsData || []).map((t: any) => {
+      let parsedAllocations: PaymentAllocation[] = [];
+      if (t.allocations) {
+        if (Array.isArray(t.allocations)) {
+          parsedAllocations = t.allocations;
+        } else if (typeof t.allocations === 'string') {
+          try {
+            parsedAllocations = JSON.parse(t.allocations);
+          } catch {
+            parsedAllocations = [];
+          }
+        }
+      }
+
+      return {
+        id: t.id,
+        accountId: t.account_id,
+        date: t.date,
+        period: t.period,
+        description: t.description,
+        rawDescription: t.raw_description || t.description,
+        amount: parseFloat(t.amount),
+        originalTotalAmount: t.original_total_amount ? parseFloat(t.original_total_amount) : undefined,
+        transactionType: t.transaction_type,
+        category: t.category,
+        subcategory: t.subcategory,
+        installments: (t.installment_current && t.installment_total) ? {
+          current: t.installment_current,
+          total: t.installment_total
+        } : undefined,
+        allocations: parsedAllocations
+      };
+    });
 
     return {
       accounts,
@@ -223,10 +238,17 @@ export async function syncLocalDataToCloud(
         category: t.category,
         subcategory: t.subcategory,
         installment_current: t.installments?.current,
-        installment_total: t.installments?.total
+        installment_total: t.installments?.total,
+        allocations: t.allocations || []
       }));
       const { error: txErr } = await supabase.from('transactions').upsert(txsPayload, { onConflict: 'id' });
-      if (txErr) console.error('Error syncing transactions to cloud:', txErr);
+      if (txErr) {
+        console.error('Error syncing transactions with allocations to cloud:', txErr);
+        // Fallback without allocations if column is missing in Supabase schema
+        const fallbackPayload = txsPayload.map(({ allocations, ...rest }) => rest);
+        const { error: fallbackErr } = await supabase.from('transactions').upsert(fallbackPayload, { onConflict: 'id' });
+        if (fallbackErr) console.error('Fallback transaction sync error:', fallbackErr);
+      }
     }
 
     return true;
