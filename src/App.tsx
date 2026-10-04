@@ -445,7 +445,22 @@ export function App() {
   const handleApplyRulesToExisting = () => {
     setTransactions((prev) =>
       prev.map((tx) => {
-        const res = autoCategorize(tx.description, tx.amount, undefined, categoryMappings, autoRules);
+        const isIncomeOrPayment =
+          tx.transactionType === 'ingreso_venta' ||
+          tx.transactionType === 'transferencia_recibida' ||
+          tx.transactionType === 'pago_tc';
+
+        const effectiveRawAmount = isIncomeOrPayment ? -Math.abs(tx.amount) : Math.abs(tx.amount);
+
+        const res = autoCategorize(
+          tx.description,
+          effectiveRawAmount,
+          undefined,
+          categoryMappings,
+          autoRules,
+          tx.transactionType
+        );
+
         return {
           ...tx,
           category: res.category,

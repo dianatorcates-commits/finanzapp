@@ -83,26 +83,44 @@ export function autoCategorize(
   rawAmount: number,
   accountType?: AccountType,
   categoryMappings: CategoryMapping[] = DEFAULT_CATEGORY_MAPPINGS,
-  customRules: AutoCategoryRule[] = []
+  customRules: AutoCategoryRule[] = [],
+  existingTxType?: TransactionType
 ): CategorizationResult {
   const descUpper = description.toUpperCase();
   let subcategory = 'Otros Gastos';
-  let transactionType: TransactionType = 'compra';
+  const isIncomeOrPaymentInput =
+    existingTxType === 'ingreso_venta' ||
+    existingTxType === 'transferencia_recibida' ||
+    existingTxType === 'pago_tc' ||
+    rawAmount < 0;
 
   // 1. Check custom auto rules first
   if (customRules && customRules.length > 0) {
     const matchedRule = customRules.find((rule) => rule.pattern && descUpper.includes(rule.pattern.toUpperCase()));
     if (matchedRule) {
       const parentCat = matchedRule.category || getParentCategory(matchedRule.subcategory, categoryMappings);
+      let ruleTxType: TransactionType = 'compra';
+
+      if (parentCat === 'Ingresos & Transferencias' || matchedRule.subcategory === 'Sueldo & Ventas') {
+        ruleTxType = 'ingreso_venta';
+      } else if (matchedRule.subcategory === 'Transferencias') {
+        ruleTxType = (existingTxType === 'transferencia_recibida' || rawAmount < 0) ? 'transferencia_recibida' : 'transferencia_enviada';
+      } else if (parentCat === 'Abonos y Pagos' || matchedRule.subcategory.includes('Pago')) {
+        ruleTxType = 'pago_tc';
+      } else if (existingTxType === 'ingreso_venta' || existingTxType === 'transferencia_recibida') {
+        // Preserve income transaction type if existing type was income and rule is not an explicit payment/expense
+        ruleTxType = existingTxType;
+      }
+
       return {
         category: parentCat,
         subcategory: matchedRule.subcategory,
-        transactionType: parentCat === 'Abonos y Pagos' ? 'pago_tc' : 'compra'
+        transactionType: ruleTxType
       };
     }
   }
 
-  // Check TC Payment / Abono
+  // 2. Default Pattern Recognition
   if (
     descUpper.includes('PAGO TC') ||
     descUpper.includes('ABONO TC') ||
@@ -114,37 +132,59 @@ export function autoCategorize(
     descUpper.includes('PAGO PAC TC')
   ) {
     subcategory = 'Pagos de Tarjeta';
-    transactionType = 'pago_tc';
-  } else if (descUpper.includes('ABONO COMIDA') || descUpper.includes('PAGO COMIDA')) {
+    return { category: 'Abonos y Pagos', subcategory, transactionType: 'pago_tc' };
+  }
+  
+  if (descUpper.includes('ABONO COMIDA') || descUpper.includes('PAGO COMIDA')) {
     subcategory = 'Abono Comida';
-    transactionType = 'pago_tc';
-  } else if (
+    return { category: 'Abonos y Pagos', subcategory, transactionType: 'pago_tc' };
+  }
+  
+  if (
     descUpper.includes('TRANSFERENCIA A') ||
     descUpper.includes('TRANSF A') ||
     descUpper.includes('TEF A') ||
     descUpper.includes('CARGO POR TRANSFERENCIA')
   ) {
     subcategory = 'Transferencias';
-    transactionType = 'transferencia_enviada';
-  } else if (
+    return { category: 'Ingresos & Transferencias', subcategory, transactionType: 'transferencia_enviada' };
+  }
+  
+  if (
     descUpper.includes('TRANSFERENCIA DE') ||
     descUpper.includes('TRANSF DE') ||
     descUpper.includes('TEF DE') ||
-    descUpper.includes('ABONO POR TRANSFERENCIA')
+    descUpper.includes('ABONO POR TRANSFERENCIA') ||
+    descUpper.includes('TRANSFERENCIA RECIBIDA') ||
+    descUpper.includes('TEF RECIBIDA')
   ) {
     subcategory = 'Transferencias';
-    transactionType = 'transferencia_recibida';
-  } else if (
+    return { category: 'Ingresos & Transferencias', subcategory, transactionType: 'transferencia_recibida' };
+  }
+  
+  if (
     descUpper.includes('REMUNERACION') ||
     descUpper.includes('SUELDO') ||
     descUpper.includes('PAGO DE NOMINA') ||
+    descUpper.includes('NOMINA') ||
     descUpper.includes('DEPOSITO') ||
+    descUpper.includes('DEPOSITO CTA') ||
+    descUpper.includes('DEPOSITO DE') ||
+    descUpper.includes('ABONO') ||
+    descUpper.includes('ABONO CTA') ||
+    descUpper.includes('ABONO DE') ||
     descUpper.includes('VENTA') ||
-    descUpper.includes('HONORARIOS')
+    descUpper.includes('HONORARIOS') ||
+    descUpper.includes('LIQUIDACION') ||
+    descUpper.includes('FINIQUITO') ||
+    descUpper.includes('INGRESO') ||
+    descUpper.includes('REEMBOLSO')
   ) {
     subcategory = 'Sueldo & Ventas';
-    transactionType = 'ingreso_venta';
-  } else if (
+    return { category: 'Ingresos & Transferencias', subcategory, transactionType: 'ingreso_venta' };
+  }
+  
+  if (
     descUpper.includes('LIDER') ||
     descUpper.includes('JUMBO') ||
     descUpper.includes('UNIMARC') ||
@@ -159,8 +199,10 @@ export function autoCategorize(
     descUpper.includes('DISTRIBUIDORA')
   ) {
     subcategory = 'Alimentación & Supermercados';
-    transactionType = 'compra';
-  } else if (
+    return { category: getParentCategory(subcategory, categoryMappings), subcategory, transactionType: 'compra' };
+  }
+  
+  if (
     descUpper.includes('MCDONALDS') ||
     descUpper.includes('STARBUCKS') ||
     descUpper.includes('RAPPI') ||
@@ -181,8 +223,10 @@ export function autoCategorize(
     descUpper.includes('SANTA CLARA')
   ) {
     subcategory = 'Restaurantes & Bares';
-    transactionType = 'compra';
-  } else if (
+    return { category: getParentCategory(subcategory, categoryMappings), subcategory, transactionType: 'compra' };
+  }
+  
+  if (
     descUpper.includes('SHELL') ||
     descUpper.includes('COPEC') ||
     descUpper.includes('PETROBRAS') ||
@@ -201,8 +245,10 @@ export function autoCategorize(
     descUpper.includes('PULLMAN')
   ) {
     subcategory = 'Transporte & Vehículos';
-    transactionType = 'compra';
-  } else if (
+    return { category: getParentCategory(subcategory, categoryMappings), subcategory, transactionType: 'compra' };
+  }
+  
+  if (
     descUpper.includes('ENEL') ||
     descUpper.includes('CGE') ||
     descUpper.includes('AGUAS ANDINAS') ||
@@ -220,8 +266,10 @@ export function autoCategorize(
     descUpper.includes('IKEA')
   ) {
     subcategory = 'Servicios Básicos & Hogar';
-    transactionType = 'compra';
-  } else if (
+    return { category: getParentCategory(subcategory, categoryMappings), subcategory, transactionType: 'compra' };
+  }
+  
+  if (
     descUpper.includes('NETFLIX') ||
     descUpper.includes('SPOTIFY') ||
     descUpper.includes('DISNEY') ||
@@ -239,8 +287,10 @@ export function autoCategorize(
     descUpper.includes('NINTENDO')
   ) {
     subcategory = 'Suscripciones & Streaming';
-    transactionType = 'compra';
-  } else if (
+    return { category: getParentCategory(subcategory, categoryMappings), subcategory, transactionType: 'compra' };
+  }
+  
+  if (
     descUpper.includes('SALCOBRAND') ||
     descUpper.includes('CRUZ VERDE') ||
     descUpper.includes('FARMACIAS AHUMADA') ||
@@ -256,8 +306,10 @@ export function autoCategorize(
     descUpper.includes('LABORATORIO')
   ) {
     subcategory = 'Salud & Farmacia';
-    transactionType = 'compra';
-  } else if (
+    return { category: getParentCategory(subcategory, categoryMappings), subcategory, transactionType: 'compra' };
+  }
+  
+  if (
     descUpper.includes('FALABELLA') ||
     descUpper.includes('PARIS') ||
     descUpper.includes('RIPLEY') ||
@@ -273,8 +325,10 @@ export function autoCategorize(
     descUpper.includes('NIKE')
   ) {
     subcategory = 'Ropa, Tecnología & Compras';
-    transactionType = 'compra';
-  } else if (
+    return { category: getParentCategory(subcategory, categoryMappings), subcategory, transactionType: 'compra' };
+  }
+  
+  if (
     descUpper.includes('COMISION') ||
     descUpper.includes('INTERES') ||
     descUpper.includes('MANTENCION') ||
@@ -283,20 +337,29 @@ export function autoCategorize(
     descUpper.includes('COBRO')
   ) {
     subcategory = 'Otros Gastos';
-    transactionType = 'comision_interes';
-  } else if (rawAmount < 0 && accountType === 'credit_card') {
+    return { category: getParentCategory(subcategory, categoryMappings), subcategory, transactionType: 'comision_interes' };
+  }
+  
+  if (rawAmount < 0 && accountType === 'credit_card') {
     subcategory = 'Pagos de Tarjeta';
-    transactionType = 'pago_tc';
-  } else {
-    subcategory = rawAmount < 0 ? 'Sueldo & Ventas' : 'Otros Gastos';
-    transactionType = rawAmount < 0 ? 'ingreso_venta' : 'compra';
+    return { category: 'Abonos y Pagos', subcategory, transactionType: 'pago_tc' };
   }
 
-  const category = getParentCategory(subcategory, categoryMappings);
+  // 3. Fallback: preserve existing income type if transaction was previously an income
+  if (isIncomeOrPaymentInput && existingTxType && existingTxType !== 'compra') {
+    subcategory = existingTxType === 'ingreso_venta' ? 'Sueldo & Ventas' : 'Transferencias';
+    return {
+      category: getParentCategory(subcategory, categoryMappings),
+      subcategory,
+      transactionType: existingTxType
+    };
+  }
 
+  subcategory = rawAmount < 0 ? 'Sueldo & Ventas' : 'Otros Gastos';
+  const finalType: TransactionType = rawAmount < 0 ? 'ingreso_venta' : 'compra';
   return {
-    category,
+    category: getParentCategory(subcategory, categoryMappings),
     subcategory,
-    transactionType
+    transactionType: finalType
   };
 }
