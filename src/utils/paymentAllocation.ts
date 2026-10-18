@@ -1,6 +1,48 @@
 import { Transaction, ComputedTransaction, PaymentAllocation } from '../types';
 
 /**
+ * Determines whether a transaction is a payment, abono, refund, return, or income,
+ * which should NOT count towards used credit line or expense quota (netAmount = 0).
+ */
+export function isPaymentOrIncomeTransaction(tx: {
+  amount: number;
+  transactionType?: string;
+  category?: string;
+  subcategory?: string;
+  description?: string;
+}): boolean {
+  if (tx.amount <= 0) return true;
+
+  const type = tx.transactionType;
+  if (
+    type === 'pago_tc' ||
+    type === 'ingreso_venta' ||
+    type === 'transferencia_recibida' ||
+    type === 'remuneracion'
+  ) {
+    return true;
+  }
+
+  const cat = (tx.category || '').toLowerCase();
+  const subcat = (tx.subcategory || '').toLowerCase();
+
+  if (
+    cat.includes('abonos') ||
+    cat.includes('pagos') ||
+    cat.includes('ingresos') ||
+    subcat.includes('pago') ||
+    subcat.includes('abono') ||
+    subcat.includes('sueldo') ||
+    subcat.includes('remuneraci') ||
+    subcat.includes('devoluci')
+  ) {
+    return true;
+  }
+
+  return false;
+}
+
+/**
  * Computes allocation stats, net amounts (Monto Real Utilizado), and payment balances.
  */
 export function computeTransactions(transactions: Transaction[]): ComputedTransaction[] {
@@ -18,12 +60,20 @@ export function computeTransactions(transactions: Transaction[]): ComputedTransa
   });
 
   return transactions.map((tx) => {
+    const isPaymentOrIncome = isPaymentOrIncomeTransaction(tx);
     const totalAllocated = (tx.allocations || []).reduce((sum, a) => sum + a.amount, 0);
-    const netAmount = Math.max(0, tx.amount - totalAllocated);
-    const isFullyPaid = tx.amount > 0 && netAmount === 0;
+
+    let netAmount = 0;
+    let isFullyPaid = false;
+
+    // netAmount > 0 must ONLY exist for real positive purchases/charges
+    if (!isPaymentOrIncome && tx.amount > 0) {
+      netAmount = Math.max(0, tx.amount - totalAllocated);
+      isFullyPaid = netAmount === 0;
+    }
 
     let unallocatedPaymentBalance = 0;
-    if (tx.transactionType === 'pago_tc' || tx.amount < 0) {
+    if (isPaymentOrIncome) {
       const positivePaymentAmount = Math.abs(tx.amount);
       const usedAmount = paymentUsageMap.get(tx.id) || 0;
       unallocatedPaymentBalance = Math.max(0, positivePaymentAmount - usedAmount);
@@ -62,16 +112,26 @@ export function autoAllocatePayments(
   targetTcs.forEach((accId) => {
     // Get all purchases for this account sorted by date ascending
     const purchases = updatedTransactions
-      .filter((tx) => tx.accountId === accId && tx.transactionType === 'compra' && tx.amount > 0)
+      .filter((tx) => tx.accountId === accId && !isPaymentOrIncomeTransaction(tx) && tx.amount > 0)
       .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
-    // Get all TC payments for this account sorted by date ascending
+    // Get all TC payments/abonos for this account sorted by date ascending
     const payments = updatedTransactions
-      .filter(
-        (tx) =>
-          tx.accountId === accId &&
-          (tx.transactionType === 'pago_tc' || (tx.amount < 0 && tx.category === 'Pagos de Tarjeta'))
-      )
+      .filter((tx) => {
+        if (tx.accountId !== accId) return false;
+        if (tx.transactionType === 'pago_tc') return true;
+        const isPayOrIncome = isPaymentOrIncomeTransaction(tx);
+        const cat = (tx.category || '').toLowerCase();
+        const subcat = (tx.subcategory || '').toLowerCase();
+        return (
+          isPayOrIncome &&
+          (cat.includes('abonos') ||
+            cat.includes('pagos') ||
+            subcat.includes('pago') ||
+            subcat.includes('abono') ||
+            tx.amount < 0)
+        );
+      })
       .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
     // Reset auto-allocations or build on existing

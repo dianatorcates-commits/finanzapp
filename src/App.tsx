@@ -12,7 +12,7 @@ import {
 } from './types';
 import { INITIAL_ACCOUNTS, INITIAL_TRANSACTIONS } from './utils/demoData';
 import { DEFAULT_CATEGORY_MAPPINGS, DEFAULT_AUTO_RULES, getParentCategory, autoCategorize, applyAutoRulesToTransaction } from './utils/categorizer';
-import { computeTransactions, autoAllocatePayments, addPaymentAllocation, removePaymentAllocation } from './utils/paymentAllocation';
+import { computeTransactions, autoAllocatePayments, addPaymentAllocation, removePaymentAllocation, isPaymentOrIncomeTransaction } from './utils/paymentAllocation';
 import { supabase } from './utils/supabaseClient';
 import {
   fetchUserData,
@@ -415,11 +415,11 @@ export function App() {
         if (!matchDesc && !matchRaw && !matchCategory && !matchSubcategory) return false;
       }
 
-      // Only Pending TC
+      // Only Pending TC (Credit Card purchases with pending unpaid balance)
       if (filters.onlyPendingTC) {
         const acc = accounts.find((a) => a.id === tx.accountId);
         if (acc?.type !== 'credit_card') return false;
-        if (tx.transactionType === 'pago_tc' || tx.netAmount <= 0) return false;
+        if (isPaymentOrIncomeTransaction(tx) || tx.netAmount <= 0) return false;
       }
 
       return true;
@@ -652,6 +652,8 @@ export function App() {
   const handleExportExcel = () => {
     const exportData = filteredTransactions.map((tx) => {
       const acc = accounts.find((a) => a.id === tx.accountId);
+      const isPaymentOrIncome = isPaymentOrIncomeTransaction(tx);
+      const effectiveNetAmount = isPaymentOrIncome ? 0 : tx.netAmount;
       return {
         'ID Transacción': tx.id,
         'Fecha': tx.date,
@@ -665,8 +667,14 @@ export function App() {
         'Monto Cuota / Facturado': tx.amount,
         'Monto Total Compra': tx.originalTotalAmount || tx.amount,
         'Abonos / Pagos Asociados': tx.totalAllocated,
-        'Monto Real Utilizado': tx.netAmount,
-        'Estado Pago': tx.isFullyPaid ? 'Pagado Total' : tx.totalAllocated > 0 ? 'Pagado Parcial' : 'Pendiente'
+        'Monto Real Utilizado': effectiveNetAmount,
+        'Estado Pago': isPaymentOrIncome
+          ? 'Abono / Ingreso'
+          : tx.isFullyPaid
+          ? 'Pagado Total'
+          : tx.totalAllocated > 0
+          ? 'Pagado Parcial'
+          : 'Pendiente'
       };
     });
 

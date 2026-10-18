@@ -12,6 +12,7 @@ import {
 import { ComputedTransaction, Account, CategoryMapping, TransactionType } from '../types';
 import { getParentCategory, TRANSACTION_TYPES } from '../utils/categorizer';
 import { calculateTransactionPeriod } from '../utils/dateUtils';
+import { isPaymentOrIncomeTransaction } from '../utils/paymentAllocation';
 import { formatCLP } from './MetricCards';
 
 interface TransactionTableProps {
@@ -346,8 +347,8 @@ export const TransactionTable: React.FC<TransactionTableProps> = ({
               transactions.map((tx) => {
                 const account = accounts.find((a) => a.id === tx.accountId);
                 const isCreditCard = account?.type === 'credit_card';
-                const isPurchase = tx.transactionType === 'compra' || tx.amount > 0;
-                const isPaymentOrIncome = tx.transactionType === 'pago_tc' || tx.transactionType === 'ingreso_venta' || tx.transactionType === 'transferencia_recibida';
+                const isPaymentOrIncome = isPaymentOrIncomeTransaction(tx);
+                const isPurchase = !isPaymentOrIncome && tx.amount > 0;
                 const isSelected = selectedTxIds.includes(tx.id);
 
                 return (
@@ -446,7 +447,7 @@ export const TransactionTable: React.FC<TransactionTableProps> = ({
                       }`}
                     >
                       <div className="font-bold">
-                        {isPaymentOrIncome ? `- ${formatCLP(tx.amount)}` : formatCLP(tx.amount)}
+                        {isPaymentOrIncome ? `- ${formatCLP(Math.abs(tx.amount))}` : formatCLP(tx.amount)}
                       </div>
                       {tx.installments && tx.originalTotalAmount && (
                         <div className="text-[10px] text-slate-400 font-normal">
@@ -477,18 +478,19 @@ export const TransactionTable: React.FC<TransactionTableProps> = ({
 
                     {/* Monto Real Utilizado */}
                     <td className="py-3 px-4 text-right font-bold whitespace-nowrap">
-                      {isCreditCard && isPurchase ? (
+                      {isPaymentOrIncome ? (
+                        <span className="text-slate-400 font-normal">$0</span>
+                      ) : tx.isFullyPaid ? (
                         <span
-                          className={`${
-                            tx.isFullyPaid
-                              ? 'text-emerald-600 line-through opacity-70'
-                              : 'text-sky-700 bg-sky-50 px-2 py-0.5 rounded-lg border border-sky-200'
-                          }`}
+                          className="text-emerald-600 line-through opacity-70"
+                          title="Totalmente pagada por abonos / pagos"
                         >
-                          {formatCLP(tx.netAmount)}
+                          {formatCLP(tx.amount)}
                         </span>
                       ) : (
-                        <span className="text-slate-700">{formatCLP(tx.amount)}</span>
+                        <span className="text-sky-700 bg-sky-50 px-2 py-0.5 rounded-lg border border-sky-200">
+                          {formatCLP(tx.netAmount)}
+                        </span>
                       )}
                     </td>
 
