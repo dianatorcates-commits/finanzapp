@@ -731,7 +731,7 @@ export function App() {
         
         {/* Metric Cards Summary */}
         <MetricCards
-          computedTransactions={computedTransactions}
+          computedTransactions={filteredTransactions}
           accounts={accounts}
           activeAccountId={filters.accountId}
         />

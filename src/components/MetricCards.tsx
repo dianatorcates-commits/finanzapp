@@ -1,6 +1,7 @@
 import React from 'react';
 import { TrendingDown, TrendingUp, CreditCard, ShieldCheck, DollarSign, Calendar } from 'lucide-react';
 import { ComputedTransaction, Account } from '../types';
+import { isPaymentOrIncomeTransaction } from '../utils/paymentAllocation';
 
 interface MetricCardsProps {
   computedTransactions: ComputedTransaction[];
@@ -21,33 +22,31 @@ export const MetricCards: React.FC<MetricCardsProps> = ({
   accounts,
   activeAccountId
 }) => {
-  // Filter by active account if selected
-  const filtered = activeAccountId === 'ALL'
-    ? computedTransactions
-    : computedTransactions.filter((tx) => tx.accountId === activeAccountId);
+  // computedTransactions is already filtered by month, account, category, etc. from App.tsx
+  const transactions = computedTransactions || [];
 
-  // Separate TC purchases vs general expenses
-  const grossExpenses = filtered
-    .filter((tx) => tx.transactionType !== 'pago_tc' && tx.transactionType !== 'ingreso_venta' && tx.transactionType !== 'transferencia_recibida' && tx.amount > 0)
+  // Separate TC purchases vs general expenses (amount > 0 and not a payment/income)
+  const grossExpenses = transactions
+    .filter((tx) => !isPaymentOrIncomeTransaction(tx) && tx.amount > 0)
     .reduce((sum, tx) => sum + tx.amount, 0);
 
-  const totalPaymentsAndIncome = filtered
-    .filter((tx) => tx.transactionType === 'pago_tc' || tx.transactionType === 'ingreso_venta' || tx.transactionType === 'transferencia_recibida' || tx.amount < 0)
+  const totalPaymentsAndIncome = transactions
+    .filter((tx) => isPaymentOrIncomeTransaction(tx))
     .reduce((sum, tx) => sum + Math.abs(tx.amount), 0);
 
-  // Sum of total allocated payments to TC purchases
-  const totalAllocatedPayments = filtered
-    .filter((tx) => tx.transactionType === 'compra' || tx.amount > 0)
-    .reduce((sum, tx) => sum + tx.totalAllocated, 0);
+  // Sum of total allocated payments to purchases
+  const totalAllocatedPayments = transactions
+    .filter((tx) => !isPaymentOrIncomeTransaction(tx) && tx.amount > 0)
+    .reduce((sum, tx) => sum + (tx.totalAllocated || 0), 0);
 
   // Monto Real Utilizado = Gross Expenses - Allocated Payments
-  const netAmountUsed = filtered
-    .filter((tx) => tx.transactionType !== 'pago_tc' && tx.transactionType !== 'ingreso_venta' && tx.transactionType !== 'transferencia_recibida' && tx.amount > 0)
-    .reduce((sum, tx) => sum + tx.netAmount, 0);
+  const netAmountUsed = transactions
+    .filter((tx) => !isPaymentOrIncomeTransaction(tx) && tx.amount > 0)
+    .reduce((sum, tx) => sum + (tx.netAmount || 0), 0);
 
   // Unallocated payments balance on TC
-  const unallocatedTcPayments = filtered
-    .filter((tx) => tx.transactionType === 'pago_tc')
+  const unallocatedTcPayments = transactions
+    .filter((tx) => tx.transactionType === 'pago_tc' || (tx.category === 'Abonos y Pagos' && isPaymentOrIncomeTransaction(tx)))
     .reduce((sum, tx) => sum + (tx.unallocatedPaymentBalance || 0), 0);
 
   const selectedAcc = accounts.find((a) => a.id === activeAccountId);
