@@ -1,5 +1,5 @@
 import React from 'react';
-import { TrendingDown, TrendingUp, CreditCard, ShieldCheck, DollarSign } from 'lucide-react';
+import { TrendingDown, TrendingUp, CreditCard, ShieldCheck, DollarSign, Calendar } from 'lucide-react';
 import { ComputedTransaction, Account } from '../types';
 
 interface MetricCardsProps {
@@ -50,9 +50,29 @@ export const MetricCards: React.FC<MetricCardsProps> = ({
     .filter((tx) => tx.transactionType === 'pago_tc')
     .reduce((sum, tx) => sum + (tx.unallocatedPaymentBalance || 0), 0);
 
+  const selectedAcc = accounts.find((a) => a.id === activeAccountId);
+  const cycleInfo = selectedAcc?.closingDay
+    ? `Ciclo de Facturación: Corte el día ${selectedAcc.closingDay}${selectedAcc.dueDay ? ` • Vencimiento el día ${selectedAcc.dueDay}` : ''}`
+    : null;
+
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
       
+      {/* Active Account Billing Cycle Banner */}
+      {cycleInfo && (
+        <div className="sm:col-span-2 lg:col-span-4 bg-sky-50/90 border border-sky-200 px-3.5 py-2 rounded-xl text-xs text-sky-900 flex flex-col sm:flex-row sm:items-center justify-between gap-1 shadow-sm">
+          <div className="flex items-center gap-2">
+            <Calendar className="w-4 h-4 text-sky-600 flex-shrink-0" />
+            <span>
+              <b>{selectedAcc?.name}:</b> {cycleInfo}
+            </span>
+          </div>
+          <span className="text-[11px] text-sky-700 font-medium">
+            Gastos posteriores al día {selectedAcc?.closingDay} se asignan al ciclo de facturación del mes siguiente
+          </span>
+        </div>
+      )}
+
       {/* Gross Expenses */}
       <div className="bg-white rounded-xl p-4 shadow-sm border border-slate-200 flex flex-col justify-between hover:shadow-md transition">
         <div className="flex items-center justify-between">

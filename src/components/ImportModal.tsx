@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { X, Upload, FileText, FileSpreadsheet, Check, Sparkles, HelpCircle, Calendar } from 'lucide-react';
 import { Account, Transaction } from '../types';
 import { parseCSVFile, parseExcelFile, parseRawText } from '../utils/parser';
+import { calculateTransactionPeriod } from '../utils/dateUtils';
 import { formatCLP } from './MetricCards';
 
 interface ImportModalProps {
@@ -41,6 +42,7 @@ export const ImportModal: React.FC<ImportModalProps> = ({
         prev.map((tx) => ({
           ...tx,
           accountId: newAccountId,
+          period: calculateTransactionPeriod(tx.date, newTarget.closingDay),
           transactionType:
             tx.transactionType === 'pago_tc' && newTarget.type !== 'credit_card'
               ? 'ingreso_venta'
@@ -70,8 +72,12 @@ export const ImportModal: React.FC<ImportModalProps> = ({
         const text = await file.text();
         txs = parseRawText(text, selectedAccountId, targetAccount.type);
       }
-      // Ensure all transactions have selectedAccountId explicitly
-      const fixedTxs = txs.map((t) => ({ ...t, accountId: selectedAccountId }));
+      // Ensure all transactions have selectedAccountId and billing cycle period
+      const fixedTxs = txs.map((t) => ({
+        ...t,
+        accountId: selectedAccountId,
+        period: t.period || calculateTransactionPeriod(t.date, targetAccount.closingDay)
+      }));
       setParsedPreview(fixedTxs);
     } catch (err) {
       alert('Error al leer el archivo. Revisa el formato e intenta de nuevo.');
@@ -84,7 +90,11 @@ export const ImportModal: React.FC<ImportModalProps> = ({
   const handleParseText = () => {
     if (!rawText.trim() || !selectedAccountId || !targetAccount) return;
     const txs = parseRawText(rawText, selectedAccountId, targetAccount.type);
-    const fixedTxs = txs.map((t) => ({ ...t, accountId: selectedAccountId }));
+    const fixedTxs = txs.map((t) => ({
+      ...t,
+      accountId: selectedAccountId,
+      period: t.period || calculateTransactionPeriod(t.date, targetAccount.closingDay)
+    }));
     setParsedPreview(fixedTxs);
   };
 
@@ -109,7 +119,8 @@ export const ImportModal: React.FC<ImportModalProps> = ({
     if (parsedPreview.length === 0 || !selectedAccountId) return;
     const finalTransactions = parsedPreview.map((tx) => ({
       ...tx,
-      accountId: selectedAccountId
+      accountId: selectedAccountId,
+      period: tx.period || calculateTransactionPeriod(tx.date, targetAccount?.closingDay)
     }));
     onImport(finalTransactions);
     onClose();
@@ -152,9 +163,18 @@ export const ImportModal: React.FC<ImportModalProps> = ({
               {accounts.map((acc) => (
                 <option key={acc.id} value={acc.id}>
                   {acc.type === 'credit_card' ? '💳 TC: ' : '🏦 '} {acc.name} ({acc.bank})
+                  {acc.closingDay ? ` [Corte: día ${acc.closingDay}]` : ''}
                 </option>
               ))}
             </select>
+            {targetAccount?.closingDay && (
+              <p className="text-[11px] text-sky-700 bg-sky-50 px-2.5 py-1 rounded-lg border border-sky-200 mt-1.5 flex items-center gap-1.5">
+                <Calendar className="w-3.5 h-3.5 text-sky-600 flex-shrink-0" />
+                <span>
+                  Ciclo de Facturación: Corte el día <b>{targetAccount.closingDay}</b>. Las compras posteriores se asignan automáticamente al mes siguiente.
+                </span>
+              </p>
+            )}
           </div>
 
           <button

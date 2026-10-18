@@ -9,7 +9,9 @@ export const INITIAL_ACCOUNTS: Account[] = [
     accountNumber: '**** **** **** 4892',
     currency: 'CLP',
     creditLimit: 3000000,
-    color: '#e53e3e' // Red Santander
+    color: '#e53e3e', // Red Santander
+    closingDay: 24,
+    dueDay: 5
   },
   {
     id: 'acc-cta-bchile',

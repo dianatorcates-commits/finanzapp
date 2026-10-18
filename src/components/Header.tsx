@@ -72,6 +72,7 @@ export const Header: React.FC<HeaderProps> = ({
                 {accounts.map((acc) => (
                   <option key={acc.id} value={acc.id} className="bg-slate-800 text-white">
                     {acc.type === 'credit_card' ? '💳 TC: ' : '🏦 '} {acc.name} ({acc.bank})
+                    {acc.closingDay ? ` [Corte: día ${acc.closingDay}]` : ''}
                   </option>
                 ))}
               </select>

@@ -194,7 +194,7 @@ export const Filters: React.FC<FiltersProps> = ({
             <option value="ALL">Todas las Cuentas</option>
             {accounts.map((acc) => (
               <option key={acc.id} value={acc.id}>
-                {acc.name}
+                {acc.name} {acc.closingDay ? `(Corte día ${acc.closingDay})` : ''}
               </option>
             ))}
           </select>

@@ -147,6 +147,36 @@ function parseUserDate(val?: string): string | null {
   return null;
 }
 
+// Calculate accounting period based on account's closing day
+function calculateTransactionPeriod(dateStr: string, closingDay?: number | null): string {
+  if (!dateStr || typeof dateStr !== 'string') return '';
+  const parts = dateStr.trim().split('-');
+  if (parts.length < 3) return dateStr.substring(0, 7);
+  const year = parseInt(parts[0], 10);
+  const month = parseInt(parts[1], 10);
+  const day = parseInt(parts[2], 10);
+  if (isNaN(year) || isNaN(month) || isNaN(day)) return dateStr.substring(0, 7);
+
+  if (!closingDay || closingDay <= 1) {
+    return `${year}-${String(month).padStart(2, '0')}`;
+  }
+
+  const lastDayOfMonth = new Date(year, month, 0).getDate();
+  const effectiveClosingDay = Math.min(closingDay, lastDayOfMonth);
+
+  if (day <= effectiveClosingDay) {
+    return `${year}-${String(month).padStart(2, '0')}`;
+  } else {
+    let nextYear = year;
+    let nextMonth = month + 1;
+    if (nextMonth > 12) {
+      nextMonth = 1;
+      nextYear += 1;
+    }
+    return `${nextYear}-${String(nextMonth).padStart(2, '0')}`;
+  }
+}
+
 // Transaction Type mapping
 function mapTransactionType(tipo?: string): string {
   if (!tipo) return 'compra';
@@ -493,7 +523,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (command === '/cuentas') {
       const { data: accounts, error: accErr } = await supabaseAdmin
         .from('accounts')
-        .select('name, bank, type')
+        .select('name, bank, type, closing_day, due_day')
         .eq('user_id', userId)
         .order('name');
 
@@ -516,7 +546,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const accountListText = accounts
         .map((a) => {
           const tLabel = typeLabels[a.type] || a.type;
-          return `• *${a.name}* (${a.bank || 'Banco'}) - _${tLabel}_`;
+          const cycleLabel = a.closing_day
+            ? ` [Corte: día ${a.closing_day}${a.due_day ? `, Vence: día ${a.due_day}` : ''}]`
+            : '';
+          return `• *${a.name}* (${a.bank || 'Banco'}) - _${tLabel}_${cycleLabel}`;
         })
         .join('\n');
 
@@ -691,7 +724,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     // E. INSERCIÓN EN LA BASE DE DATOS (TABLA TRANSACTIONS)
     // ------------------------------------------------------------
     const newTransactionId = crypto.randomUUID();
-    const period = parsedDate.substring(0, 7); // YYYY-MM
+    const period = calculateTransactionPeriod(parsedDate, matchedAccount.closing_day);
 
     const insertPayload = {
       id: newTransactionId,

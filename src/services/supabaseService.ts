@@ -89,7 +89,9 @@ export async function fetchUserData(userId: string) {
       bank: a.bank,
       currency: a.currency || 'CLP',
       creditLimit: a.credit_limit,
-      color: a.color
+      color: a.color,
+      closingDay: a.closing_day ? parseInt(a.closing_day, 10) : undefined,
+      dueDay: a.due_day ? parseInt(a.due_day, 10) : undefined
     }));
 
     const categoryMappings: CategoryMapping[] = (categoriesData || []).map((c: any) => ({
@@ -179,7 +181,9 @@ export async function syncLocalDataToCloud(
         type: a.type,
         bank: a.bank,
         currency: a.currency || 'CLP',
-        credit_limit: a.creditLimit
+        credit_limit: a.creditLimit,
+        closing_day: a.closingDay || null,
+        due_day: a.dueDay || null
       }));
       const { error: accErr } = await supabase.from('accounts').upsert(accountsPayload, { onConflict: 'id' });
       if (accErr) console.error('Error syncing accounts to cloud:', accErr);
@@ -255,6 +259,46 @@ export async function syncLocalDataToCloud(
   } catch (err) {
     console.error('Error syncing local data to Supabase cloud:', err);
     return false;
+  }
+}
+
+export async function saveCloudAccount(userId: string, account: Account) {
+  try {
+    const payload = {
+      id: account.id,
+      user_id: userId,
+      name: account.name,
+      type: account.type,
+      bank: account.bank,
+      currency: account.currency || 'CLP',
+      credit_limit: account.creditLimit,
+      color: account.color,
+      closing_day: account.closingDay || null,
+      due_day: account.dueDay || null
+    };
+    const { error } = await supabase.from('accounts').upsert(payload, { onConflict: 'id' });
+    if (error) console.error('Error saving account to cloud:', error);
+  } catch (err) {
+    console.error('Unexpected error saving account to cloud:', err);
+  }
+}
+
+export async function updateAccountTransactionsPeriod(
+  userId: string,
+  updatedTxs: { id: string; period: string }[]
+) {
+  if (!updatedTxs || updatedTxs.length === 0) return;
+  try {
+    // Upsert or update period for these transactions
+    for (const tx of updatedTxs) {
+      await supabase
+        .from('transactions')
+        .update({ period: tx.period })
+        .eq('id', tx.id)
+        .eq('user_id', userId);
+    }
+  } catch (err) {
+    console.error('Error updating transactions period in cloud:', err);
   }
 }
 

@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import { ComputedTransaction, Account, CategoryMapping, TransactionType } from '../types';
 import { getParentCategory, TRANSACTION_TYPES } from '../utils/categorizer';
+import { calculateTransactionPeriod } from '../utils/dateUtils';
 import { formatCLP } from './MetricCards';
 
 interface TransactionTableProps {
@@ -36,8 +37,12 @@ export const TransactionTable: React.FC<TransactionTableProps> = ({
 }) => {
   const [showAddForm, setShowAddForm] = useState(false);
   const [newDate, setNewDate] = useState(new Date().toISOString().split('T')[0]);
-  const [newPeriod, setNewPeriod] = useState(new Date().toISOString().split('T')[0].slice(0, 7));
   const [newAccountId, setNewAccountId] = useState(accounts[0]?.id || '');
+  const [newPeriod, setNewPeriod] = useState(() => {
+    const today = new Date().toISOString().split('T')[0];
+    const acc = accounts[0];
+    return calculateTransactionPeriod(today, acc?.closingDay);
+  });
   const [newDesc, setNewDesc] = useState('');
   const [newAmount, setNewAmount] = useState('');
   const [newSubcategory, setNewSubcategory] = useState<string>(
@@ -129,12 +134,14 @@ export const TransactionTable: React.FC<TransactionTableProps> = ({
 
     const numAmount = parseFloat(newAmount);
     const parentCategory = getParentCategory(newSubcategory, categoryMappings);
+    const targetAcc = accounts.find((a) => a.id === newAccountId);
+    const finalPeriod = newPeriod || calculateTransactionPeriod(newDate, targetAcc?.closingDay);
 
     onAddTransaction({
       id: `tx-man-${Date.now()}`,
       accountId: newAccountId,
       date: newDate,
-      period: newPeriod || newDate.slice(0, 7),
+      period: finalPeriod,
       description: newDesc.trim(),
       rawDescription: newDesc.trim(),
       amount: Math.abs(numAmount),
@@ -218,8 +225,10 @@ export const TransactionTable: React.FC<TransactionTableProps> = ({
               required
               value={newDate}
               onChange={(e) => {
-                setNewDate(e.target.value);
-                setNewPeriod(e.target.value.slice(0, 7));
+                const d = e.target.value;
+                setNewDate(d);
+                const acc = accounts.find((a) => a.id === newAccountId);
+                setNewPeriod(calculateTransactionPeriod(d, acc?.closingDay));
               }}
               className="w-full text-xs py-1.5 px-2 bg-white border border-slate-300 rounded-lg focus:outline-none"
             />
@@ -240,11 +249,18 @@ export const TransactionTable: React.FC<TransactionTableProps> = ({
             <label className="block text-[11px] font-semibold text-slate-600 mb-1">Cuenta/Tarjeta</label>
             <select
               value={newAccountId}
-              onChange={(e) => setNewAccountId(e.target.value)}
+              onChange={(e) => {
+                const accId = e.target.value;
+                setNewAccountId(accId);
+                const acc = accounts.find((a) => a.id === accId);
+                setNewPeriod(calculateTransactionPeriod(newDate, acc?.closingDay));
+              }}
               className="w-full text-xs py-1.5 px-2 bg-white border border-slate-300 rounded-lg focus:outline-none"
             >
               {accounts.map((a) => (
-                <option key={a.id} value={a.id}>{a.name}</option>
+                <option key={a.id} value={a.id}>
+                  {a.name} {a.closingDay ? `(Corte día ${a.closingDay})` : ''}
+                </option>
               ))}
             </select>
           </div>

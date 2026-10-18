@@ -14,7 +14,8 @@ import {
 } from 'recharts';
 import { ComputedTransaction, Account, CategoryBudget } from '../types';
 import { formatCLP } from './MetricCards';
-import { Target, AlertTriangle, CheckCircle2, Plus } from 'lucide-react';
+import { Target, AlertTriangle, CheckCircle2, Plus, Calendar, CreditCard, Landmark } from 'lucide-react';
+import { formatBillingCycle } from '../utils/dateUtils';
 
 interface ChartsDashboardProps {
   computedTransactions: ComputedTransaction[];
@@ -338,6 +339,62 @@ export const ChartsDashboard: React.FC<ChartsDashboardProps> = ({
               <Bar dataKey="PagosRealizados" name="Abonos Realizados" fill="#059669" radius={[0, 4, 4, 0]} />
             </BarChart>
           </ResponsiveContainer>
+        </div>
+
+        {/* Account Cards with Billing Cycle Badges */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 mt-4 pt-4 border-t border-slate-100">
+          {accounts.map((acc) => {
+            const accData = accountData.find((d) => d.name === acc.name);
+            const cycle = formatBillingCycle(acc.closingDay, acc.dueDay);
+
+            return (
+              <div
+                key={acc.id}
+                className="bg-slate-50 border border-slate-200/80 rounded-xl p-3 flex flex-col justify-between text-xs hover:border-slate-300 transition"
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex items-center gap-2">
+                    <div className="p-1.5 rounded-lg bg-white border border-slate-200 text-slate-700">
+                      {acc.type === 'credit_card' ? (
+                        <CreditCard className="w-3.5 h-3.5 text-rose-500" />
+                      ) : (
+                        <Landmark className="w-3.5 h-3.5 text-sky-600" />
+                      )}
+                    </div>
+                    <div>
+                      <p className="font-bold text-slate-800">{acc.name}</p>
+                      <p className="text-[10px] text-slate-400">{acc.bank}</p>
+                    </div>
+                  </div>
+                  {cycle ? (
+                    <span className="inline-flex items-center gap-1 text-[10px] font-semibold bg-sky-100 text-sky-800 px-2 py-0.5 rounded-full border border-sky-200">
+                      <Calendar className="w-2.5 h-2.5" />
+                      {cycle}
+                    </span>
+                  ) : (
+                    <span className="text-[10px] text-slate-400 font-medium bg-slate-200/60 px-2 py-0.5 rounded-full">
+                      Fin de mes
+                    </span>
+                  )}
+                </div>
+
+                <div className="grid grid-cols-2 gap-2 mt-3 pt-2 border-t border-slate-200/60 text-[11px]">
+                  <div>
+                    <span className="text-slate-400 block text-[10px]">Gasto Bruto:</span>
+                    <span className="font-bold text-slate-700">
+                      {formatCLP(accData?.GastosOriginales || 0)}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-slate-400 block text-[10px]">Monto Real Utilizado:</span>
+                    <span className="font-bold text-sky-700">
+                      {formatCLP(accData?.MontoRealUtilizado || 0)}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
         </div>
       </div>
     </div>

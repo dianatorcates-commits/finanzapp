@@ -9,6 +9,8 @@ export interface Account {
   currency: string;
   creditLimit?: number;
   color?: string;
+  closingDay?: number; // 1-31 (Día de corte de facturación mensual)
+  dueDay?: number;     // 1-31 (Día límite de pago o vencimiento mensual)
 }
 
 export type TransactionType =

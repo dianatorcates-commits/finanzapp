@@ -25,8 +25,11 @@ import {
   deleteCloudCategory,
   deleteCloudRule,
   deleteCloudBudget,
-  getTelegramProfile
+  getTelegramProfile,
+  saveCloudAccount,
+  updateAccountTransactionsPeriod
 } from './services/supabaseService';
+import { calculateTransactionPeriod } from './utils/dateUtils';
 import { Header } from './components/Header';
 import { MetricCards } from './components/MetricCards';
 import { Filters } from './components/Filters';
@@ -444,8 +447,41 @@ export function App() {
     setTransactions((prev) => [...newTxs, ...prev]);
   };
 
-  const handleAddAccount = (newAcc: Account) => {
+  const handleAddAccount = async (newAcc: Account) => {
+    if (currentUser) {
+      await saveCloudAccount(currentUser.id, newAcc);
+    }
     setAccounts((prev) => [...prev, newAcc]);
+  };
+
+  const handleUpdateAccount = async (updatedAcc: Account) => {
+    const oldAcc = accounts.find((a) => a.id === updatedAcc.id);
+    setAccounts((prev) => prev.map((a) => (a.id === updatedAcc.id ? updatedAcc : a)));
+
+    if (currentUser) {
+      await saveCloudAccount(currentUser.id, updatedAcc);
+    }
+
+    // Si el día de corte cambió, recalcular los períodos de las transacciones de esta cuenta
+    if (oldAcc?.closingDay !== updatedAcc.closingDay) {
+      const changedTxs: { id: string; period: string }[] = [];
+      setTransactions((prev) =>
+        prev.map((tx) => {
+          if (tx.accountId === updatedAcc.id) {
+            const newPeriod = calculateTransactionPeriod(tx.date, updatedAcc.closingDay);
+            if (newPeriod !== tx.period) {
+              changedTxs.push({ id: tx.id, period: newPeriod });
+              return { ...tx, period: newPeriod };
+            }
+          }
+          return tx;
+        })
+      );
+
+      if (currentUser && changedTxs.length > 0) {
+        await updateAccountTransactionsPeriod(currentUser.id, changedTxs);
+      }
+    }
   };
 
   const handleDeleteAccount = async (accId: string) => {
@@ -797,6 +833,7 @@ export function App() {
           accounts={accounts}
           onClose={() => setIsAccountModalOpen(false)}
           onAddAccount={handleAddAccount}
+          onUpdateAccount={handleUpdateAccount}
           onDeleteAccount={handleDeleteAccount}
         />
       )}
