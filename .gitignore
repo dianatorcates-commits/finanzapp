@@ -4,3 +4,4 @@ dist
 .env*
 *.rtf
 .DS_Store
+*.sql

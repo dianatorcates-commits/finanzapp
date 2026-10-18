@@ -1,16 +1,18 @@
 import React from 'react';
-import { Wallet, Upload, CreditCard, RefreshCw, Link2, PlusCircle, Download, Tag, Sparkles, User, LogOut, Cloud } from 'lucide-react';
+import { Wallet, Upload, CreditCard, RefreshCw, Link2, PlusCircle, Download, Tag, Sparkles, User, LogOut, Cloud, Send } from 'lucide-react';
 import { Account } from '../types';
 
 interface HeaderProps {
   accounts: Account[];
   activeAccountId: string;
   currentUser?: any;
+  isTelegramLinked?: boolean;
   onSelectAccount: (id: string) => void;
   onOpenImport: () => void;
   onOpenAccountModal: () => void;
   onOpenCategoryModal: () => void;
   onOpenBudgetModal: () => void;
+  onOpenTelegramModal: () => void;
   onOpenAuthModal: () => void;
   onSignOut: () => void;
   onAutoAllocate: () => void;
@@ -22,11 +24,13 @@ export const Header: React.FC<HeaderProps> = ({
   accounts,
   activeAccountId,
   currentUser,
+  isTelegramLinked,
   onSelectAccount,
   onOpenImport,
   onOpenAccountModal,
   onOpenCategoryModal,
   onOpenBudgetModal,
+  onOpenTelegramModal,
   onOpenAuthModal,
   onSignOut,
   onAutoAllocate,
@@ -119,6 +123,23 @@ export const Header: React.FC<HeaderProps> = ({
             >
               <Sparkles className="w-3.5 h-3.5 text-amber-400" />
               <span className="hidden sm:inline">Reglas & Presupuestos</span>
+            </button>
+
+            {/* Telegram Bot Integration */}
+            <button
+              onClick={onOpenTelegramModal}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition border ${
+                isTelegramLinked
+                  ? 'bg-sky-500/10 hover:bg-sky-500/20 text-sky-300 border-sky-500/40 shadow-sm'
+                  : 'bg-slate-800 hover:bg-slate-700 text-slate-300 border-slate-700'
+              }`}
+              title="Integración con Bot de Telegram para registro de gastos"
+            >
+              <Send className="w-3.5 h-3.5 text-sky-400 -rotate-12" />
+              <span className="hidden sm:inline">Telegram</span>
+              {isTelegramLinked && (
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" title="Telegram Vinculado" />
+              )}
             </button>
 
             {/* Export */}

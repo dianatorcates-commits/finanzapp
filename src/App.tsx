@@ -1,6 +1,15 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import * as XLSX from 'xlsx';
-import { Account, Transaction, ComputedTransaction, FilterState, CategoryMapping, AutoCategoryRule, CategoryBudget } from './types';
+import {
+  Account,
+  Transaction,
+  ComputedTransaction,
+  FilterState,
+  CategoryMapping,
+  AutoCategoryRule,
+  CategoryBudget,
+  TelegramProfile
+} from './types';
 import { INITIAL_ACCOUNTS, INITIAL_TRANSACTIONS } from './utils/demoData';
 import { DEFAULT_CATEGORY_MAPPINGS, DEFAULT_AUTO_RULES, getParentCategory, autoCategorize, applyAutoRulesToTransaction } from './utils/categorizer';
 import { computeTransactions, autoAllocatePayments, addPaymentAllocation, removePaymentAllocation } from './utils/paymentAllocation';
@@ -15,7 +24,8 @@ import {
   saveCloudCategory,
   deleteCloudCategory,
   deleteCloudRule,
-  deleteCloudBudget
+  deleteCloudBudget,
+  getTelegramProfile
 } from './services/supabaseService';
 import { Header } from './components/Header';
 import { MetricCards } from './components/MetricCards';
@@ -27,6 +37,7 @@ import { ImportModal } from './components/ImportModal';
 import { AccountManagerModal } from './components/AccountManagerModal';
 import { CategoryManagerModal } from './components/CategoryManagerModal';
 import { BudgetAndRulesModal } from './components/BudgetAndRulesModal';
+import { TelegramModal } from './components/TelegramModal';
 import { AuthModal } from './components/AuthModal';
 import { LandingPage } from './components/LandingPage';
 import { PieChart, ListFilter, ShieldCheck } from 'lucide-react';
@@ -139,6 +150,8 @@ export function App() {
   const [isAccountModalOpen, setIsAccountModalOpen] = useState(false);
   const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
   const [isBudgetModalOpen, setIsBudgetModalOpen] = useState(false);
+  const [isTelegramModalOpen, setIsTelegramModalOpen] = useState(false);
+  const [telegramProfile, setTelegramProfile] = useState<TelegramProfile | null>(null);
   const [selectedPurchaseForPayment, setSelectedPurchaseForPayment] = useState<ComputedTransaction | null>(null);
 
   // Load cloud data from Supabase if user is logged in
@@ -183,12 +196,100 @@ export function App() {
         });
         localStorage.setItem(cloudSyncedKey, 'true');
       }
+
+      // Also load Telegram Profile
+      getTelegramProfile(userId).then((prof) => setTelegramProfile(prof)).catch(() => {});
     } catch (err) {
       console.error('Error al cargar/sincronizar datos desde Supabase:', err);
     } finally {
       setIsCloudLoading(false);
     }
   };
+
+  // Realtime subscription for incoming Telegram transactions & profile link updates
+  useEffect(() => {
+    if (!currentUser?.id) return;
+
+    // Listen to new transactions inserted via Telegram Webhook
+    const txChannel = supabase
+      .channel(`realtime-tx-${currentUser.id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'transactions',
+          filter: `user_id=eq.${currentUser.id}`
+        },
+        (payload) => {
+          const newDbTx: any = payload.new;
+          if (!newDbTx) return;
+
+          setTransactions((prev) => {
+            if (prev.some((t) => t.id === newDbTx.id)) return prev;
+
+            let parsedAllocations: any[] = [];
+            if (newDbTx.allocations) {
+              if (Array.isArray(newDbTx.allocations)) {
+                parsedAllocations = newDbTx.allocations;
+              } else if (typeof newDbTx.allocations === 'string') {
+                try {
+                  parsedAllocations = JSON.parse(newDbTx.allocations);
+                } catch {
+                  parsedAllocations = [];
+                }
+              }
+            }
+
+            const mappedTx: Transaction = {
+              id: newDbTx.id,
+              accountId: newDbTx.account_id,
+              date: newDbTx.date,
+              period: newDbTx.period || newDbTx.date.substring(0, 7),
+              description: newDbTx.description,
+              rawDescription: newDbTx.raw_description || newDbTx.description,
+              amount: parseFloat(newDbTx.amount),
+              originalTotalAmount: newDbTx.original_total_amount ? parseFloat(newDbTx.original_total_amount) : undefined,
+              transactionType: newDbTx.transaction_type,
+              category: newDbTx.category,
+              subcategory: newDbTx.subcategory,
+              installments: newDbTx.installment_current && newDbTx.installment_total ? {
+                current: newDbTx.installment_current,
+                total: newDbTx.installment_total
+              } : undefined,
+              allocations: parsedAllocations
+            };
+            return [mappedTx, ...prev];
+          });
+        }
+      )
+      .subscribe();
+
+    // Listen to telegram profile handshake updates
+    const profileChannel = supabase
+      .channel(`realtime-telegram-profile-${currentUser.id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'telegram_profiles',
+          filter: `user_id=eq.${currentUser.id}`
+        },
+        (payload) => {
+          const newProf: any = payload.new;
+          if (newProf) {
+            setTelegramProfile(newProf);
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(txChannel);
+      supabase.removeChannel(profileChannel);
+    };
+  }, [currentUser?.id]);
 
   // Auth Listener
   useEffect(() => {
@@ -216,6 +317,7 @@ export function App() {
   const handleSignOut = async () => {
     await signOutUser();
     setCurrentUser(null);
+    setTelegramProfile(null);
     setViewMode('landing');
     // Clear user local storage keys so old state doesn't persist
     localStorage.removeItem(STORAGE_KEY_ACCOUNTS);
@@ -566,11 +668,13 @@ export function App() {
         accounts={accounts}
         activeAccountId={filters.accountId}
         currentUser={currentUser}
+        isTelegramLinked={Boolean(telegramProfile?.telegram_chat_id)}
         onSelectAccount={(id) => setFilters((prev) => ({ ...prev, accountId: id }))}
         onOpenImport={() => setIsImportModalOpen(true)}
         onOpenAccountModal={() => setIsAccountModalOpen(true)}
         onOpenCategoryModal={() => setIsCategoryModalOpen(true)}
         onOpenBudgetModal={() => setIsBudgetModalOpen(true)}
+        onOpenTelegramModal={() => (currentUser ? setIsTelegramModalOpen(true) : setIsAuthModalOpen(true))}
         onOpenAuthModal={() => setIsAuthModalOpen(true)}
         onSignOut={handleSignOut}
         onAutoAllocate={handleAutoAllocate}
@@ -721,6 +825,16 @@ export function App() {
           onApplyRulesToExisting={handleApplyRulesToExisting}
           onSaveBudget={handleSaveBudget}
           onDeleteBudget={handleDeleteBudget}
+        />
+      )}
+
+      {/* Telegram Integration Modal */}
+      {isTelegramModalOpen && (
+        <TelegramModal
+          currentUser={currentUser}
+          accounts={accounts}
+          onClose={() => setIsTelegramModalOpen(false)}
+          onProfileUpdated={(prof) => setTelegramProfile(prof)}
         />
       )}
 

@@ -84,3 +84,14 @@ export interface CategoryBudget {
   monthlyLimit: number; // Limit in CLP
 }
 
+export interface TelegramProfile {
+  id: string;
+  user_id: string;
+  telegram_chat_id?: number | string | null;
+  first_name?: string | null;
+  username?: string | null;
+  link_token?: string | null;
+  token_expires_at?: string | null;
+  created_at?: string;
+}
+

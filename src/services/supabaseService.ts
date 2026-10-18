@@ -1,5 +1,5 @@
 import { supabase } from '../utils/supabaseClient';
-import { Account, Transaction, CategoryMapping, AutoCategoryRule, CategoryBudget, PaymentAllocation } from '../types';
+import { Account, Transaction, CategoryMapping, AutoCategoryRule, CategoryBudget, PaymentAllocation, TelegramProfile } from '../types';
 
 // ==========================================
 // 1. AUTHENTICATION SERVICES
@@ -313,6 +313,91 @@ export async function deleteCloudRule(userId: string, ruleId: string) {
 export async function deleteCloudBudget(userId: string, budgetId: string) {
   const { error } = await supabase.from('category_budgets').delete().eq('id', budgetId).eq('user_id', userId);
   if (error) console.error('Error deleting budget from cloud:', error);
+}
+
+// ==========================================
+// 3. TELEGRAM INTEGRATION SERVICES
+// ==========================================
+
+export async function getTelegramProfile(userId: string): Promise<TelegramProfile | null> {
+  try {
+    const { data, error } = await supabase
+      .from('telegram_profiles')
+      .select('*')
+      .eq('user_id', userId)
+      .maybeSingle();
+
+    if (error) {
+      console.warn('Error fetching telegram profile:', error);
+      return null;
+    }
+    return data as TelegramProfile | null;
+  } catch (err) {
+    console.error('Unexpected error fetching telegram profile:', err);
+    return null;
+  }
+}
+
+export async function generateTelegramLinkToken(userId: string): Promise<{ token: string; expiresAt: string }> {
+  // Generate random 16-character alphanumeric token
+  const token = (Math.random().toString(36).substring(2, 10) + Math.random().toString(36).substring(2, 10)).toUpperCase();
+  // 15 minutes expiration
+  const expiresAt = new Date(Date.now() + 15 * 60 * 1000).toISOString();
+
+  // Check if profile exists for user
+  const { data: existing, error: fetchErr } = await supabase
+    .from('telegram_profiles')
+    .select('id')
+    .eq('user_id', userId)
+    .maybeSingle();
+
+  if (fetchErr && fetchErr.code !== 'PGRST116') {
+    console.warn('Notice checking telegram profile:', fetchErr);
+  }
+
+  if (existing) {
+    const { error: updateErr } = await supabase
+      .from('telegram_profiles')
+      .update({
+        link_token: token,
+        token_expires_at: expiresAt,
+      })
+      .eq('user_id', userId);
+
+    if (updateErr) throw updateErr;
+  } else {
+    const { error: insertErr } = await supabase
+      .from('telegram_profiles')
+      .insert({
+        id: crypto.randomUUID(),
+        user_id: userId,
+        link_token: token,
+        token_expires_at: expiresAt,
+      });
+
+    if (insertErr) throw insertErr;
+  }
+
+  return { token, expiresAt };
+}
+
+export async function unlinkTelegramProfile(userId: string): Promise<boolean> {
+  const { error } = await supabase
+    .from('telegram_profiles')
+    .update({
+      telegram_chat_id: null,
+      first_name: null,
+      username: null,
+      link_token: null,
+      token_expires_at: null,
+    })
+    .eq('user_id', userId);
+
+  if (error) {
+    console.error('Error unlinking telegram profile:', error);
+    throw error;
+  }
+  return true;
 }
 
 
