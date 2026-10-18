@@ -39,8 +39,8 @@ export const TelegramModal: React.FC<TelegramModalProps> = ({
   const [copiedTemplate, setCopiedTemplate] = useState(false);
   const [timeLeft, setTimeLeft] = useState<number | null>(null);
 
-  // Configurable Bot Username (reads from env or local storage, fallback to FinanzAppBot)
-  const defaultBotName = (import.meta.env.VITE_TELEGRAM_BOT_NAME as string) || 'FinanzAppBot';
+  // Configurable Bot Username (reads from env or local storage, fallback to FinanzAppGastosBot)
+  const defaultBotName = (import.meta.env.VITE_TELEGRAM_BOT_NAME as string) || 'FinanzAppGastosBot';
   const [botUsername, setBotUsername] = useState<string>(() => {
     return localStorage.getItem('finanzapp_telegram_bot_name') || defaultBotName;
   });
