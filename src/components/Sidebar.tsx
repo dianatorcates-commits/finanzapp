@@ -18,13 +18,13 @@ import {
 } from 'lucide-react';
 
 interface SidebarProps {
-  activeTab: 'dashboard' | 'transactions';
-  onSelectTab: (tab: 'dashboard' | 'transactions') => void;
+  activeTab: 'dashboard' | 'transactions' | 'categories';
+  onSelectTab: (tab: 'dashboard' | 'transactions' | 'categories') => void;
   currentUser?: any;
   isTelegramLinked?: boolean;
   onOpenImport: () => void;
   onOpenAccountModal: () => void;
-  onOpenCategoryModal: () => void;
+  onOpenCategoryModal?: () => void;
   onOpenBudgetModal: () => void;
   onOpenTelegramModal: () => void;
   onOpenAuthModal: () => void;
@@ -200,12 +200,16 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
           <button
             onClick={() => {
-              onOpenCategoryModal();
+              onSelectTab('categories');
               if (onCloseMobile) onCloseMobile();
             }}
-            className="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-medium text-slate-400 hover:text-slate-200 hover:bg-slate-900/50 transition group"
+            className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs transition group ${
+              activeTab === 'categories'
+                ? 'bg-slate-900/90 text-sky-400 border-l-2 border-sky-400 font-semibold shadow-inner'
+                : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900/50 font-medium'
+            }`}
           >
-            <Tag className="w-4 h-4 text-slate-500 group-hover:text-indigo-400 transition" />
+            <Tag className={`w-4 h-4 transition ${activeTab === 'categories' ? 'text-sky-400' : 'text-slate-500 group-hover:text-indigo-400'}`} />
             <span>Categorías & Reglas</span>
           </button>
 

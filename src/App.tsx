@@ -39,7 +39,7 @@ import { TransactionTable } from './components/TransactionTable';
 import { PaymentModal } from './components/PaymentModal';
 import { ImportModal } from './components/ImportModal';
 import { AccountManagerModal } from './components/AccountManagerModal';
-import { CategoryManagerModal } from './components/CategoryManagerModal';
+import { CategoryManagementView } from './components/CategoryManagementView';
 import { BudgetAndRulesModal } from './components/BudgetAndRulesModal';
 import { TelegramModal } from './components/TelegramModal';
 import { AuthModal } from './components/AuthModal';
@@ -130,7 +130,7 @@ export function App() {
   }, [currentUser, isCloudLoading, accounts, categoryMappings, autoRules, budgets, transactions]);
 
   // Active view tab & Mobile Sidebar drawer state
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'transactions'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'transactions' | 'categories'>('dashboard');
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
 
   // Filter State
@@ -148,7 +148,6 @@ export function App() {
   // Modals state
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [isAccountModalOpen, setIsAccountModalOpen] = useState(false);
-  const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
   const [isBudgetModalOpen, setIsBudgetModalOpen] = useState(false);
   const [isTelegramModalOpen, setIsTelegramModalOpen] = useState(false);
   const [telegramProfile, setTelegramProfile] = useState<TelegramProfile | null>(null);
@@ -634,6 +633,65 @@ export function App() {
     }
   };
 
+  const handleEditCategory = async (categoryId: string, oldName: string, newName: string) => {
+    let updatedCat: CategoryMapping | null = null;
+    setCategoryMappings((prev) =>
+      prev.map((c) => {
+        if (c.id === categoryId) {
+          updatedCat = { ...c, name: newName };
+          return updatedCat;
+        }
+        return c;
+      })
+    );
+
+    // Update transactions that had this category
+    setTransactions((prev) =>
+      prev.map((t) => (t.category === oldName ? { ...t, category: newName } : t))
+    );
+
+    // Update autoRules and budgets
+    setAutoRules((prev) =>
+      prev.map((r) => (r.category === oldName ? { ...r, category: newName } : r))
+    );
+    setBudgets((prev) =>
+      prev.map((b) => (b.categoryName === oldName ? { ...b, categoryName: newName } : b))
+    );
+
+    if (currentUser && updatedCat) {
+      await saveCloudCategory(currentUser.id, updatedCat);
+    }
+  };
+
+  const handleEditSubcategory = async (parentCategoryName: string, oldSubName: string, newSubName: string) => {
+    let updatedCat: CategoryMapping | null = null;
+    setCategoryMappings((prev) =>
+      prev.map((c) => {
+        if (c.name === parentCategoryName) {
+          updatedCat = {
+            ...c,
+            subcategories: c.subcategories.map((s) => (s === oldSubName ? newSubName : s))
+          };
+          return updatedCat;
+        }
+        return c;
+      })
+    );
+
+    // Update transactions that had this subcategory
+    setTransactions((prev) =>
+      prev.map((t) =>
+        t.category === parentCategoryName && t.subcategory === oldSubName
+          ? { ...t, subcategory: newSubName }
+          : t
+      )
+    );
+
+    if (currentUser && updatedCat) {
+      await saveCloudCategory(currentUser.id, updatedCat);
+    }
+  };
+
   // Auto Rules & Budgets Handlers
   const handleAddAutoRule = (newRule: AutoCategoryRule) => {
     setAutoRules((prev) => [newRule, ...prev]);
@@ -781,7 +839,7 @@ export function App() {
         isTelegramLinked={Boolean(telegramProfile?.telegram_chat_id)}
         onOpenImport={() => setIsImportModalOpen(true)}
         onOpenAccountModal={() => setIsAccountModalOpen(true)}
-        onOpenCategoryModal={() => setIsCategoryModalOpen(true)}
+        onOpenCategoryModal={() => setActiveTab('categories')}
         onOpenBudgetModal={() => setIsBudgetModalOpen(true)}
         onOpenTelegramModal={() => (currentUser ? setIsTelegramModalOpen(true) : setIsAuthModalOpen(true))}
         onOpenAuthModal={() => setIsAuthModalOpen(true)}
@@ -844,35 +902,38 @@ export function App() {
         <div className="flex-1 overflow-y-auto flex flex-col scrollbar-thin scrollbar-thumb-slate-800">
           <main className="w-full max-w-7xl mx-auto p-4 sm:p-6 space-y-6 flex-1">
             
-            {/* 1. Metric Cards Summary */}
-            <MetricCards
-              computedTransactions={filteredTransactions}
-              accounts={accounts}
-              activeAccountId={filters.accountId}
-            />
+            {/* 1 & 2. Metric Cards & Filters (Only in Dashboard & Transactions) */}
+            {activeTab !== 'categories' && (
+              <>
+                <MetricCards
+                  computedTransactions={filteredTransactions}
+                  accounts={accounts}
+                  activeAccountId={filters.accountId}
+                />
 
-            {/* 2. Filters & Search */}
-            <Filters
-              filters={filters}
-              accounts={accounts}
-              categoryMappings={categoryMappings}
-              availableMonths={availableMonths}
-              onChange={setFilters}
-              onReset={() =>
-                setFilters({
-                  month: 'ALL',
-                  accountId: 'ALL',
-                  accountType: 'ALL',
-                  transactionType: 'ALL',
-                  categories: [],
-                  subcategories: [],
-                  searchQuery: '',
-                  onlyPendingTC: false
-                })
-              }
-            />
+                <Filters
+                  filters={filters}
+                  accounts={accounts}
+                  categoryMappings={categoryMappings}
+                  availableMonths={availableMonths}
+                  onChange={setFilters}
+                  onReset={() =>
+                    setFilters({
+                      month: 'ALL',
+                      accountId: 'ALL',
+                      accountType: 'ALL',
+                      transactionType: 'ALL',
+                      categories: [],
+                      subcategories: [],
+                      searchQuery: '',
+                      onlyPendingTC: false
+                    })
+                  }
+                />
+              </>
+            )}
 
-            {/* 3. Active Tab Content (Dashboard or Transactions) */}
+            {/* 3. Active Tab Content (Dashboard, Transactions, or Categories) */}
             {activeTab === 'dashboard' ? (
               <ChartsDashboard
                 computedTransactions={filteredTransactions}
@@ -880,7 +941,7 @@ export function App() {
                 budgets={budgets}
                 onOpenBudgetModal={() => setIsBudgetModalOpen(true)}
               />
-            ) : (
+            ) : activeTab === 'transactions' ? (
               <TransactionTable
                 transactions={filteredTransactions}
                 accounts={accounts}
@@ -890,6 +951,16 @@ export function App() {
                 onDeleteTransaction={handleDeleteTransaction}
                 onDeleteTransactionsBatch={handleDeleteTransactionsBatch}
                 onAddTransaction={handleAddManualTransaction}
+              />
+            ) : (
+              <CategoryManagementView
+                categoryMappings={categoryMappings}
+                onAddCategory={handleAddCategory}
+                onAddSubcategory={handleAddSubcategory}
+                onDeleteCategory={handleDeleteCategory}
+                onDeleteSubcategory={handleDeleteSubcategory}
+                onEditCategory={handleEditCategory}
+                onEditSubcategory={handleEditSubcategory}
               />
             )}
 
@@ -935,17 +1006,7 @@ export function App() {
         />
       )}
 
-      {/* Category & Subcategory Manager Modal */}
-      {isCategoryModalOpen && (
-        <CategoryManagerModal
-          categoryMappings={categoryMappings}
-          onClose={() => setIsCategoryModalOpen(false)}
-          onAddCategory={handleAddCategory}
-          onAddSubcategory={handleAddSubcategory}
-          onDeleteCategory={handleDeleteCategory}
-          onDeleteSubcategory={handleDeleteSubcategory}
-        />
-      )}
+
 
       {/* Budget & Auto-Rules Manager Modal */}
       {isBudgetModalOpen && (
