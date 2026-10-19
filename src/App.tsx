@@ -28,7 +28,11 @@ import {
   deleteCloudBudget,
   getTelegramProfile,
   saveCloudAccount,
-  updateAccountTransactionsPeriod
+  updateAccountTransactionsPeriod,
+  fetchSavingsGoals,
+  saveSavingsGoalsToCloud,
+  saveSavingsGoalToCloud,
+  deleteSavingsGoalFromCloud
 } from './services/supabaseService';
 import { calculateTransactionPeriod } from './utils/dateUtils';
 import { Sidebar } from './components/Sidebar';
@@ -54,33 +58,6 @@ const STORAGE_KEY_AUTO_RULES = 'finanzapp_auto_rules_v1';
 const STORAGE_KEY_BUDGETS = 'finanzapp_budgets_v1';
 const STORAGE_KEY_SAVINGS_GOALS = 'finanzapp_savings_goals_v1';
 
-const INITIAL_SAVINGS_GOALS: SavingsGoal[] = [
-  {
-    id: 'goal-1',
-    name: 'Fondo de Emergencia',
-    targetAmount: 2000000,
-    currentAmount: 1350000,
-    targetDate: '2026-12-31',
-    categoryIcon: '🛡️'
-  },
-  {
-    id: 'goal-2',
-    name: 'Vacaciones de Verano',
-    targetAmount: 800000,
-    currentAmount: 520000,
-    targetDate: '2027-02-15',
-    categoryIcon: '🏖️'
-  },
-  {
-    id: 'goal-3',
-    name: 'Upgrade MacBook Pro M3',
-    targetAmount: 1500000,
-    currentAmount: 650000,
-    targetDate: '2026-11-30',
-    categoryIcon: '💻'
-  }
-];
-
 export function App() {
   // 1. State for Accounts: always initialize strictly with clean demo accounts (never read generic or private localStorage on startup)
   const [accounts, setAccounts] = useState<Account[]>(INITIAL_ACCOUNTS);
@@ -101,8 +78,8 @@ export function App() {
     { id: 'b-3', categoryName: 'Compras y Estilo de Vida', monthlyLimit: 200000 }
   ]);
 
-  // 6. State for Savings Goals
-  const [savingsGoals, setSavingsGoals] = useState<SavingsGoal[]>(INITIAL_SAVINGS_GOALS);
+  // 6. State for Savings Goals: strictly empty array by default
+  const [savingsGoals, setSavingsGoals] = useState<SavingsGoal[]>([]);
 
   // Auth & Cloud State
   const [currentUser, setCurrentUser] = useState<any>(null);
@@ -118,6 +95,8 @@ export function App() {
       localStorage.removeItem(STORAGE_KEY_CATEGORY_MAPPINGS);
       localStorage.removeItem(STORAGE_KEY_AUTO_RULES);
       localStorage.removeItem(STORAGE_KEY_BUDGETS);
+      localStorage.removeItem(STORAGE_KEY_SAVINGS_GOALS);
+      localStorage.removeItem(`${STORAGE_KEY_SAVINGS_GOALS}_demo`);
     } catch (e) {
       console.warn('Error purging legacy un-isolated keys', e);
     }
@@ -150,9 +129,9 @@ export function App() {
   }, [budgets, currentUser?.id]);
 
   useEffect(() => {
-    const key = currentUser?.id ? `${STORAGE_KEY_SAVINGS_GOALS}_${currentUser.id}` : `${STORAGE_KEY_SAVINGS_GOALS}_demo`;
+    if (!currentUser?.id) return;
     try {
-      localStorage.setItem(key, JSON.stringify(savingsGoals));
+      localStorage.setItem(`${STORAGE_KEY_SAVINGS_GOALS}_${currentUser.id}`, JSON.stringify(savingsGoals));
     } catch {}
   }, [savingsGoals, currentUser?.id]);
 
@@ -164,10 +143,11 @@ export function App() {
         categoryMappings,
         autoRules,
         budgets,
-        transactions
+        transactions,
+        savingsGoals
       });
     }
-  }, [currentUser, isCloudLoading, accounts, categoryMappings, autoRules, budgets, transactions]);
+  }, [currentUser?.id, isCloudLoading, accounts, categoryMappings, autoRules, budgets, transactions, savingsGoals]);
 
   // Active view tab & Mobile Sidebar drawer state
   const [activeTab, setActiveTab] = useState<'dashboard' | 'transactions' | 'categories' | 'budgets' | 'accounts'>('dashboard');
@@ -220,13 +200,24 @@ export function App() {
         try { setBudgets(JSON.parse(userCachedBudgets)); } catch {}
       }
       if (userCachedGoals) {
-        try { setSavingsGoals(JSON.parse(userCachedGoals)); } catch {}
+        try {
+          const parsed = JSON.parse(userCachedGoals);
+          const cleaned = Array.isArray(parsed)
+            ? parsed.filter((g: any) => g.id !== 'goal-1' && g.id !== 'goal-2' && g.id !== 'goal-3')
+            : [];
+          setSavingsGoals(cleaned);
+        } catch {}
       }
 
       // 2. Fetch fresh data from Supabase Cloud
       const data = await fetchUserData(userId);
       const cloudSyncedKey = `finanzapp_cloud_synced_${userId}`;
       const isCloudSynced = localStorage.getItem(cloudSyncedKey);
+
+      // Hydrate savings goals strictly from Supabase
+      const cloudGoals = data.savingsGoals || [];
+      setSavingsGoals(cloudGoals);
+      localStorage.setItem(`${STORAGE_KEY_SAVINGS_GOALS}_${userId}`, JSON.stringify(cloudGoals));
 
       if (isCloudSynced || data.accounts.length > 0 || data.transactions.length > 0) {
         setAccounts(data.accounts);
@@ -390,6 +381,7 @@ export function App() {
           { id: 'b-2', categoryName: 'Transporte y Movilidad', monthlyLimit: 120000 },
           { id: 'b-3', categoryName: 'Compras y Estilo de Vida', monthlyLimit: 200000 }
         ]);
+        setSavingsGoals([]);
         setTelegramProfile(null);
       }
     });
@@ -410,7 +402,7 @@ export function App() {
       { id: 'b-2', categoryName: 'Transporte y Movilidad', monthlyLimit: 120000 },
       { id: 'b-3', categoryName: 'Compras y Estilo de Vida', monthlyLimit: 200000 }
     ]);
-    setSavingsGoals(INITIAL_SAVINGS_GOALS);
+    setSavingsGoals([]);
     setCurrentUser(null);
     setTelegramProfile(null);
     setViewMode('landing');
@@ -423,6 +415,7 @@ export function App() {
         localStorage.removeItem(`${STORAGE_KEY_CATEGORY_MAPPINGS}_${signingOutUserId}`);
         localStorage.removeItem(`${STORAGE_KEY_AUTO_RULES}_${signingOutUserId}`);
         localStorage.removeItem(`${STORAGE_KEY_BUDGETS}_${signingOutUserId}`);
+        localStorage.removeItem(`${STORAGE_KEY_SAVINGS_GOALS}_${signingOutUserId}`);
         localStorage.removeItem(`finanzapp_cloud_synced_${signingOutUserId}`);
       }
 
@@ -432,6 +425,8 @@ export function App() {
       localStorage.removeItem(STORAGE_KEY_CATEGORY_MAPPINGS);
       localStorage.removeItem(STORAGE_KEY_AUTO_RULES);
       localStorage.removeItem(STORAGE_KEY_BUDGETS);
+      localStorage.removeItem(STORAGE_KEY_SAVINGS_GOALS);
+      localStorage.removeItem(`${STORAGE_KEY_SAVINGS_GOALS}_demo`);
 
       // Collect and remove any localStorage keys containing finanzapp transactions or accounts
       const keysToRemove: string[] = [];
@@ -784,30 +779,48 @@ export function App() {
   };
 
   // Savings Goals Handlers
-  const handleAddSavingsGoal = (newGoal: Omit<SavingsGoal, 'id'>) => {
+  const handleAddSavingsGoal = async (newGoal: Omit<SavingsGoal, 'id'>) => {
     const goal: SavingsGoal = {
       ...newGoal,
       id: `goal-${Date.now()}`
     };
     setSavingsGoals((prev) => [goal, ...prev]);
+    if (currentUser) {
+      await saveSavingsGoalToCloud(currentUser.id, goal);
+    }
   };
 
-  const handleUpdateSavingsGoal = (updatedGoal: SavingsGoal) => {
+  const handleUpdateSavingsGoal = async (updatedGoal: SavingsGoal) => {
     setSavingsGoals((prev) =>
       prev.map((g) => (g.id === updatedGoal.id ? updatedGoal : g))
     );
+    if (currentUser) {
+      await saveSavingsGoalToCloud(currentUser.id, updatedGoal);
+    }
   };
 
-  const handleDeleteSavingsGoal = (goalId: string) => {
+  const handleDeleteSavingsGoal = async (goalId: string) => {
     setSavingsGoals((prev) => prev.filter((g) => g.id !== goalId));
+    if (currentUser) {
+      await deleteSavingsGoalFromCloud(currentUser.id, goalId);
+    }
   };
 
-  const handleContributeToGoal = (goalId: string, amount: number) => {
+  const handleContributeToGoal = async (goalId: string, amount: number) => {
+    let goalToSave: SavingsGoal | null = null;
     setSavingsGoals((prev) =>
-      prev.map((g) =>
-        g.id === goalId ? { ...g, currentAmount: g.currentAmount + amount } : g
-      )
+      prev.map((g) => {
+        if (g.id === goalId) {
+          const updated = { ...g, currentAmount: g.currentAmount + amount };
+          goalToSave = updated;
+          return updated;
+        }
+        return g;
+      })
     );
+    if (currentUser && goalToSave) {
+      await saveSavingsGoalToCloud(currentUser.id, goalToSave);
+    }
   };
 
   const handleUpdateTransaction = (id: string, updates: Partial<Transaction>) => {

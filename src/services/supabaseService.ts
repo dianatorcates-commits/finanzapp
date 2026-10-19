@@ -1,5 +1,5 @@
 import { supabase } from '../utils/supabaseClient';
-import { Account, Transaction, CategoryMapping, AutoCategoryRule, CategoryBudget, PaymentAllocation, TelegramProfile } from '../types';
+import { Account, Transaction, CategoryMapping, AutoCategoryRule, CategoryBudget, PaymentAllocation, TelegramProfile, SavingsGoal } from '../types';
 
 // ==========================================
 // 1. AUTHENTICATION SERVICES
@@ -81,6 +81,13 @@ export async function fetchUserData(userId: string) {
       .eq('user_id', userId)
       .order('date', { ascending: false });
 
+    // 6. Fetch Savings Goals
+    const { data: goalsData } = await supabase
+      .from('savings_goals')
+      .select('*')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false });
+
     // Format DB transactions to local types
     const accounts: Account[] = (accountsData || []).map((a: any) => ({
       id: a.id,
@@ -147,12 +154,22 @@ export async function fetchUserData(userId: string) {
       };
     });
 
+    const savingsGoals: SavingsGoal[] = (goalsData || []).map((g: any) => ({
+      id: g.id,
+      name: g.name,
+      targetAmount: parseFloat(g.target_amount) || 0,
+      currentAmount: parseFloat(g.current_amount) || 0,
+      targetDate: g.target_date || undefined,
+      categoryIcon: g.category_icon || '🎯'
+    }));
+
     return {
       accounts,
       categoryMappings,
       autoRules,
       budgets,
-      transactions
+      transactions,
+      savingsGoals
     };
   } catch (error) {
     console.error('Error fetching cloud data:', error);
@@ -169,6 +186,7 @@ export async function syncLocalDataToCloud(
     autoRules: AutoCategoryRule[];
     budgets: CategoryBudget[];
     transactions: Transaction[];
+    savingsGoals?: SavingsGoal[];
   }
 ) {
   try {
@@ -253,6 +271,21 @@ export async function syncLocalDataToCloud(
         const { error: fallbackErr } = await supabase.from('transactions').upsert(fallbackPayload, { onConflict: 'id' });
         if (fallbackErr) console.error('Fallback transaction sync error:', fallbackErr);
       }
+    }
+
+    // 6. Upsert Savings Goals
+    if (localState.savingsGoals && localState.savingsGoals.length > 0) {
+      const goalsPayload = localState.savingsGoals.map((g) => ({
+        id: g.id,
+        user_id: userId,
+        name: g.name,
+        target_amount: g.targetAmount,
+        current_amount: g.currentAmount,
+        target_date: g.targetDate || null,
+        category_icon: g.categoryIcon || '🎯'
+      }));
+      const { error: goalErr } = await supabase.from('savings_goals').upsert(goalsPayload, { onConflict: 'id' });
+      if (goalErr) console.error('Error syncing savings goals to cloud:', goalErr);
     }
 
     return true;
@@ -357,6 +390,102 @@ export async function deleteCloudRule(userId: string, ruleId: string) {
 export async function deleteCloudBudget(userId: string, budgetId: string) {
   const { error } = await supabase.from('category_budgets').delete().eq('id', budgetId).eq('user_id', userId);
   if (error) console.error('Error deleting budget from cloud:', error);
+}
+
+// ==========================================
+// 2.1 SAVINGS GOALS SERVICES (METAS DE AHORRO)
+// ==========================================
+
+export async function fetchSavingsGoals(userId: string): Promise<SavingsGoal[]> {
+  try {
+    const { data, error } = await supabase
+      .from('savings_goals')
+      .select('*')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error('Error fetching savings goals from cloud:', error);
+      return [];
+    }
+
+    return (data || []).map((g: any) => ({
+      id: g.id,
+      name: g.name,
+      targetAmount: parseFloat(g.target_amount) || 0,
+      currentAmount: parseFloat(g.current_amount) || 0,
+      targetDate: g.target_date || undefined,
+      categoryIcon: g.category_icon || '🎯'
+    }));
+  } catch (err) {
+    console.error('Unexpected error fetching savings goals:', err);
+    return [];
+  }
+}
+
+export async function saveSavingsGoalsToCloud(userId: string, goals: SavingsGoal[]): Promise<void> {
+  if (!goals || goals.length === 0) return;
+  try {
+    const payload = goals.map((g) => ({
+      id: g.id,
+      user_id: userId,
+      name: g.name,
+      target_amount: g.targetAmount,
+      current_amount: g.currentAmount,
+      target_date: g.targetDate || null,
+      category_icon: g.categoryIcon || '🎯'
+    }));
+
+    const { error } = await supabase
+      .from('savings_goals')
+      .upsert(payload, { onConflict: 'id' });
+
+    if (error) {
+      console.error('Error saving savings goals to cloud:', error);
+    }
+  } catch (err) {
+    console.error('Unexpected error saving savings goals to cloud:', err);
+  }
+}
+
+export async function saveSavingsGoalToCloud(userId: string, goal: SavingsGoal): Promise<void> {
+  try {
+    const payload = {
+      id: goal.id,
+      user_id: userId,
+      name: goal.name,
+      target_amount: goal.targetAmount,
+      current_amount: goal.currentAmount,
+      target_date: goal.targetDate || null,
+      category_icon: goal.categoryIcon || '🎯'
+    };
+
+    const { error } = await supabase
+      .from('savings_goals')
+      .upsert(payload, { onConflict: 'id' });
+
+    if (error) {
+      console.error('Error saving single savings goal to cloud:', error);
+    }
+  } catch (err) {
+    console.error('Unexpected error saving single savings goal to cloud:', err);
+  }
+}
+
+export async function deleteSavingsGoalFromCloud(userId: string, goalId: string): Promise<void> {
+  try {
+    const { error } = await supabase
+      .from('savings_goals')
+      .delete()
+      .eq('id', goalId)
+      .eq('user_id', userId);
+
+    if (error) {
+      console.error('Error deleting savings goal from cloud:', error);
+    }
+  } catch (err) {
+    console.error('Unexpected error deleting savings goal from cloud:', err);
+  }
 }
 
 // ==========================================
