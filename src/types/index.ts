@@ -97,3 +97,12 @@ export interface TelegramProfile {
   created_at?: string;
 }
 
+export interface SavingsGoal {
+  id: string;
+  name: string;
+  targetAmount: number;
+  currentAmount: number;
+  targetDate?: string;
+  categoryIcon?: string;
+}
+

@@ -18,14 +18,14 @@ import {
 } from 'lucide-react';
 
 interface SidebarProps {
-  activeTab: 'dashboard' | 'transactions' | 'categories';
-  onSelectTab: (tab: 'dashboard' | 'transactions' | 'categories') => void;
+  activeTab: 'dashboard' | 'transactions' | 'categories' | 'budgets';
+  onSelectTab: (tab: 'dashboard' | 'transactions' | 'categories' | 'budgets') => void;
   currentUser?: any;
   isTelegramLinked?: boolean;
   onOpenImport: () => void;
   onOpenAccountModal: () => void;
   onOpenCategoryModal?: () => void;
-  onOpenBudgetModal: () => void;
+  onOpenBudgetModal?: () => void;
   onOpenTelegramModal: () => void;
   onOpenAuthModal: () => void;
   onSignOut: () => void;
@@ -129,12 +129,16 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
           <button
             onClick={() => {
-              onOpenBudgetModal();
+              onSelectTab('budgets');
               if (onCloseMobile) onCloseMobile();
             }}
-            className="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-medium text-slate-400 hover:text-slate-200 hover:bg-slate-900/50 transition group"
+            className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs transition group ${
+              activeTab === 'budgets'
+                ? 'bg-slate-900/90 text-sky-400 border-l-2 border-sky-400 font-semibold shadow-inner'
+                : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900/50 font-medium'
+            }`}
           >
-            <Target className="w-4 h-4 text-slate-500 group-hover:text-amber-400 transition" />
+            <Target className={`w-4 h-4 transition ${activeTab === 'budgets' ? 'text-sky-400' : 'text-slate-500 group-hover:text-amber-400'}`} />
             <span>Presupuestos & Metas</span>
           </button>
         </div>

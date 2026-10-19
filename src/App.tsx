@@ -8,7 +8,8 @@ import {
   CategoryMapping,
   AutoCategoryRule,
   CategoryBudget,
-  TelegramProfile
+  TelegramProfile,
+  SavingsGoal
 } from './types';
 import { INITIAL_ACCOUNTS, INITIAL_TRANSACTIONS, DEMO_ACCOUNTS, DEMO_TRANSACTIONS } from './utils/demoData';
 import { DEFAULT_CATEGORY_MAPPINGS, DEFAULT_AUTO_RULES, getParentCategory, autoCategorize, applyAutoRulesToTransaction } from './utils/categorizer';
@@ -40,6 +41,7 @@ import { PaymentModal } from './components/PaymentModal';
 import { ImportModal } from './components/ImportModal';
 import { AccountManagerModal } from './components/AccountManagerModal';
 import { CategoryManagementView } from './components/CategoryManagementView';
+import { BudgetAndGoalsView } from './components/BudgetAndGoalsView';
 import { BudgetAndRulesModal } from './components/BudgetAndRulesModal';
 import { TelegramModal } from './components/TelegramModal';
 import { AuthModal } from './components/AuthModal';
@@ -50,6 +52,34 @@ const STORAGE_KEY_TRANSACTIONS = 'finanzapp_transactions_v1';
 const STORAGE_KEY_CATEGORY_MAPPINGS = 'finanzapp_category_mappings_v1';
 const STORAGE_KEY_AUTO_RULES = 'finanzapp_auto_rules_v1';
 const STORAGE_KEY_BUDGETS = 'finanzapp_budgets_v1';
+const STORAGE_KEY_SAVINGS_GOALS = 'finanzapp_savings_goals_v1';
+
+const INITIAL_SAVINGS_GOALS: SavingsGoal[] = [
+  {
+    id: 'goal-1',
+    name: 'Fondo de Emergencia',
+    targetAmount: 2000000,
+    currentAmount: 1350000,
+    targetDate: '2026-12-31',
+    categoryIcon: '🛡️'
+  },
+  {
+    id: 'goal-2',
+    name: 'Vacaciones de Verano',
+    targetAmount: 800000,
+    currentAmount: 520000,
+    targetDate: '2027-02-15',
+    categoryIcon: '🏖️'
+  },
+  {
+    id: 'goal-3',
+    name: 'Upgrade MacBook Pro M3',
+    targetAmount: 1500000,
+    currentAmount: 650000,
+    targetDate: '2026-11-30',
+    categoryIcon: '💻'
+  }
+];
 
 export function App() {
   // 1. State for Accounts: always initialize strictly with clean demo accounts (never read generic or private localStorage on startup)
@@ -70,6 +100,9 @@ export function App() {
     { id: 'b-2', categoryName: 'Transporte & Movilidad', monthlyLimit: 120000 },
     { id: 'b-3', categoryName: 'Compras & Estilo de Vida', monthlyLimit: 200000 }
   ]);
+
+  // 6. State for Savings Goals
+  const [savingsGoals, setSavingsGoals] = useState<SavingsGoal[]>(INITIAL_SAVINGS_GOALS);
 
   // Auth & Cloud State
   const [currentUser, setCurrentUser] = useState<any>(null);
@@ -116,6 +149,13 @@ export function App() {
     localStorage.setItem(`${STORAGE_KEY_BUDGETS}_${currentUser.id}`, JSON.stringify(budgets));
   }, [budgets, currentUser?.id]);
 
+  useEffect(() => {
+    const key = currentUser?.id ? `${STORAGE_KEY_SAVINGS_GOALS}_${currentUser.id}` : `${STORAGE_KEY_SAVINGS_GOALS}_demo`;
+    try {
+      localStorage.setItem(key, JSON.stringify(savingsGoals));
+    } catch {}
+  }, [savingsGoals, currentUser?.id]);
+
   // Auto-sync with Supabase Cloud whenever state changes for logged in user (only when cloud data has finished loading)
   useEffect(() => {
     if (currentUser?.id && !isCloudLoading) {
@@ -130,7 +170,7 @@ export function App() {
   }, [currentUser, isCloudLoading, accounts, categoryMappings, autoRules, budgets, transactions]);
 
   // Active view tab & Mobile Sidebar drawer state
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'transactions' | 'categories'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'transactions' | 'categories' | 'budgets'>('dashboard');
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
 
   // Filter State
@@ -163,6 +203,7 @@ export function App() {
       const userCachedCategories = localStorage.getItem(`${STORAGE_KEY_CATEGORY_MAPPINGS}_${userId}`);
       const userCachedRules = localStorage.getItem(`${STORAGE_KEY_AUTO_RULES}_${userId}`);
       const userCachedBudgets = localStorage.getItem(`${STORAGE_KEY_BUDGETS}_${userId}`);
+      const userCachedGoals = localStorage.getItem(`${STORAGE_KEY_SAVINGS_GOALS}_${userId}`);
 
       if (userCachedAccounts) {
         try { setAccounts(JSON.parse(userCachedAccounts)); } catch {}
@@ -178,6 +219,9 @@ export function App() {
       }
       if (userCachedBudgets) {
         try { setBudgets(JSON.parse(userCachedBudgets)); } catch {}
+      }
+      if (userCachedGoals) {
+        try { setSavingsGoals(JSON.parse(userCachedGoals)); } catch {}
       }
 
       // 2. Fetch fresh data from Supabase Cloud
@@ -367,6 +411,7 @@ export function App() {
       { id: 'b-2', categoryName: 'Transporte & Movilidad', monthlyLimit: 120000 },
       { id: 'b-3', categoryName: 'Compras & Estilo de Vida', monthlyLimit: 200000 }
     ]);
+    setSavingsGoals(INITIAL_SAVINGS_GOALS);
     setCurrentUser(null);
     setTelegramProfile(null);
     setViewMode('landing');
@@ -739,6 +784,33 @@ export function App() {
     setBudgets((prev) => prev.filter((b) => b.id !== budgetId));
   };
 
+  // Savings Goals Handlers
+  const handleAddSavingsGoal = (newGoal: Omit<SavingsGoal, 'id'>) => {
+    const goal: SavingsGoal = {
+      ...newGoal,
+      id: `goal-${Date.now()}`
+    };
+    setSavingsGoals((prev) => [goal, ...prev]);
+  };
+
+  const handleUpdateSavingsGoal = (updatedGoal: SavingsGoal) => {
+    setSavingsGoals((prev) =>
+      prev.map((g) => (g.id === updatedGoal.id ? updatedGoal : g))
+    );
+  };
+
+  const handleDeleteSavingsGoal = (goalId: string) => {
+    setSavingsGoals((prev) => prev.filter((g) => g.id !== goalId));
+  };
+
+  const handleContributeToGoal = (goalId: string, amount: number) => {
+    setSavingsGoals((prev) =>
+      prev.map((g) =>
+        g.id === goalId ? { ...g, currentAmount: g.currentAmount + amount } : g
+      )
+    );
+  };
+
   const handleUpdateTransaction = (id: string, updates: Partial<Transaction>) => {
     setTransactions((prev) =>
       prev.map((tx) => (tx.id === id ? { ...tx, ...updates } : tx))
@@ -840,7 +912,7 @@ export function App() {
         onOpenImport={() => setIsImportModalOpen(true)}
         onOpenAccountModal={() => setIsAccountModalOpen(true)}
         onOpenCategoryModal={() => setActiveTab('categories')}
-        onOpenBudgetModal={() => setIsBudgetModalOpen(true)}
+        onOpenBudgetModal={() => setActiveTab('budgets')}
         onOpenTelegramModal={() => (currentUser ? setIsTelegramModalOpen(true) : setIsAuthModalOpen(true))}
         onOpenAuthModal={() => setIsAuthModalOpen(true)}
         onSignOut={handleSignOut}
@@ -903,7 +975,7 @@ export function App() {
           <main className="w-full max-w-7xl mx-auto p-4 sm:p-6 space-y-6 flex-1">
             
             {/* 1 & 2. Metric Cards & Filters (Only in Dashboard & Transactions) */}
-            {activeTab !== 'categories' && (
+            {activeTab !== 'categories' && activeTab !== 'budgets' && (
               <>
                 <MetricCards
                   computedTransactions={filteredTransactions}
@@ -933,13 +1005,13 @@ export function App() {
               </>
             )}
 
-            {/* 3. Active Tab Content (Dashboard, Transactions, or Categories) */}
+            {/* 3. Active Tab Content (Dashboard, Transactions, Categories, or Budgets) */}
             {activeTab === 'dashboard' ? (
               <ChartsDashboard
                 computedTransactions={filteredTransactions}
                 accounts={accounts}
                 budgets={budgets}
-                onOpenBudgetModal={() => setIsBudgetModalOpen(true)}
+                onOpenBudgetModal={() => setActiveTab('budgets')}
               />
             ) : activeTab === 'transactions' ? (
               <TransactionTable
@@ -952,7 +1024,7 @@ export function App() {
                 onDeleteTransactionsBatch={handleDeleteTransactionsBatch}
                 onAddTransaction={handleAddManualTransaction}
               />
-            ) : (
+            ) : activeTab === 'categories' ? (
               <CategoryManagementView
                 categoryMappings={categoryMappings}
                 onAddCategory={handleAddCategory}
@@ -961,6 +1033,20 @@ export function App() {
                 onDeleteSubcategory={handleDeleteSubcategory}
                 onEditCategory={handleEditCategory}
                 onEditSubcategory={handleEditSubcategory}
+              />
+            ) : (
+              <BudgetAndGoalsView
+                budgets={budgets}
+                computedTransactions={filteredTransactions}
+                selectedMonth={filters.month}
+                categoryMappings={categoryMappings}
+                onSaveBudget={handleSaveBudget}
+                onDeleteBudget={handleDeleteBudget}
+                savingsGoals={savingsGoals}
+                onAddSavingsGoal={handleAddSavingsGoal}
+                onUpdateSavingsGoal={handleUpdateSavingsGoal}
+                onDeleteSavingsGoal={handleDeleteSavingsGoal}
+                onContributeToGoal={handleContributeToGoal}
               />
             )}
 
