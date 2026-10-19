@@ -841,58 +841,65 @@ export function App() {
         />
 
         {/* Scrollable Main Workspace */}
-        <main className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 space-y-6 max-w-7xl w-full mx-auto scrollbar-thin scrollbar-thumb-slate-800">
-          
-          {/* 1. Metric Cards Summary */}
-          <MetricCards
-            computedTransactions={filteredTransactions}
-            accounts={accounts}
-            activeAccountId={filters.accountId}
-          />
-
-          {/* 2. Filters & Search */}
-          <Filters
-            filters={filters}
-            accounts={accounts}
-            categoryMappings={categoryMappings}
-            availableMonths={availableMonths}
-            onChange={setFilters}
-            onReset={() =>
-              setFilters({
-                month: 'ALL',
-                accountId: 'ALL',
-                accountType: 'ALL',
-                transactionType: 'ALL',
-                categories: [],
-                subcategories: [],
-                searchQuery: '',
-                onlyPendingTC: false
-              })
-            }
-          />
-
-          {/* 3. Active Tab Content (Dashboard or Transactions) */}
-          {activeTab === 'dashboard' ? (
-            <ChartsDashboard
+        <div className="flex-1 overflow-y-auto flex flex-col scrollbar-thin scrollbar-thumb-slate-800">
+          <main className="w-full max-w-7xl mx-auto p-4 sm:p-6 space-y-6 flex-1">
+            
+            {/* 1. Metric Cards Summary */}
+            <MetricCards
               computedTransactions={filteredTransactions}
               accounts={accounts}
-              budgets={budgets}
-              onOpenBudgetModal={() => setIsBudgetModalOpen(true)}
+              activeAccountId={filters.accountId}
             />
-          ) : (
-            <TransactionTable
-              transactions={filteredTransactions}
+
+            {/* 2. Filters & Search */}
+            <Filters
+              filters={filters}
               accounts={accounts}
               categoryMappings={categoryMappings}
-              onOpenPaymentModal={(p) => setSelectedPurchaseForPayment(p)}
-              onUpdateTransaction={handleUpdateTransaction}
-              onDeleteTransaction={handleDeleteTransaction}
-              onDeleteTransactionsBatch={handleDeleteTransactionsBatch}
-              onAddTransaction={handleAddManualTransaction}
+              availableMonths={availableMonths}
+              onChange={setFilters}
+              onReset={() =>
+                setFilters({
+                  month: 'ALL',
+                  accountId: 'ALL',
+                  accountType: 'ALL',
+                  transactionType: 'ALL',
+                  categories: [],
+                  subcategories: [],
+                  searchQuery: '',
+                  onlyPendingTC: false
+                })
+              }
             />
-          )}
 
-        </main>
+            {/* 3. Active Tab Content (Dashboard or Transactions) */}
+            {activeTab === 'dashboard' ? (
+              <ChartsDashboard
+                computedTransactions={filteredTransactions}
+                accounts={accounts}
+                budgets={budgets}
+                onOpenBudgetModal={() => setIsBudgetModalOpen(true)}
+              />
+            ) : (
+              <TransactionTable
+                transactions={filteredTransactions}
+                accounts={accounts}
+                categoryMappings={categoryMappings}
+                onOpenPaymentModal={(p) => setSelectedPurchaseForPayment(p)}
+                onUpdateTransaction={handleUpdateTransaction}
+                onDeleteTransaction={handleDeleteTransaction}
+                onDeleteTransactionsBatch={handleDeleteTransactionsBatch}
+                onAddTransaction={handleAddManualTransaction}
+              />
+            )}
+
+          </main>
+
+          {/* Footer */}
+          <footer className="w-full text-center text-xs text-slate-500 py-6 border-t border-slate-800">
+            <p>© 2026 FinanzApp - Control Inteligente de Cartolas Bancarias & Tarjetas de Crédito</p>
+          </footer>
+        </div>
       </div>
 
       {/* Payment Association Modal */}
@@ -974,14 +981,6 @@ export function App() {
           }}
         />
       )}
-
-      {/* Footer */}
-      <footer className="bg-slate-900 text-slate-400 text-xs py-4 border-t border-slate-800 mt-auto">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <p>© 2026 FinanzApp - Control Inteligente de Cartolas Bancarias & Tarjetas de Crédito</p>
-        </div>
-      </footer>
-
     </div>
   );
 }
