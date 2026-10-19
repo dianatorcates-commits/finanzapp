@@ -166,18 +166,18 @@ export const TransactionTable: React.FC<TransactionTableProps> = ({
   };
 
   return (
-    <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden mb-8">
+    <div className="bg-slate-900/80 backdrop-blur-md rounded-2xl shadow-xl border border-slate-800/80 overflow-hidden mb-8">
       
       {/* Header Bar */}
-      <div className="p-4 bg-slate-50 border-b border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+      <div className="p-4 bg-slate-950/60 border-b border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
-          <h2 className="text-sm font-bold text-slate-800 flex items-center gap-2">
+          <h2 className="text-sm font-bold text-white flex items-center gap-2">
             <span>Movimientos & Cartolas Cargadas</span>
-            <span className="bg-sky-100 text-sky-800 text-xs font-semibold px-2 py-0.5 rounded-full">
+            <span className="bg-sky-500/20 text-sky-300 border border-sky-500/40 text-xs font-semibold px-2 py-0.5 rounded-full">
               {transactions.length} registros
             </span>
           </h2>
-          <p className="text-xs text-slate-500 mt-0.5">
+          <p className="text-xs text-slate-400 mt-0.5">
             Asocia pagos a compras de TC o administra y borra movimientos masivamente.
           </p>
         </div>
@@ -187,7 +187,7 @@ export const TransactionTable: React.FC<TransactionTableProps> = ({
           {selectedTxIds.length > 0 && (
             <button
               onClick={openBulkDeleteSelectedModal}
-              className="flex items-center gap-1.5 bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold px-3 py-2 rounded-lg transition shadow-sm"
+              className="flex items-center gap-1.5 bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold px-3 py-2 rounded-xl transition shadow-lg shadow-rose-600/20"
             >
               <Trash2 className="w-4 h-4" />
               <span>Eliminar Seleccionados ({selectedTxIds.length})</span>
@@ -198,19 +198,19 @@ export const TransactionTable: React.FC<TransactionTableProps> = ({
           {transactions.length > 0 && selectedTxIds.length === 0 && (
             <button
               onClick={openClearAllVisibleModal}
-              className="flex items-center gap-1.5 bg-slate-200 hover:bg-rose-100 text-slate-700 hover:text-rose-700 text-xs font-semibold px-3 py-2 rounded-lg transition border border-slate-300"
+              className="flex items-center gap-1.5 bg-slate-800 hover:bg-rose-950/50 text-slate-300 hover:text-rose-300 text-xs font-semibold px-3 py-2 rounded-xl transition border border-slate-700 hover:border-rose-500/40"
               title="Borrar todas las transacciones mostradas en la tabla"
             >
-              <Trash2 className="w-4 h-4 text-rose-600" />
+              <Trash2 className="w-4 h-4 text-rose-400" />
               <span>Vaciar Todo ({transactions.length})</span>
             </button>
           )}
 
           <button
             onClick={() => setShowAddForm(!showAddForm)}
-            className="flex items-center gap-1.5 bg-slate-800 hover:bg-slate-700 text-white text-xs font-semibold px-3 py-2 rounded-lg transition shadow-sm"
+            className="flex items-center gap-1.5 bg-slate-800 hover:bg-slate-700 text-white text-xs font-semibold px-3.5 py-2 rounded-xl transition shadow-sm border border-slate-700"
           >
-            <Plus className="w-4 h-4" />
+            <Plus className="w-4 h-4 text-sky-400" />
             <span>{showAddForm ? 'Cancelar' : 'Agregar Movimiento Manual'}</span>
           </button>
         </div>
@@ -218,9 +218,9 @@ export const TransactionTable: React.FC<TransactionTableProps> = ({
 
       {/* Manual Add Form Drawer */}
       {showAddForm && (
-        <form onSubmit={handleAddSubmit} className="p-4 bg-sky-50/60 border-b border-sky-200 grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-7 gap-3">
+        <form onSubmit={handleAddSubmit} className="p-4 bg-slate-950/90 border-b border-slate-800 grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-7 gap-3">
           <div>
-            <label className="block text-[11px] font-semibold text-slate-600 mb-1">Fecha Compra</label>
+            <label className="block text-[11px] font-semibold text-slate-400 mb-1">Fecha Compra</label>
             <input
               type="date"
               required
@@ -231,23 +231,23 @@ export const TransactionTable: React.FC<TransactionTableProps> = ({
                 const acc = accounts.find((a) => a.id === newAccountId);
                 setNewPeriod(calculateTransactionPeriod(d, acc?.closingDay));
               }}
-              className="w-full text-xs py-1.5 px-2 bg-white border border-slate-300 rounded-lg focus:outline-none"
+              className="w-full text-xs py-1.5 px-2 bg-slate-900 border border-slate-700 text-slate-100 rounded-lg focus:outline-none focus:border-sky-500"
             />
           </div>
 
           <div>
-            <label className="block text-[11px] font-semibold text-slate-600 mb-1">Mes-Período</label>
+            <label className="block text-[11px] font-semibold text-slate-400 mb-1">Mes-Período</label>
             <input
               type="month"
               required
               value={newPeriod}
               onChange={(e) => setNewPeriod(e.target.value)}
-              className="w-full text-xs py-1.5 px-2 bg-white border border-slate-300 rounded-lg focus:outline-none font-mono"
+              className="w-full text-xs py-1.5 px-2 bg-slate-900 border border-slate-700 text-slate-100 rounded-lg focus:outline-none focus:border-sky-500 font-mono"
             />
           </div>
 
           <div>
-            <label className="block text-[11px] font-semibold text-slate-600 mb-1">Cuenta/Tarjeta</label>
+            <label className="block text-[11px] font-semibold text-slate-400 mb-1">Cuenta/Tarjeta</label>
             <select
               value={newAccountId}
               onChange={(e) => {
@@ -256,10 +256,10 @@ export const TransactionTable: React.FC<TransactionTableProps> = ({
                 const acc = accounts.find((a) => a.id === accId);
                 setNewPeriod(calculateTransactionPeriod(newDate, acc?.closingDay));
               }}
-              className="w-full text-xs py-1.5 px-2 bg-white border border-slate-300 rounded-lg focus:outline-none"
+              className="w-full text-xs py-1.5 px-2 bg-slate-900 border border-slate-700 text-slate-100 rounded-lg focus:outline-none focus:border-sky-500"
             >
               {accounts.map((a) => (
-                <option key={a.id} value={a.id}>
+                <option key={a.id} value={a.id} className="bg-slate-900 text-white">
                   {a.name} {a.closingDay ? `(Corte día ${a.closingDay})` : ''}
                 </option>
               ))}
@@ -267,40 +267,40 @@ export const TransactionTable: React.FC<TransactionTableProps> = ({
           </div>
 
           <div>
-            <label className="block text-[11px] font-semibold text-slate-600 mb-1">Descripción</label>
+            <label className="block text-[11px] font-semibold text-slate-400 mb-1">Descripción</label>
             <input
               type="text"
               required
               placeholder="Ej: Almuerzo Restaurante"
               value={newDesc}
               onChange={(e) => setNewDesc(e.target.value)}
-              className="w-full text-xs py-1.5 px-2 bg-white border border-slate-300 rounded-lg focus:outline-none"
+              className="w-full text-xs py-1.5 px-2 bg-slate-900 border border-slate-700 text-slate-100 rounded-lg focus:outline-none focus:border-sky-500 placeholder-slate-600"
             />
           </div>
 
           <div>
-            <label className="block text-[11px] font-semibold text-slate-600 mb-1">Monto (CLP)</label>
+            <label className="block text-[11px] font-semibold text-slate-400 mb-1">Monto (CLP)</label>
             <input
               type="number"
               required
               placeholder="100000"
               value={newAmount}
               onChange={(e) => setNewAmount(e.target.value)}
-              className="w-full text-xs py-1.5 px-2 bg-white border border-slate-300 rounded-lg focus:outline-none"
+              className="w-full text-xs py-1.5 px-2 bg-slate-900 border border-slate-700 text-slate-100 rounded-lg focus:outline-none focus:border-sky-500 placeholder-slate-600"
             />
           </div>
 
           <div>
-            <label className="block text-[11px] font-semibold text-slate-600 mb-1">Subcategoría</label>
+            <label className="block text-[11px] font-semibold text-slate-400 mb-1">Subcategoría</label>
             <select
               value={newSubcategory}
               onChange={(e) => setNewSubcategory(e.target.value)}
-              className="w-full text-xs py-1.5 px-2 bg-white border border-slate-300 rounded-lg focus:outline-none font-medium"
+              className="w-full text-xs py-1.5 px-2 bg-slate-900 border border-slate-700 text-slate-100 rounded-lg focus:outline-none focus:border-sky-500 font-medium"
             >
               {categoryMappings.map((c) => (
-                <optgroup key={c.id} label={c.name}>
+                <optgroup key={c.id} label={c.name} className="bg-slate-900 text-slate-300">
                   {c.subcategories.map((sub) => (
-                    <option key={sub} value={sub}>{sub}</option>
+                    <option key={sub} value={sub} className="bg-slate-900 text-white">{sub}</option>
                   ))}
                 </optgroup>
               ))}
@@ -310,7 +310,7 @@ export const TransactionTable: React.FC<TransactionTableProps> = ({
           <div className="flex items-end">
             <button
               type="submit"
-              className="w-full bg-sky-600 hover:bg-sky-500 text-white font-bold py-1.5 px-3 rounded-lg text-xs transition shadow-sm"
+              className="w-full bg-gradient-to-r from-sky-500 to-indigo-600 hover:from-sky-400 hover:to-indigo-500 text-white font-bold py-1.5 px-3 rounded-lg text-xs transition shadow-md"
             >
               Guardar
             </button>
@@ -321,14 +321,14 @@ export const TransactionTable: React.FC<TransactionTableProps> = ({
       {/* Main Transactions Table */}
       <div className="overflow-x-auto">
         <table className="w-full text-left text-xs border-collapse">
-          <thead className="bg-slate-100 text-slate-500 uppercase tracking-wider text-[11px] font-semibold border-b border-slate-200">
+          <thead className="bg-slate-950 text-slate-400 uppercase tracking-wider text-[11px] font-semibold border-b border-slate-800">
             <tr>
               <th className="py-3 px-3 text-center w-10">
                 <input
                   type="checkbox"
                   checked={isAllSelected}
                   onChange={toggleSelectAll}
-                  className="rounded text-sky-600 focus:ring-sky-500 cursor-pointer w-4 h-4"
+                  className="rounded text-sky-500 focus:ring-sky-500 border-slate-700 bg-slate-950 cursor-pointer w-4 h-4"
                   title="Seleccionar Todos / Deseleccionar Todos"
                 />
               </th>
@@ -342,7 +342,7 @@ export const TransactionTable: React.FC<TransactionTableProps> = ({
               <th className="py-3 px-4 text-center">Acciones</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-slate-100 text-slate-700">
+          <tbody className="divide-y divide-slate-800/80 text-slate-200">
             {transactions.length > 0 ? (
               transactions.map((tx) => {
                 const account = accounts.find((a) => a.id === tx.accountId);
@@ -354,8 +354,8 @@ export const TransactionTable: React.FC<TransactionTableProps> = ({
                 return (
                   <tr
                     key={tx.id}
-                    className={`hover:bg-slate-50/80 transition ${
-                      isSelected ? 'bg-sky-50/60' : tx.isFullyPaid ? 'bg-emerald-50/30' : ''
+                    className={`hover:bg-slate-800/50 transition ${
+                      isSelected ? 'bg-sky-500/15' : tx.isFullyPaid ? 'bg-emerald-500/5' : ''
                     }`}
                   >
                     {/* Checkbox row selection */}
@@ -364,20 +364,20 @@ export const TransactionTable: React.FC<TransactionTableProps> = ({
                         type="checkbox"
                         checked={isSelected}
                         onChange={() => toggleSelectTx(tx.id)}
-                        className="rounded text-sky-600 focus:ring-sky-500 cursor-pointer w-4 h-4"
+                        className="rounded text-sky-500 focus:ring-sky-500 border-slate-700 bg-slate-950 cursor-pointer w-4 h-4"
                       />
                     </td>
 
                     {/* Date & Editable Assigned Period */}
-                    <td className="py-3 px-4 font-mono text-slate-500 whitespace-nowrap">
-                      <div className="font-semibold text-slate-800">{tx.date}</div>
+                    <td className="py-3 px-4 font-mono text-slate-400 whitespace-nowrap">
+                      <div className="font-semibold text-white">{tx.date}</div>
                       <div className="mt-1 flex items-center gap-1">
-                        <span className="text-[10px] text-slate-400 font-sans">Mes:</span>
+                        <span className="text-[10px] text-slate-500 font-sans">Mes:</span>
                         <input
                           type="month"
                           value={tx.period || tx.date.slice(0, 7)}
                           onChange={(e) => onUpdateTransaction(tx.id, { period: e.target.value })}
-                          className="text-[10px] font-mono py-0.5 px-1 bg-sky-50 hover:bg-sky-100 border border-sky-300 text-sky-900 font-bold rounded focus:outline-none cursor-pointer"
+                          className="text-[10px] font-mono py-0.5 px-1 bg-sky-950/70 hover:bg-sky-900/90 border border-sky-500/40 text-sky-300 font-bold rounded focus:outline-none cursor-pointer"
                           title="Haz clic para modificar el Mes-Período de facturación de esta cuota/compra"
                         />
                       </div>
@@ -385,11 +385,11 @@ export const TransactionTable: React.FC<TransactionTableProps> = ({
 
                     {/* Account */}
                     <td className="py-3 px-4 whitespace-nowrap">
-                      <div className="flex items-center gap-1.5 font-medium text-slate-800">
+                      <div className="flex items-center gap-1.5 font-medium text-slate-200">
                         {isCreditCard ? (
-                          <CreditCard className="w-3.5 h-3.5 text-rose-500 flex-shrink-0" />
+                          <CreditCard className="w-3.5 h-3.5 text-rose-400 flex-shrink-0" />
                         ) : (
-                          <Building2 className="w-3.5 h-3.5 text-sky-600 flex-shrink-0" />
+                          <Building2 className="w-3.5 h-3.5 text-sky-400 flex-shrink-0" />
                         )}
                         <span className="truncate max-w-[130px]">{account?.name || 'Cuenta'}</span>
                       </div>
@@ -397,16 +397,16 @@ export const TransactionTable: React.FC<TransactionTableProps> = ({
 
                     {/* Description */}
                     <td className="py-3 px-4 max-w-xs">
-                      <div className="font-semibold text-slate-900 truncate" title={tx.description}>
+                      <div className="font-semibold text-white truncate" title={tx.description}>
                         {tx.description}
                       </div>
                       {tx.installments && (
                         <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
-                          <span className="text-[10px] font-bold text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200">
+                          <span className="text-[10px] font-bold text-amber-300 bg-amber-500/10 px-1.5 py-0.5 rounded border border-amber-500/30">
                             Cuota {tx.installments.current} de {tx.installments.total}
                           </span>
                           {tx.originalTotalAmount && (
-                            <span className="text-[10px] text-slate-500">
+                            <span className="text-[10px] text-slate-400">
                               (Total compra: {formatCLP(tx.originalTotalAmount)})
                             </span>
                           )}
@@ -417,19 +417,19 @@ export const TransactionTable: React.FC<TransactionTableProps> = ({
                     {/* Category & Subcategory Selector */}
                     <td className="py-3 px-4 whitespace-nowrap">
                       <div className="space-y-1">
-                        <span className="inline-block text-[10px] font-bold text-slate-600 bg-slate-100 px-2 py-0.5 rounded border border-slate-200">
+                        <span className="inline-block text-[10px] font-bold text-slate-300 bg-slate-800 px-2 py-0.5 rounded border border-slate-700">
                           📁 {tx.category || 'General'}
                         </span>
                         <div>
                           <select
                             value={tx.subcategory || tx.category}
                             onChange={(e) => handleSubcategoryChange(tx.id, e.target.value)}
-                            className="text-[11px] py-0.5 px-2 bg-white border border-slate-300 rounded-md text-slate-800 font-medium cursor-pointer hover:bg-slate-50 focus:outline-none"
+                            className="text-[11px] py-0.5 px-2 bg-slate-950 border border-slate-700/80 rounded-md text-slate-200 font-medium cursor-pointer hover:border-slate-600 focus:outline-none"
                           >
                             {categoryMappings.map((c) => (
-                              <optgroup key={c.id} label={c.name}>
+                              <optgroup key={c.id} label={c.name} className="bg-slate-900 text-slate-400">
                                 {c.subcategories.map((sub) => (
-                                  <option key={sub} value={sub}>
+                                  <option key={sub} value={sub} className="bg-slate-900 text-white">
                                     {sub}
                                   </option>
                                 ))}
@@ -443,14 +443,14 @@ export const TransactionTable: React.FC<TransactionTableProps> = ({
                     {/* Monto Facturado (Cuota) */}
                     <td
                       className={`py-3 px-4 text-right whitespace-nowrap ${
-                        isPaymentOrIncome ? 'text-emerald-600 font-semibold' : 'text-slate-900'
+                        isPaymentOrIncome ? 'text-emerald-400 font-semibold' : 'text-white'
                       }`}
                     >
                       <div className="font-bold">
                         {isPaymentOrIncome ? `- ${formatCLP(Math.abs(tx.amount))}` : formatCLP(tx.amount)}
                       </div>
                       {tx.installments && tx.originalTotalAmount && (
-                        <div className="text-[10px] text-slate-400 font-normal">
+                        <div className="text-[10px] text-slate-500 font-normal">
                           Monto Cuota
                         </div>
                       )}
@@ -460,35 +460,35 @@ export const TransactionTable: React.FC<TransactionTableProps> = ({
                     <td className="py-3 px-4 text-right whitespace-nowrap">
                       {isCreditCard && isPurchase ? (
                         tx.totalAllocated > 0 ? (
-                          <span className="inline-flex items-center gap-1 text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full font-bold border border-emerald-200">
-                            <CheckCircle className="w-3 h-3 text-emerald-600" />
+                          <span className="inline-flex items-center gap-1 text-emerald-300 bg-emerald-500/15 px-2 py-0.5 rounded-full font-bold border border-emerald-500/30">
+                            <CheckCircle className="w-3 h-3 text-emerald-400" />
                             {formatCLP(tx.totalAllocated)}
                           </span>
                         ) : (
-                          <span className="text-slate-400 text-[11px]">$0</span>
+                          <span className="text-slate-500 text-[11px]">$0</span>
                         )
                       ) : isPaymentOrIncome ? (
-                        <span className="text-emerald-600 font-semibold text-[11px]">
+                        <span className="text-emerald-400 font-semibold text-[11px]">
                           Abono Disponible ({formatCLP(tx.unallocatedPaymentBalance || 0)})
                         </span>
                       ) : (
-                        <span className="text-slate-300">-</span>
+                        <span className="text-slate-600">-</span>
                       )}
                     </td>
 
                     {/* Monto Real Utilizado */}
                     <td className="py-3 px-4 text-right font-bold whitespace-nowrap">
                       {isPaymentOrIncome ? (
-                        <span className="text-slate-400 font-normal">$0</span>
+                        <span className="text-slate-500 font-normal">$0</span>
                       ) : tx.isFullyPaid ? (
                         <span
-                          className="text-emerald-600 line-through opacity-70"
+                          className="text-emerald-400 line-through opacity-70"
                           title="Totalmente pagada por abonos / pagos"
                         >
                           {formatCLP(tx.amount)}
                         </span>
                       ) : (
-                        <span className="text-sky-700 bg-sky-50 px-2 py-0.5 rounded-lg border border-sky-200">
+                        <span className="text-sky-300 bg-sky-950/70 border border-sky-500/40 px-2 py-0.5 rounded-lg shadow-sm">
                           {formatCLP(tx.netAmount)}
                         </span>
                       )}
@@ -500,7 +500,7 @@ export const TransactionTable: React.FC<TransactionTableProps> = ({
                         {isCreditCard && isPurchase && (
                           <button
                             onClick={() => onOpenPaymentModal(tx)}
-                            className="flex items-center gap-1 text-[11px] bg-sky-600 hover:bg-sky-500 text-white font-semibold px-2.5 py-1 rounded-lg transition shadow-sm"
+                            className="flex items-center gap-1 text-[11px] bg-gradient-to-r from-sky-500 to-indigo-600 hover:from-sky-400 hover:to-indigo-500 text-white font-semibold px-2.5 py-1 rounded-lg transition shadow-sm"
                             title="Asociar pagos a esta compra para deducir monto abonado"
                           >
                             <Link2 className="w-3 h-3" />
@@ -509,7 +509,7 @@ export const TransactionTable: React.FC<TransactionTableProps> = ({
                         )}
                         <button
                           onClick={() => openSingleDeleteModal(tx)}
-                          className="text-slate-400 hover:text-rose-600 p-1.5 hover:bg-rose-50 rounded-lg transition"
+                          className="text-slate-400 hover:text-rose-400 p-1.5 hover:bg-rose-500/10 rounded-lg transition"
                           title="Eliminar registro"
                         >
                           <Trash2 className="w-3.5 h-3.5" />
@@ -521,7 +521,7 @@ export const TransactionTable: React.FC<TransactionTableProps> = ({
               })
             ) : (
               <tr>
-                <td colSpan={9} className="py-12 text-center text-slate-400">
+                <td colSpan={9} className="py-12 text-center text-slate-500">
                   No hay movimientos cargados que coincidan con los filtros aplicados.
                 </td>
               </tr>
@@ -532,21 +532,21 @@ export const TransactionTable: React.FC<TransactionTableProps> = ({
 
       {/* Delete Confirmation Modal */}
       {deleteConfirmModal.isOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fadeIn">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full border border-slate-200 overflow-hidden p-6 space-y-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-md animate-fadeIn">
+          <div className="bg-slate-900 rounded-2xl shadow-2xl max-w-md w-full border border-slate-700/80 overflow-hidden p-6 space-y-4 text-slate-100">
             <div className="flex items-center gap-3">
-              <div className="p-3 bg-rose-50 text-rose-600 rounded-xl border border-rose-200">
+              <div className="p-3 bg-rose-500/10 text-rose-400 rounded-xl border border-rose-500/20">
                 <AlertTriangle className="w-6 h-6" />
               </div>
               <div>
-                <h3 className="font-bold text-base text-slate-900">{deleteConfirmModal.title}</h3>
-                <p className="text-xs text-slate-500">
+                <h3 className="font-bold text-base text-white">{deleteConfirmModal.title}</h3>
+                <p className="text-xs text-slate-400">
                   {deleteConfirmModal.idsToDelete.length === 1 ? 'Confirmación de eliminación' : 'Confirmación de borrado masivo'}
                 </p>
               </div>
             </div>
 
-            <p className="text-xs text-slate-600 leading-relaxed bg-slate-50 p-3 rounded-xl border border-slate-200">
+            <p className="text-xs text-slate-300 leading-relaxed bg-slate-950 p-3.5 rounded-xl border border-slate-800">
               {deleteConfirmModal.message}
             </p>
 
@@ -554,14 +554,14 @@ export const TransactionTable: React.FC<TransactionTableProps> = ({
               <button
                 type="button"
                 onClick={() => setDeleteConfirmModal({ isOpen: false, idsToDelete: [], title: '', message: '' })}
-                className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-xl transition"
+                className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold rounded-xl transition border border-slate-700"
               >
                 Cancelar
               </button>
               <button
                 type="button"
                 onClick={handleConfirmDelete}
-                className="px-4 py-2 bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold rounded-xl transition shadow-sm flex items-center gap-1.5"
+                className="px-4 py-2 bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold rounded-xl transition shadow-lg shadow-rose-600/30 flex items-center gap-1.5"
               >
                 <Trash2 className="w-4 h-4" />
                 <span>{deleteConfirmModal.idsToDelete.length === 1 ? 'Sí, Eliminar' : 'Confirmar Borrado Masivo'}</span>

@@ -30,7 +30,8 @@ import {
   updateAccountTransactionsPeriod
 } from './services/supabaseService';
 import { calculateTransactionPeriod } from './utils/dateUtils';
-import { Header } from './components/Header';
+import { Sidebar } from './components/Sidebar';
+import { TopBar } from './components/TopBar';
 import { MetricCards } from './components/MetricCards';
 import { Filters } from './components/Filters';
 import { ChartsDashboard } from './components/ChartsDashboard';
@@ -43,7 +44,6 @@ import { BudgetAndRulesModal } from './components/BudgetAndRulesModal';
 import { TelegramModal } from './components/TelegramModal';
 import { AuthModal } from './components/AuthModal';
 import { LandingPage } from './components/LandingPage';
-import { PieChart, ListFilter, ShieldCheck } from 'lucide-react';
 
 const STORAGE_KEY_ACCOUNTS = 'finanzapp_accounts_v1';
 const STORAGE_KEY_TRANSACTIONS = 'finanzapp_transactions_v1';
@@ -129,8 +129,9 @@ export function App() {
     }
   }, [currentUser, isCloudLoading, accounts, categoryMappings, autoRules, budgets, transactions]);
 
-  // Active view tab
+  // Active view tab & Mobile Sidebar drawer state
   const [activeTab, setActiveTab] = useState<'dashboard' | 'transactions'>('dashboard');
+  const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
 
   // Filter State
   const [filters, setFilters] = useState<FilterState>({
@@ -770,46 +771,14 @@ export function App() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-900 flex flex-col font-sans">
+    <div className="min-h-screen bg-slate-950 text-slate-100 flex overflow-hidden font-sans">
       
-      {/* Demo Mode Notice Banner */}
-      {!currentUser && viewMode === 'app' && (
-        <aside
-          aria-label="Aviso de Modo Demostración"
-          className="bg-gradient-to-r from-amber-500 via-amber-600 to-orange-600 text-white text-xs sm:text-sm font-medium px-4 py-2.5 shadow-md flex items-center justify-between gap-3 relative z-40 border-b border-amber-700/30"
-        >
-          <div className="max-w-7xl mx-auto w-full flex flex-col sm:flex-row items-center justify-between gap-2">
-            <div className="flex items-center gap-2 text-center sm:text-left">
-              <span className="text-base select-none">ℹ️</span>
-              <span className="leading-snug">
-                <strong className="font-bold">Modo Demostración:</strong> Estás explorando datos simulados. Para guardar tus propios movimientos, inicia sesión con Google.
-              </span>
-            </div>
-            <div className="flex items-center gap-2.5 shrink-0">
-              <button
-                onClick={() => setIsAuthModalOpen(true)}
-                className="bg-white text-amber-900 hover:bg-amber-50 font-bold px-3 py-1 rounded-lg text-xs shadow-sm transition transform hover:scale-105"
-              >
-                Iniciar Sesión con Google
-              </button>
-              <button
-                onClick={() => setViewMode('landing')}
-                className="text-amber-100 hover:text-white underline text-xs transition"
-              >
-                Volver a la Portada
-              </button>
-            </div>
-          </div>
-        </aside>
-      )}
-
-      {/* Header / Navbar */}
-      <Header
-        accounts={accounts}
-        activeAccountId={filters.accountId}
+      {/* Sidebar for Desktop & Mobile Drawer */}
+      <Sidebar
+        activeTab={activeTab}
+        onSelectTab={setActiveTab}
         currentUser={currentUser}
         isTelegramLinked={Boolean(telegramProfile?.telegram_chat_id)}
-        onSelectAccount={(id) => setFilters((prev) => ({ ...prev, accountId: id }))}
         onOpenImport={() => setIsImportModalOpen(true)}
         onOpenAccountModal={() => setIsAccountModalOpen(true)}
         onOpenCategoryModal={() => setIsCategoryModalOpen(true)}
@@ -820,94 +789,111 @@ export function App() {
         onAutoAllocate={handleAutoAllocate}
         onResetDemo={handleResetDemo}
         onExport={handleExportExcel}
+        isOpenMobile={isMobileSidebarOpen}
+        onCloseMobile={() => setIsMobileSidebarOpen(false)}
       />
 
-      {/* Main Container */}
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
+      {/* Main Content Area */}
+      <div className="flex-1 flex flex-col min-w-0 h-screen overflow-hidden">
         
-        {/* Metric Cards Summary */}
-        <MetricCards
-          computedTransactions={filteredTransactions}
-          accounts={accounts}
-          activeAccountId={filters.accountId}
-        />
-
-        {/* View Tabs */}
-        <div className="flex items-center justify-between border-b border-slate-200 mb-6 bg-white rounded-xl p-1 shadow-sm border">
-          <div className="flex space-x-1">
-            <button
-              onClick={() => setActiveTab('dashboard')}
-              className={`flex items-center gap-2 px-4 py-2 text-xs font-bold rounded-lg transition ${
-                activeTab === 'dashboard'
-                  ? 'bg-slate-900 text-white shadow-sm'
-                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
-              }`}
-            >
-              <PieChart className="w-4 h-4" />
-              <span>Resumen & Gráficos</span>
-            </button>
-            <button
-              onClick={() => setActiveTab('transactions')}
-              className={`flex items-center gap-2 px-4 py-2 text-xs font-bold rounded-lg transition ${
-                activeTab === 'transactions'
-                  ? 'bg-slate-900 text-white shadow-sm'
-                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
-              }`}
-            >
-              <ListFilter className="w-4 h-4" />
-              <span>Transacciones & Asociación de Pagos</span>
-            </button>
-          </div>
-
-          <div className="hidden sm:flex items-center text-xs text-slate-500 pr-3 gap-1">
-            <ShieldCheck className="w-4 h-4 text-emerald-600" />
-            <span>Monto Real Utilizado Calculado</span>
-          </div>
-        </div>
-
-        {/* Filters */}
-        <Filters
-          filters={filters}
-          accounts={accounts}
-          categoryMappings={categoryMappings}
-          availableMonths={availableMonths}
-          onChange={setFilters}
-          onReset={() =>
-            setFilters({
-              month: 'ALL',
-              accountId: 'ALL',
-              accountType: 'ALL',
-              transactionType: 'ALL',
-              categories: [],
-              subcategories: [],
-              searchQuery: '',
-              onlyPendingTC: false
-            })
-          }
-        />
-
-        {/* Tab Views */}
-        {activeTab === 'dashboard' ? (
-          <ChartsDashboard
-            computedTransactions={filteredTransactions}
-            accounts={accounts}
-            budgets={budgets}
-            onOpenBudgetModal={() => setIsBudgetModalOpen(true)}
-          />
-        ) : (
-          <TransactionTable
-            transactions={filteredTransactions}
-            accounts={accounts}
-            categoryMappings={categoryMappings}
-            onOpenPaymentModal={(p) => setSelectedPurchaseForPayment(p)}
-            onUpdateTransaction={handleUpdateTransaction}
-            onDeleteTransaction={handleDeleteTransaction}
-            onDeleteTransactionsBatch={handleDeleteTransactionsBatch}
-            onAddTransaction={handleAddManualTransaction}
-          />
+        {/* Demo Mode Notice Banner */}
+        {!currentUser && viewMode === 'app' && (
+          <aside
+            aria-label="Aviso de Modo Demostración"
+            className="bg-gradient-to-r from-amber-600 via-amber-700 to-orange-700 text-white text-xs sm:text-sm font-medium px-4 py-2 shadow-md flex items-center justify-between gap-3 relative z-40 border-b border-amber-600/40"
+          >
+            <div className="max-w-7xl mx-auto w-full flex flex-col sm:flex-row items-center justify-between gap-2">
+              <div className="flex items-center gap-2 text-center sm:text-left">
+                <span className="text-base select-none">ℹ️</span>
+                <span className="leading-snug">
+                  <strong className="font-bold">Modo Demostración:</strong> Estás explorando datos simulados. Para guardar tus propios movimientos, inicia sesión con Google.
+                </span>
+              </div>
+              <div className="flex items-center gap-2.5 shrink-0">
+                <button
+                  onClick={() => setIsAuthModalOpen(true)}
+                  className="bg-white text-amber-900 hover:bg-amber-50 font-bold px-3 py-1 rounded-lg text-xs shadow-sm transition transform hover:scale-105"
+                >
+                  Iniciar Sesión con Google
+                </button>
+                <button
+                  onClick={() => setViewMode('landing')}
+                  className="text-amber-100 hover:text-white underline text-xs transition"
+                >
+                  Volver a la Portada
+                </button>
+              </div>
+            </div>
+          </aside>
         )}
 
-      </main>
+        {/* Minimalist TopBar */}
+        <TopBar
+          accounts={accounts}
+          activeAccountId={filters.accountId}
+          onSelectAccount={(id) => setFilters((prev) => ({ ...prev, accountId: id }))}
+          selectedMonth={filters.month}
+          availableMonths={availableMonths}
+          onSelectMonth={(m) => setFilters((prev) => ({ ...prev, month: m }))}
+          currentUser={currentUser}
+          isCloudLoading={isCloudLoading}
+          onToggleMobileMenu={() => setIsMobileSidebarOpen((prev) => !prev)}
+        />
+
+        {/* Scrollable Main Workspace */}
+        <main className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 space-y-6 max-w-7xl w-full mx-auto scrollbar-thin scrollbar-thumb-slate-800">
+          
+          {/* 1. Metric Cards Summary */}
+          <MetricCards
+            computedTransactions={filteredTransactions}
+            accounts={accounts}
+            activeAccountId={filters.accountId}
+          />
+
+          {/* 2. Filters & Search */}
+          <Filters
+            filters={filters}
+            accounts={accounts}
+            categoryMappings={categoryMappings}
+            availableMonths={availableMonths}
+            onChange={setFilters}
+            onReset={() =>
+              setFilters({
+                month: 'ALL',
+                accountId: 'ALL',
+                accountType: 'ALL',
+                transactionType: 'ALL',
+                categories: [],
+                subcategories: [],
+                searchQuery: '',
+                onlyPendingTC: false
+              })
+            }
+          />
+
+          {/* 3. Active Tab Content (Dashboard or Transactions) */}
+          {activeTab === 'dashboard' ? (
+            <ChartsDashboard
+              computedTransactions={filteredTransactions}
+              accounts={accounts}
+              budgets={budgets}
+              onOpenBudgetModal={() => setIsBudgetModalOpen(true)}
+            />
+          ) : (
+            <TransactionTable
+              transactions={filteredTransactions}
+              accounts={accounts}
+              categoryMappings={categoryMappings}
+              onOpenPaymentModal={(p) => setSelectedPurchaseForPayment(p)}
+              onUpdateTransaction={handleUpdateTransaction}
+              onDeleteTransaction={handleDeleteTransaction}
+              onDeleteTransactionsBatch={handleDeleteTransactionsBatch}
+              onAddTransaction={handleAddManualTransaction}
+            />
+          )}
+
+        </main>
+      </div>
 
       {/* Payment Association Modal */}
       {selectedPurchaseForPayment && (

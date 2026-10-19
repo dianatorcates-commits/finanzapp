@@ -59,61 +59,61 @@ export const MetricCards: React.FC<MetricCardsProps> = ({
       
       {/* Active Account Billing Cycle Banner */}
       {cycleInfo && (
-        <div className="sm:col-span-2 lg:col-span-4 bg-sky-50/90 border border-sky-200 px-3.5 py-2 rounded-xl text-xs text-sky-900 flex flex-col sm:flex-row sm:items-center justify-between gap-1 shadow-sm">
+        <div className="sm:col-span-2 lg:col-span-4 bg-sky-950/40 border border-sky-500/30 px-4 py-2.5 rounded-2xl text-xs text-sky-200 flex flex-col sm:flex-row sm:items-center justify-between gap-1 shadow-md backdrop-blur-md">
           <div className="flex items-center gap-2">
-            <Calendar className="w-4 h-4 text-sky-600 flex-shrink-0" />
+            <Calendar className="w-4 h-4 text-sky-400 flex-shrink-0" />
             <span>
-              <b>{selectedAcc?.name}:</b> {cycleInfo}
+              <b className="text-white">{selectedAcc?.name}:</b> {cycleInfo}
             </span>
           </div>
-          <span className="text-[11px] text-sky-700 font-medium">
+          <span className="text-[11px] text-sky-300 font-medium">
             Gastos posteriores al día {selectedAcc?.closingDay} se asignan al ciclo de facturación del mes siguiente
           </span>
         </div>
       )}
 
       {/* Gross Expenses */}
-      <div className="bg-white rounded-xl p-4 shadow-sm border border-slate-200 flex flex-col justify-between hover:shadow-md transition">
+      <div className="bg-slate-900/80 backdrop-blur-md rounded-2xl p-5 shadow-xl border border-slate-800/80 flex flex-col justify-between hover:border-slate-700 transition">
         <div className="flex items-center justify-between">
-          <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Gastos Totales (Original)</span>
-          <div className="p-2 rounded-lg bg-rose-50 text-rose-600">
+          <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Gastos Totales (Original)</span>
+          <div className="p-2.5 rounded-xl bg-rose-500/10 text-rose-400 border border-rose-500/20">
             <TrendingDown className="w-5 h-5" />
           </div>
         </div>
-        <div className="mt-3">
-          <p className="text-2xl font-bold text-slate-900">{formatCLP(grossExpenses)}</p>
-          <p className="text-xs text-slate-500 mt-1">Suma bruta de compras y cargos</p>
+        <div className="mt-4">
+          <p className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">{formatCLP(grossExpenses)}</p>
+          <p className="text-xs text-slate-400 mt-1">Suma bruta de compras y cargos</p>
         </div>
       </div>
 
       {/* Total Payments & Income */}
-      <div className="bg-white rounded-xl p-4 shadow-sm border border-slate-200 flex flex-col justify-between hover:shadow-md transition">
+      <div className="bg-slate-900/80 backdrop-blur-md rounded-2xl p-5 shadow-xl border border-slate-800/80 flex flex-col justify-between hover:border-slate-700 transition">
         <div className="flex items-center justify-between">
-          <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Abonos, Pagos & Sueldos</span>
-          <div className="p-2 rounded-lg bg-emerald-50 text-emerald-600">
+          <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Abonos, Pagos & Sueldos</span>
+          <div className="p-2.5 rounded-xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
             <TrendingUp className="w-5 h-5" />
           </div>
         </div>
-        <div className="mt-3">
-          <p className="text-2xl font-bold text-slate-900">{formatCLP(totalPaymentsAndIncome)}</p>
-          <div className="flex justify-between items-center text-xs text-slate-500 mt-1">
+        <div className="mt-4">
+          <p className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">{formatCLP(totalPaymentsAndIncome)}</p>
+          <div className="flex justify-between items-center text-xs text-slate-400 mt-1">
             <span>Asociado a Compras:</span>
-            <span className="font-semibold text-emerald-600">{formatCLP(totalAllocatedPayments)}</span>
+            <span className="font-bold text-emerald-400">{formatCLP(totalAllocatedPayments)}</span>
           </div>
         </div>
       </div>
 
       {/* Monto Real Utilizado (Restante por Financiar/Pagar) */}
-      <div className="bg-gradient-to-br from-sky-900 to-slate-900 rounded-xl p-4 shadow-md text-white flex flex-col justify-between relative overflow-hidden">
-        <div className="absolute top-0 right-0 w-24 h-24 bg-sky-500/10 rounded-full blur-xl pointer-events-none" />
+      <div className="border border-sky-500/40 bg-gradient-to-br from-slate-900 via-slate-900 to-sky-950/60 shadow-xl shadow-sky-500/10 backdrop-blur-md rounded-2xl p-5 text-white flex flex-col justify-between relative overflow-hidden group hover:border-sky-400/60 transition">
+        <div className="absolute top-0 right-0 w-32 h-32 bg-sky-500/10 rounded-full blur-2xl pointer-events-none" />
         <div className="flex items-center justify-between">
-          <span className="text-xs font-semibold text-sky-200 uppercase tracking-wider">Monto Real Utilizado</span>
-          <div className="p-2 rounded-lg bg-sky-500/20 text-sky-300 border border-sky-400/30">
+          <span className="text-xs font-bold text-sky-300 uppercase tracking-wider">Monto Real Utilizado</span>
+          <div className="p-2.5 rounded-xl bg-sky-500/20 text-sky-300 border border-sky-400/30 shadow-inner">
             <ShieldCheck className="w-5 h-5" />
           </div>
         </div>
-        <div className="mt-3">
-          <p className="text-2xl font-extrabold text-sky-300">{formatCLP(netAmountUsed)}</p>
+        <div className="mt-4">
+          <p className="text-2xl sm:text-3xl font-black text-sky-300 tracking-tight">{formatCLP(netAmountUsed)}</p>
           <p className="text-xs text-sky-200/80 mt-1">
             Gasto neto deduciendo abonos y pagos aplicados
           </p>
@@ -121,16 +121,16 @@ export const MetricCards: React.FC<MetricCardsProps> = ({
       </div>
 
       {/* Unallocated Payments or Pending Credit Debt */}
-      <div className="bg-white rounded-xl p-4 shadow-sm border border-slate-200 flex flex-col justify-between hover:shadow-md transition">
+      <div className="bg-slate-900/80 backdrop-blur-md rounded-2xl p-5 shadow-xl border border-slate-800/80 flex flex-col justify-between hover:border-slate-700 transition">
         <div className="flex items-center justify-between">
-          <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Abonos TC Sin Asignar</span>
-          <div className="p-2 rounded-lg bg-purple-50 text-purple-600">
+          <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Abonos TC Sin Asignar</span>
+          <div className="p-2.5 rounded-xl bg-purple-500/10 text-purple-400 border border-purple-500/20">
             <CreditCard className="w-5 h-5" />
           </div>
         </div>
-        <div className="mt-3">
-          <p className="text-2xl font-bold text-slate-900">{formatCLP(unallocatedTcPayments)}</p>
-          <p className="text-xs text-slate-500 mt-1">
+        <div className="mt-4">
+          <p className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">{formatCLP(unallocatedTcPayments)}</p>
+          <p className="text-xs text-slate-400 mt-1">
             Pagos a TC disponibles para asociar a compras
           </p>
         </div>
