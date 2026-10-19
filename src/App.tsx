@@ -10,7 +10,7 @@ import {
   CategoryBudget,
   TelegramProfile
 } from './types';
-import { INITIAL_ACCOUNTS, INITIAL_TRANSACTIONS } from './utils/demoData';
+import { INITIAL_ACCOUNTS, INITIAL_TRANSACTIONS, DEMO_ACCOUNTS, DEMO_TRANSACTIONS } from './utils/demoData';
 import { DEFAULT_CATEGORY_MAPPINGS, DEFAULT_AUTO_RULES, getParentCategory, autoCategorize, applyAutoRulesToTransaction } from './utils/categorizer';
 import { computeTransactions, autoAllocatePayments, addPaymentAllocation, removePaymentAllocation, isPaymentOrIncomeTransaction } from './utils/paymentAllocation';
 import { supabase } from './utils/supabaseClient';
@@ -52,41 +52,24 @@ const STORAGE_KEY_AUTO_RULES = 'finanzapp_auto_rules_v1';
 const STORAGE_KEY_BUDGETS = 'finanzapp_budgets_v1';
 
 export function App() {
-  // 1. State for Accounts
-  const [accounts, setAccounts] = useState<Account[]>(() => {
-    const saved = localStorage.getItem(STORAGE_KEY_ACCOUNTS);
-    return saved ? JSON.parse(saved) : INITIAL_ACCOUNTS;
-  });
+  // 1. State for Accounts: always initialize strictly with clean demo accounts (never read generic or private localStorage on startup)
+  const [accounts, setAccounts] = useState<Account[]>(INITIAL_ACCOUNTS);
 
   // 2. State for Category & Subcategory Mappings
-  const [categoryMappings, setCategoryMappings] = useState<CategoryMapping[]>(() => {
-    const saved = localStorage.getItem(STORAGE_KEY_CATEGORY_MAPPINGS);
-    return saved ? JSON.parse(saved) : DEFAULT_CATEGORY_MAPPINGS;
-  });
+  const [categoryMappings, setCategoryMappings] = useState<CategoryMapping[]>(DEFAULT_CATEGORY_MAPPINGS);
 
-  // 3. State for Transactions
-  const [transactions, setTransactions] = useState<Transaction[]>(() => {
-    const saved = localStorage.getItem(STORAGE_KEY_TRANSACTIONS);
-    return saved ? JSON.parse(saved) : INITIAL_TRANSACTIONS;
-  });
+  // 3. State for Transactions: always initialize strictly with clean demo transactions (never read generic or private localStorage on startup)
+  const [transactions, setTransactions] = useState<Transaction[]>(INITIAL_TRANSACTIONS);
 
   // 4. State for Auto-Categorization Rules
-  const [autoRules, setAutoRules] = useState<AutoCategoryRule[]>(() => {
-    const saved = localStorage.getItem(STORAGE_KEY_AUTO_RULES);
-    return saved ? JSON.parse(saved) : DEFAULT_AUTO_RULES;
-  });
+  const [autoRules, setAutoRules] = useState<AutoCategoryRule[]>(DEFAULT_AUTO_RULES);
 
   // 5. State for Category Budgets
-  const [budgets, setBudgets] = useState<CategoryBudget[]>(() => {
-    const saved = localStorage.getItem(STORAGE_KEY_BUDGETS);
-    return saved
-      ? JSON.parse(saved)
-      : [
-          { id: 'b-1', categoryName: 'Alimentación & Gastronomía', monthlyLimit: 350000 },
-          { id: 'b-2', categoryName: 'Transporte & Movilidad', monthlyLimit: 120000 },
-          { id: 'b-3', categoryName: 'Compras & Estilo de Vida', monthlyLimit: 200000 }
-        ];
-  });
+  const [budgets, setBudgets] = useState<CategoryBudget[]>([
+    { id: 'b-1', categoryName: 'Alimentación & Gastronomía', monthlyLimit: 350000 },
+    { id: 'b-2', categoryName: 'Transporte & Movilidad', monthlyLimit: 120000 },
+    { id: 'b-3', categoryName: 'Compras & Estilo de Vida', monthlyLimit: 200000 }
+  ]);
 
   // Auth & Cloud State
   const [currentUser, setCurrentUser] = useState<any>(null);
@@ -94,31 +77,44 @@ export function App() {
   const [viewMode, setViewMode] = useState<'landing' | 'app'>('landing');
   const [isCloudLoading, setIsCloudLoading] = useState(false);
 
-  // Save to localStorage with user-isolated keys
+  // Security: Clean up legacy un-isolated keys from localStorage on startup to prevent contamination
   useEffect(() => {
-    const key = currentUser?.id ? `${STORAGE_KEY_ACCOUNTS}_${currentUser.id}` : STORAGE_KEY_ACCOUNTS;
-    localStorage.setItem(key, JSON.stringify(accounts));
-  }, [accounts, currentUser]);
+    try {
+      localStorage.removeItem(STORAGE_KEY_ACCOUNTS);
+      localStorage.removeItem(STORAGE_KEY_TRANSACTIONS);
+      localStorage.removeItem(STORAGE_KEY_CATEGORY_MAPPINGS);
+      localStorage.removeItem(STORAGE_KEY_AUTO_RULES);
+      localStorage.removeItem(STORAGE_KEY_BUDGETS);
+    } catch (e) {
+      console.warn('Error purging legacy un-isolated keys', e);
+    }
+  }, []);
+
+  // Save to localStorage ONLY when currentUser is authenticated, strictly isolated by user ID
+  useEffect(() => {
+    if (!currentUser?.id) return;
+    localStorage.setItem(`${STORAGE_KEY_ACCOUNTS}_${currentUser.id}`, JSON.stringify(accounts));
+  }, [accounts, currentUser?.id]);
 
   useEffect(() => {
-    const key = currentUser?.id ? `${STORAGE_KEY_TRANSACTIONS}_${currentUser.id}` : STORAGE_KEY_TRANSACTIONS;
-    localStorage.setItem(key, JSON.stringify(transactions));
-  }, [transactions, currentUser]);
+    if (!currentUser?.id) return;
+    localStorage.setItem(`${STORAGE_KEY_TRANSACTIONS}_${currentUser.id}`, JSON.stringify(transactions));
+  }, [transactions, currentUser?.id]);
 
   useEffect(() => {
-    const key = currentUser?.id ? `${STORAGE_KEY_CATEGORY_MAPPINGS}_${currentUser.id}` : STORAGE_KEY_CATEGORY_MAPPINGS;
-    localStorage.setItem(key, JSON.stringify(categoryMappings));
-  }, [categoryMappings, currentUser]);
+    if (!currentUser?.id) return;
+    localStorage.setItem(`${STORAGE_KEY_CATEGORY_MAPPINGS}_${currentUser.id}`, JSON.stringify(categoryMappings));
+  }, [categoryMappings, currentUser?.id]);
 
   useEffect(() => {
-    const key = currentUser?.id ? `${STORAGE_KEY_AUTO_RULES}_${currentUser.id}` : STORAGE_KEY_AUTO_RULES;
-    localStorage.setItem(key, JSON.stringify(autoRules));
-  }, [autoRules, currentUser]);
+    if (!currentUser?.id) return;
+    localStorage.setItem(`${STORAGE_KEY_AUTO_RULES}_${currentUser.id}`, JSON.stringify(autoRules));
+  }, [autoRules, currentUser?.id]);
 
   useEffect(() => {
-    const key = currentUser?.id ? `${STORAGE_KEY_BUDGETS}_${currentUser.id}` : STORAGE_KEY_BUDGETS;
-    localStorage.setItem(key, JSON.stringify(budgets));
-  }, [budgets, currentUser]);
+    if (!currentUser?.id) return;
+    localStorage.setItem(`${STORAGE_KEY_BUDGETS}_${currentUser.id}`, JSON.stringify(budgets));
+  }, [budgets, currentUser?.id]);
 
   // Auto-sync with Supabase Cloud whenever state changes for logged in user (only when cloud data has finished loading)
   useEffect(() => {
@@ -161,6 +157,30 @@ export function App() {
   const loadCloudData = async (userId: string) => {
     setIsCloudLoading(true);
     try {
+      // 1. Immediately hydrate from user-isolated local cache if available (prevents empty flash)
+      const userCachedAccounts = localStorage.getItem(`${STORAGE_KEY_ACCOUNTS}_${userId}`);
+      const userCachedTx = localStorage.getItem(`${STORAGE_KEY_TRANSACTIONS}_${userId}`);
+      const userCachedCategories = localStorage.getItem(`${STORAGE_KEY_CATEGORY_MAPPINGS}_${userId}`);
+      const userCachedRules = localStorage.getItem(`${STORAGE_KEY_AUTO_RULES}_${userId}`);
+      const userCachedBudgets = localStorage.getItem(`${STORAGE_KEY_BUDGETS}_${userId}`);
+
+      if (userCachedAccounts) {
+        try { setAccounts(JSON.parse(userCachedAccounts)); } catch {}
+      }
+      if (userCachedTx) {
+        try { setTransactions(JSON.parse(userCachedTx)); } catch {}
+      }
+      if (userCachedCategories) {
+        try { setCategoryMappings(JSON.parse(userCachedCategories)); } catch {}
+      }
+      if (userCachedRules) {
+        try { setAutoRules(JSON.parse(userCachedRules)); } catch {}
+      }
+      if (userCachedBudgets) {
+        try { setBudgets(JSON.parse(userCachedBudgets)); } catch {}
+      }
+
+      // 2. Fetch fresh data from Supabase Cloud
       const data = await fetchUserData(userId);
       const cloudSyncedKey = `finanzapp_cloud_synced_${userId}`;
       const isCloudSynced = localStorage.getItem(cloudSyncedKey);
@@ -172,11 +192,14 @@ export function App() {
         setBudgets(data.budgets);
         setTransactions(data.transactions);
         localStorage.setItem(cloudSyncedKey, 'true');
+        // Persist strictly to user-isolated keys
+        localStorage.setItem(`${STORAGE_KEY_ACCOUNTS}_${userId}`, JSON.stringify(data.accounts));
+        localStorage.setItem(`${STORAGE_KEY_TRANSACTIONS}_${userId}`, JSON.stringify(data.transactions));
       } else {
         // First time ever logged in for this brand new user: initialize clean account & empty transactions
         const initialUserAccounts = INITIAL_ACCOUNTS;
-        const initialUserCategories = categoryMappings.length > 0 ? categoryMappings : DEFAULT_CATEGORY_MAPPINGS;
-        const initialUserRules = autoRules.length > 0 ? autoRules : DEFAULT_AUTO_RULES;
+        const initialUserCategories = DEFAULT_CATEGORY_MAPPINGS;
+        const initialUserRules = DEFAULT_AUTO_RULES;
         const initialUserBudgets = [
           { id: 'b-1', categoryName: 'Alimentación & Gastronomía', monthlyLimit: 350000 },
           { id: 'b-2', categoryName: 'Transporte & Movilidad', monthlyLimit: 120000 },
@@ -198,6 +221,8 @@ export function App() {
           transactions: initialUserTransactions
         });
         localStorage.setItem(cloudSyncedKey, 'true');
+        localStorage.setItem(`${STORAGE_KEY_ACCOUNTS}_${userId}`, JSON.stringify(initialUserAccounts));
+        localStorage.setItem(`${STORAGE_KEY_TRANSACTIONS}_${userId}`, JSON.stringify(initialUserTransactions));
       }
 
       // Also load Telegram Profile
@@ -311,6 +336,18 @@ export function App() {
       if (user) {
         setViewMode('app');
         loadCloudData(user.id);
+      } else {
+        // User logged out or session expired: reset state immediately to clean demo data
+        setAccounts(INITIAL_ACCOUNTS);
+        setTransactions(INITIAL_TRANSACTIONS);
+        setCategoryMappings(DEFAULT_CATEGORY_MAPPINGS);
+        setAutoRules(DEFAULT_AUTO_RULES);
+        setBudgets([
+          { id: 'b-1', categoryName: 'Alimentación & Gastronomía', monthlyLimit: 350000 },
+          { id: 'b-2', categoryName: 'Transporte & Movilidad', monthlyLimit: 120000 },
+          { id: 'b-3', categoryName: 'Compras & Estilo de Vida', monthlyLimit: 200000 }
+        ]);
+        setTelegramProfile(null);
       }
     });
 
@@ -318,18 +355,9 @@ export function App() {
   }, []);
 
   const handleSignOut = async () => {
-    await signOutUser();
-    setCurrentUser(null);
-    setTelegramProfile(null);
-    setViewMode('landing');
-    // Clear user local storage keys so old state doesn't persist
-    localStorage.removeItem(STORAGE_KEY_ACCOUNTS);
-    localStorage.removeItem(STORAGE_KEY_TRANSACTIONS);
-    localStorage.removeItem(STORAGE_KEY_CATEGORY_MAPPINGS);
-    localStorage.removeItem(STORAGE_KEY_AUTO_RULES);
-    localStorage.removeItem(STORAGE_KEY_BUDGETS);
+    const signingOutUserId = currentUser?.id;
 
-    // Reset state to original demo state
+    // 1. Immediately reset React state to clean demo data before any re-render or async operations
     setAccounts(INITIAL_ACCOUNTS);
     setTransactions(INITIAL_TRANSACTIONS);
     setCategoryMappings(DEFAULT_CATEGORY_MAPPINGS);
@@ -339,6 +367,43 @@ export function App() {
       { id: 'b-2', categoryName: 'Transporte & Movilidad', monthlyLimit: 120000 },
       { id: 'b-3', categoryName: 'Compras & Estilo de Vida', monthlyLimit: 200000 }
     ]);
+    setCurrentUser(null);
+    setTelegramProfile(null);
+    setViewMode('landing');
+
+    // 2. Comprehensive cleanup of user-specific and generic cache keys from localStorage
+    try {
+      if (signingOutUserId) {
+        localStorage.removeItem(`${STORAGE_KEY_ACCOUNTS}_${signingOutUserId}`);
+        localStorage.removeItem(`${STORAGE_KEY_TRANSACTIONS}_${signingOutUserId}`);
+        localStorage.removeItem(`${STORAGE_KEY_CATEGORY_MAPPINGS}_${signingOutUserId}`);
+        localStorage.removeItem(`${STORAGE_KEY_AUTO_RULES}_${signingOutUserId}`);
+        localStorage.removeItem(`${STORAGE_KEY_BUDGETS}_${signingOutUserId}`);
+        localStorage.removeItem(`finanzapp_cloud_synced_${signingOutUserId}`);
+      }
+
+      // Purge generic legacy keys
+      localStorage.removeItem(STORAGE_KEY_ACCOUNTS);
+      localStorage.removeItem(STORAGE_KEY_TRANSACTIONS);
+      localStorage.removeItem(STORAGE_KEY_CATEGORY_MAPPINGS);
+      localStorage.removeItem(STORAGE_KEY_AUTO_RULES);
+      localStorage.removeItem(STORAGE_KEY_BUDGETS);
+
+      // Collect and remove any localStorage keys containing finanzapp transactions or accounts
+      const keysToRemove: string[] = [];
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key && (key.startsWith('finanzapp_') || key.includes('transactions') || key.includes('accounts'))) {
+          keysToRemove.push(key);
+        }
+      }
+      keysToRemove.forEach((k) => localStorage.removeItem(k));
+    } catch (e) {
+      console.warn('Error clearing localStorage on signOut', e);
+    }
+
+    // 3. Complete Supabase signOut
+    await signOutUser();
   };
 
   // Normalize transactions dynamically to guarantee parent category & subcategory resolution
@@ -707,6 +772,37 @@ export function App() {
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 flex flex-col font-sans">
       
+      {/* Demo Mode Notice Banner */}
+      {!currentUser && viewMode === 'app' && (
+        <aside
+          aria-label="Aviso de Modo Demostración"
+          className="bg-gradient-to-r from-amber-500 via-amber-600 to-orange-600 text-white text-xs sm:text-sm font-medium px-4 py-2.5 shadow-md flex items-center justify-between gap-3 relative z-40 border-b border-amber-700/30"
+        >
+          <div className="max-w-7xl mx-auto w-full flex flex-col sm:flex-row items-center justify-between gap-2">
+            <div className="flex items-center gap-2 text-center sm:text-left">
+              <span className="text-base select-none">ℹ️</span>
+              <span className="leading-snug">
+                <strong className="font-bold">Modo Demostración:</strong> Estás explorando datos simulados. Para guardar tus propios movimientos, inicia sesión con Google.
+              </span>
+            </div>
+            <div className="flex items-center gap-2.5 shrink-0">
+              <button
+                onClick={() => setIsAuthModalOpen(true)}
+                className="bg-white text-amber-900 hover:bg-amber-50 font-bold px-3 py-1 rounded-lg text-xs shadow-sm transition transform hover:scale-105"
+              >
+                Iniciar Sesión con Google
+              </button>
+              <button
+                onClick={() => setViewMode('landing')}
+                className="text-amber-100 hover:text-white underline text-xs transition"
+              >
+                Volver a la Portada
+              </button>
+            </div>
+          </div>
+        </aside>
+      )}
+
       {/* Header / Navbar */}
       <Header
         accounts={accounts}

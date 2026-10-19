@@ -249,3 +249,6 @@ export const INITIAL_TRANSACTIONS: Transaction[] = [
     allocations: []
   }
 ];
+
+export const DEMO_ACCOUNTS = INITIAL_ACCOUNTS;
+export const DEMO_TRANSACTIONS = INITIAL_TRANSACTIONS;

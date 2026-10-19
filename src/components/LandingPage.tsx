@@ -60,7 +60,10 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onOpenAuth, onTryDemo 
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
           
           {/* Brand Logo */}
-          <div className="flex items-center space-x-3 cursor-pointer" onClick={onTryDemo}>
+          <div 
+            className="flex items-center space-x-3 cursor-pointer" 
+            onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+          >
             <img
               src="/images/wallet_mascot_logo_128x128.png"
               alt="FinanzApp Logo"
@@ -107,7 +110,10 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onOpenAuth, onTryDemo 
         
         {/* Dynamic Badge (Hero Top) */}
         <div 
-          onClick={onTryDemo}
+          onClick={() => {
+            const el = document.getElementById('hub-convergencia');
+            if (el) el.scrollIntoView({ behavior: 'smooth' });
+          }}
           className="inline-flex items-center gap-2.5 px-3.5 py-1.5 rounded-full text-xs font-semibold bg-sky-500/10 border border-sky-500/30 text-sky-300 backdrop-blur-md shadow-lg shadow-sky-500/10 hover:border-sky-400/60 hover:bg-sky-500/15 transition cursor-pointer group mb-4"
         >
           <span className="relative flex h-2 w-2">
