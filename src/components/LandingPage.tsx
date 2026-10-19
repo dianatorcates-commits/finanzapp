@@ -102,12 +102,12 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onOpenAuth, onTryDemo 
       {/* ========================================================================= */}
       {/* HERO SECTION                                                             */}
       {/* ========================================================================= */}
-      <section className="relative z-10 max-w-6xl mx-auto px-4 pt-14 pb-12 text-center flex flex-col items-center">
+      <section className="relative z-10 max-w-6xl mx-auto px-4 pt-6 sm:pt-8 pb-8 text-center flex flex-col items-center">
         
         {/* Dynamic Badge (Hero Top) */}
         <div 
           onClick={onTryDemo}
-          className="inline-flex items-center gap-2.5 px-4 py-1.5 rounded-full text-xs font-semibold bg-sky-500/10 border border-sky-500/30 text-sky-300 backdrop-blur-md shadow-lg shadow-sky-500/10 hover:border-sky-400/60 hover:bg-sky-500/15 transition cursor-pointer group mb-8"
+          className="inline-flex items-center gap-2.5 px-3.5 py-1.5 rounded-full text-xs font-semibold bg-sky-500/10 border border-sky-500/30 text-sky-300 backdrop-blur-md shadow-lg shadow-sky-500/10 hover:border-sky-400/60 hover:bg-sky-500/15 transition cursor-pointer group mb-4"
         >
           <span className="relative flex h-2 w-2">
             <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
@@ -117,25 +117,25 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onOpenAuth, onTryDemo 
           <ChevronRight className="w-3.5 h-3.5 text-sky-400 group-hover:translate-x-0.5 transition-transform" />
         </div>
 
-        {/* Main Headline */}
-        <h1 className="text-4xl sm:text-6xl lg:text-7xl font-extrabold tracking-tight text-white leading-[1.12] max-w-4xl mb-6">
-          Toma el control real de tus gastos y{' '}
+        {/* Main Headline (Compact & Punchy) */}
+        <h1 className="text-2xl sm:text-4xl lg:text-5xl font-extrabold tracking-tight text-white leading-[1.2] max-w-3xl mb-3 sm:mb-4">
+          Lleva el control real de{' '}
           <span className="bg-gradient-to-r from-sky-400 via-cyan-300 to-indigo-400 bg-clip-text text-transparent">
-            domina el ciclo de tus tarjetas de crédito
+            tus gastos
           </span>
         </h1>
 
         {/* Subtitle */}
-        <p className="text-base sm:text-lg text-slate-300 max-w-2xl mx-auto mb-10 leading-relaxed font-normal">
+        <p className="text-xs sm:text-sm md:text-base text-slate-300 max-w-2xl mx-auto mb-6 leading-relaxed font-normal">
           Centraliza tus cartolas bancarias, sincroniza compras en 3 segundos con Telegram y visualiza tu{' '}
           <strong className="text-white font-semibold">Monto Real Utilizado</strong> descontando abonos y fechas de corte automáticamente.
         </p>
 
-        {/* CTA Buttons with Neon Glow */}
-        <div className="flex flex-col sm:flex-row items-center justify-center gap-4 w-full sm:w-auto">
+        {/* CTA Buttons */}
+        <div className="flex flex-col sm:flex-row items-center justify-center gap-3.5 w-full sm:w-auto mb-8 sm:mb-10">
           <button
             onClick={onOpenAuth}
-            className="w-full sm:w-auto flex items-center justify-center gap-2.5 bg-gradient-to-r from-sky-500 via-blue-600 to-indigo-600 hover:from-sky-400 hover:to-indigo-500 text-white font-bold text-sm px-7 py-3.5 rounded-2xl shadow-xl shadow-sky-500/30 hover:shadow-sky-500/50 transition transform hover:-translate-y-0.5"
+            className="w-full sm:w-auto flex items-center justify-center gap-2 bg-gradient-to-r from-sky-500 via-blue-600 to-indigo-600 hover:from-sky-400 hover:to-indigo-500 text-white font-bold text-xs sm:text-sm px-5 py-3 rounded-2xl shadow-xl shadow-sky-500/30 hover:shadow-sky-500/50 transition transform hover:-translate-y-0.5"
           >
             <span>Comenzar Gratis con Google</span>
             <ArrowRight className="w-4 h-4" />
@@ -143,7 +143,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onOpenAuth, onTryDemo 
 
           <button
             onClick={onTryDemo}
-            className="w-full sm:w-auto flex items-center justify-center gap-2 bg-slate-900/90 hover:bg-slate-800 text-slate-200 font-semibold text-sm px-6 py-3.5 rounded-2xl border border-slate-700/80 hover:border-sky-500/40 transition shadow-lg backdrop-blur-md"
+            className="w-full sm:w-auto flex items-center justify-center gap-2 bg-slate-900/90 hover:bg-slate-800 text-slate-200 font-semibold text-xs sm:text-sm px-5 py-3 rounded-2xl border border-slate-700/80 hover:border-sky-500/40 transition shadow-lg backdrop-blur-md"
           >
             <Sparkles className="w-4 h-4 text-sky-400" />
             <span>Ver Modo Demo Interactivo</span>
@@ -153,118 +153,139 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onOpenAuth, onTryDemo 
         {/* ========================================================================= */}
         {/* COMPONENTE ESTRELLA: "EL HUB DE CONVERGENCIA FINANCIERA"                  */}
         {/* ========================================================================= */}
-        <div id="hub-convergencia" className="relative w-full max-w-5xl mt-16 sm:mt-20 mb-8">
+        <div id="hub-convergencia" className="relative w-full max-w-6xl xl:max-w-7xl mx-auto px-2 sm:px-4 mb-8">
           
           {/* Subtle Ambient Backlight Glow */}
           <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-            <div className="w-[450px] h-[300px] bg-gradient-to-tr from-sky-600/20 via-indigo-600/20 to-emerald-500/10 rounded-full blur-[100px]" />
+            <div className="w-[500px] h-[320px] bg-gradient-to-tr from-sky-600/20 via-indigo-600/20 to-emerald-500/15 rounded-full blur-[110px]" />
           </div>
 
-          {/* SVG Animated Convergence Lines (Visible on md and larger) */}
+          {/* SVG Animated Convergence Lines with Extended Corridor */}
           <svg
             className="absolute inset-0 w-full h-full pointer-events-none hidden md:block z-0"
-            viewBox="0 0 1000 500"
+            viewBox="0 0 1200 500"
             fill="none"
             preserveAspectRatio="none"
           >
             <defs>
-              {/* Gradients for animated flow lines */}
+              {/* High-luminosity gradients for flow rays */}
               <linearGradient id="grad-tl" x1="0%" y1="0%" x2="100%" y2="100%">
-                <stop offset="0%" stopColor="#f43f5e" stopOpacity="0.8" />
-                <stop offset="100%" stopColor="#38bdf8" stopOpacity="0.9" />
+                <stop offset="0%" stopColor="#f43f5e" stopOpacity="0.9" />
+                <stop offset="100%" stopColor="#38bdf8" stopOpacity="1" />
               </linearGradient>
               <linearGradient id="grad-bl" x1="0%" y1="100%" x2="100%" y2="0%">
-                <stop offset="0%" stopColor="#38bdf8" stopOpacity="0.8" />
-                <stop offset="100%" stopColor="#6366f1" stopOpacity="0.9" />
+                <stop offset="0%" stopColor="#38bdf8" stopOpacity="0.9" />
+                <stop offset="100%" stopColor="#818cf8" stopOpacity="1" />
               </linearGradient>
               <linearGradient id="grad-tr" x1="100%" y1="0%" x2="0%" y2="100%">
-                <stop offset="0%" stopColor="#34d399" stopOpacity="0.8" />
-                <stop offset="100%" stopColor="#38bdf8" stopOpacity="0.9" />
+                <stop offset="0%" stopColor="#34d399" stopOpacity="0.9" />
+                <stop offset="100%" stopColor="#38bdf8" stopOpacity="1" />
               </linearGradient>
               <linearGradient id="grad-br" x1="100%" y1="100%" x2="0%" y2="0%">
-                <stop offset="0%" stopColor="#818cf8" stopOpacity="0.8" />
-                <stop offset="100%" stopColor="#38bdf8" stopOpacity="0.9" />
+                <stop offset="0%" stopColor="#a78bfa" stopOpacity="0.9" />
+                <stop offset="100%" stopColor="#38bdf8" stopOpacity="1" />
               </linearGradient>
+
+              {/* Glow filter for intense neon highlights */}
+              <filter id="glow-ray" x="-20%" y="-20%" width="140%" height="140%">
+                <feGaussianBlur stdDeviation="3" result="blur" />
+                <feMerge>
+                  <feMergeNode in="blur" />
+                  <feMergeNode in="SourceGraphic" />
+                </feMerge>
+              </filter>
             </defs>
 
             {/* 1. Top-Left (Tarjeta de Crédito) -> Center */}
             <path
-              d="M 210 90 C 330 90, 360 250, 480 250"
-              stroke="rgba(244, 63, 94, 0.2)"
-              strokeWidth="2"
-              strokeDasharray="6 6"
+              d="M 280 115 C 345 115, 375 210, 420 210"
+              stroke="rgba(51, 65, 85, 0.45)"
+              strokeWidth="1.5"
+              strokeDasharray="5 5"
             />
             <path
-              d="M 210 90 C 330 90, 360 250, 480 250"
+              d="M 280 115 C 345 115, 375 210, 420 210"
               stroke="url(#grad-tl)"
               strokeWidth="2.5"
               className="animate-dash-flow"
+              filter="url(#glow-ray)"
             />
-            <circle r="4.5" fill="#f43f5e">
-              <animateMotion dur="2.4s" repeatCount="indefinite" path="M 210 90 C 330 90, 360 250, 480 250" />
+            <circle r="4.5" fill="#f43f5e" filter="url(#glow-ray)">
+              <animateMotion dur="2.4s" repeatCount="indefinite" path="M 280 115 C 345 115, 375 210, 420 210" />
             </circle>
 
             {/* 2. Bottom-Left (Telegram Bot) -> Center */}
             <path
-              d="M 210 410 C 330 410, 360 250, 480 250"
-              stroke="rgba(56, 189, 248, 0.2)"
-              strokeWidth="2"
-              strokeDasharray="6 6"
+              d="M 280 385 C 345 385, 375 290, 420 290"
+              stroke="rgba(51, 65, 85, 0.45)"
+              strokeWidth="1.5"
+              strokeDasharray="5 5"
             />
             <path
-              d="M 210 410 C 330 410, 360 250, 480 250"
+              d="M 280 385 C 345 385, 375 290, 420 290"
               stroke="url(#grad-bl)"
               strokeWidth="2.5"
               className="animate-dash-flow"
+              filter="url(#glow-ray)"
             />
-            <circle r="4.5" fill="#38bdf8">
-              <animateMotion dur="2.8s" repeatCount="indefinite" path="M 210 410 C 330 410, 360 250, 480 250" />
+            <circle r="4.5" fill="#38bdf8" filter="url(#glow-ray)">
+              <animateMotion dur="2.8s" repeatCount="indefinite" path="M 280 385 C 345 385, 375 290, 420 290" />
             </circle>
 
             {/* 3. Top-Right (Cuenta Corriente) -> Center */}
             <path
-              d="M 790 90 C 670 90, 640 250, 520 250"
-              stroke="rgba(52, 211, 153, 0.2)"
-              strokeWidth="2"
-              strokeDasharray="6 6"
+              d="M 920 115 C 855 115, 825 210, 780 210"
+              stroke="rgba(51, 65, 85, 0.45)"
+              strokeWidth="1.5"
+              strokeDasharray="5 5"
             />
             <path
-              d="M 790 90 C 670 90, 640 250, 520 250"
+              d="M 920 115 C 855 115, 825 210, 780 210"
               stroke="url(#grad-tr)"
               strokeWidth="2.5"
               className="animate-dash-flow"
+              filter="url(#glow-ray)"
             />
-            <circle r="4.5" fill="#34d399">
-              <animateMotion dur="2.2s" repeatCount="indefinite" path="M 790 90 C 670 90, 640 250, 520 250" />
+            <circle r="4.5" fill="#34d399" filter="url(#glow-ray)">
+              <animateMotion dur="2.2s" repeatCount="indefinite" path="M 920 115 C 855 115, 825 210, 780 210" />
             </circle>
 
             {/* 4. Bottom-Right (Cartola Bancaria) -> Center */}
             <path
-              d="M 790 410 C 670 410, 640 250, 520 250"
-              stroke="rgba(129, 140, 248, 0.2)"
-              strokeWidth="2"
-              strokeDasharray="6 6"
+              d="M 920 385 C 855 385, 825 290, 780 290"
+              stroke="rgba(51, 65, 85, 0.45)"
+              strokeWidth="1.5"
+              strokeDasharray="5 5"
             />
             <path
-              d="M 790 410 C 670 410, 640 250, 520 250"
+              d="M 920 385 C 855 385, 825 290, 780 290"
               stroke="url(#grad-br)"
               strokeWidth="2.5"
               className="animate-dash-flow"
+              filter="url(#glow-ray)"
             />
-            <circle r="4.5" fill="#818cf8">
-              <animateMotion dur="3.0s" repeatCount="indefinite" path="M 790 410 C 670 410, 640 250, 520 250" />
+            <circle r="4.5" fill="#a78bfa" filter="url(#glow-ray)">
+              <animateMotion dur="3.0s" repeatCount="indefinite" path="M 920 385 C 855 385, 825 290, 780 290" />
             </circle>
+
+            {/* Central Convergence Receiver Points */}
+            <circle cx="420" cy="210" r="3.5" fill="#f43f5e" />
+            <circle cx="420" cy="290" r="3.5" fill="#38bdf8" />
+            <circle cx="780" cy="210" r="3.5" fill="#34d399" />
+            <circle cx="780" cy="290" r="3.5" fill="#a78bfa" />
           </svg>
 
-          {/* Grid Layout Container */}
-          <div className="relative z-10 grid grid-cols-1 md:grid-cols-12 gap-4 items-center">
+          {/* Grid Layout Container with Generous Gaps (Expanded Corridor) */}
+          <div className="relative z-10 grid grid-cols-1 md:grid-cols-12 gap-6 md:gap-8 lg:gap-12 xl:gap-16 items-center">
             
-            {/* SATELLITE 1: Top-Left (Tarjeta de Crédito) */}
-            <div className="md:col-span-3 flex flex-col gap-4">
-              <div className="p-3.5 rounded-2xl bg-slate-900/90 border border-rose-500/30 backdrop-blur-md shadow-xl shadow-rose-500/10 text-left animate-float-slow hover:border-rose-400 transition cursor-default">
+            {/* SATELLITES LEFT: Top-Left & Bottom-Left */}
+            <div className="md:col-span-3 flex flex-col gap-6 lg:gap-8 order-2 md:order-1">
+              
+              {/* SATELLITE 1: Tarjeta de Crédito */}
+              <div className="p-3 sm:p-3.5 rounded-2xl bg-slate-900/90 border border-rose-500/30 backdrop-blur-md shadow-xl shadow-rose-500/10 text-left animate-float-slow hover:border-rose-400 transition cursor-default">
                 <div className="flex items-center gap-2 mb-1.5">
                   <div className="p-1.5 rounded-lg bg-rose-500/20 text-rose-400 border border-rose-500/30">
-                    <CreditCard className="w-4 h-4" />
+                    <CreditCard className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                   </div>
                   <div>
                     <span className="text-xs font-bold text-white block">TC Falabella</span>
@@ -282,11 +303,11 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onOpenAuth, onTryDemo 
                 </div>
               </div>
 
-              {/* SATELLITE 2: Bottom-Left (Telegram Bot) */}
-              <div className="p-3.5 rounded-2xl bg-slate-900/90 border border-sky-500/30 backdrop-blur-md shadow-xl shadow-sky-500/10 text-left animate-float-reverse hover:border-sky-400 transition cursor-default">
+              {/* SATELLITE 2: Telegram Bot */}
+              <div className="p-3 sm:p-3.5 rounded-2xl bg-slate-900/90 border border-sky-500/30 backdrop-blur-md shadow-xl shadow-sky-500/10 text-left animate-float-reverse hover:border-sky-400 transition cursor-default">
                 <div className="flex items-center gap-2 mb-1.5">
                   <div className="p-1.5 rounded-lg bg-sky-500/20 text-sky-400 border border-sky-500/30">
-                    <Send className="w-4 h-4" />
+                    <Send className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                   </div>
                   <div>
                     <span className="text-xs font-bold text-white block">Telegram Bot</span>
@@ -304,52 +325,52 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onOpenAuth, onTryDemo 
             </div>
 
             {/* NÚCLEO CENTRAL (FinanzApp Central Engine) */}
-            <div className="md:col-span-6 my-4 md:my-0">
-              <div className="relative p-6 sm:p-7 rounded-3xl bg-slate-900/95 border-2 border-sky-500/50 backdrop-blur-2xl shadow-2xl shadow-sky-500/20 text-left transition transform hover:scale-[1.01]">
+            <div className="md:col-span-6 my-2 md:my-0 order-1 md:order-2">
+              <div className="relative p-5 sm:p-6 rounded-3xl bg-slate-900/95 border-2 border-sky-500/50 backdrop-blur-2xl shadow-2xl shadow-sky-500/20 text-left transition transform hover:scale-[1.01]">
                 
                 {/* Engine Glowing Pulse Badge */}
-                <div className="flex items-center justify-between border-b border-slate-800/80 pb-4 mb-4">
+                <div className="flex items-center justify-between border-b border-slate-800/80 pb-3 mb-3.5">
                   <div className="flex items-center gap-2">
                     <div className="p-1.5 rounded-xl bg-gradient-to-tr from-sky-500 to-indigo-600 text-white shadow-md shadow-sky-500/30">
-                      <Zap className="w-4 h-4" />
+                      <Zap className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                     </div>
                     <div>
                       <h4 className="text-xs font-bold text-white tracking-wide uppercase flex items-center gap-1.5">
                         FinanzApp Engine
                         <span className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping" />
                       </h4>
-                      <p className="text-[11px] text-slate-400">Cálculo en Tiempo Real • Período Octubre</p>
+                      <p className="text-[10px] sm:text-[11px] text-slate-400">Cálculo en Tiempo Real • Período Octubre</p>
                     </div>
                   </div>
-                  <span className="text-[10px] font-mono bg-sky-500/10 text-sky-300 border border-sky-500/30 px-2 py-0.5 rounded-full font-semibold">
+                  <span className="text-[9px] sm:text-[10px] font-mono bg-sky-500/10 text-sky-300 border border-sky-500/30 px-2 py-0.5 rounded-full font-semibold">
                     Sync Activa
                   </span>
                 </div>
 
                 {/* Main Hero Metric: Monto Real Utilizado */}
-                <div className="bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 p-4 rounded-2xl border border-sky-500/30 mb-4 shadow-inner">
+                <div className="bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 p-3.5 sm:p-4 rounded-2xl border border-sky-500/30 mb-3.5 shadow-inner">
                   <div className="flex items-center justify-between text-xs text-slate-400 mb-1">
                     <span className="font-semibold uppercase tracking-wider text-sky-300 text-[10px]">
                       Monto Real Utilizado Calculado
                     </span>
-                    <span className="text-emerald-400 text-[10px] font-bold bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">
+                    <span className="text-emerald-400 text-[9px] sm:text-[10px] font-bold bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">
                       - $180.000 en Abonos
                     </span>
                   </div>
-                  <div className="text-3xl sm:text-4xl font-extrabold text-white tracking-tight">
+                  <div className="text-2xl sm:text-3xl lg:text-4xl font-extrabold text-white tracking-tight">
                     $340.000 <span className="text-xs font-normal text-slate-400">CLP a pagar</span>
                   </div>
-                  <p className="text-[11px] text-emerald-400 font-medium mt-1.5 flex items-center gap-1">
-                    <CheckCircle2 className="w-3.5 h-3.5" />
+                  <p className="text-[10px] sm:text-[11px] text-emerald-400 font-medium mt-1 flex items-center gap-1">
+                    <CheckCircle2 className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
                     <span>3 compras cubiertas al 100% por abonos parciales</span>
                   </p>
                 </div>
 
                 {/* Budget Progress Bar */}
-                <div className="space-y-1.5 mb-4">
+                <div className="space-y-1 mb-3.5">
                   <div className="flex justify-between text-xs font-semibold">
-                    <span className="text-slate-400 text-[11px]">Presupuesto Mensual</span>
-                    <span className="text-sky-300 text-[11px] font-mono">56% ($340.000 / $600.000)</span>
+                    <span className="text-slate-400 text-[10px] sm:text-[11px]">Presupuesto Mensual</span>
+                    <span className="text-sky-300 text-[10px] sm:text-[11px] font-mono">56% ($340.000 / $600.000)</span>
                   </div>
                   <div className="w-full bg-slate-800 rounded-full h-2 overflow-hidden p-0.5">
                     <div 
@@ -360,7 +381,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onOpenAuth, onTryDemo 
                 </div>
 
                 {/* Live Processed Transactions Stream */}
-                <div className="space-y-2 pt-2 border-t border-slate-800/80">
+                <div className="space-y-1.5 pt-2 border-t border-slate-800/80">
                   <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider block">
                     Flujo de transacciones asociadas:
                   </span>
@@ -368,11 +389,11 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onOpenAuth, onTryDemo 
                   <div className="flex items-center justify-between bg-slate-950/60 p-2 rounded-xl border border-slate-800 text-xs">
                     <div className="flex items-center gap-2 truncate">
                       <span className="text-slate-400 font-mono text-[10px]">24 Oct</span>
-                      <span className="font-semibold text-white truncate max-w-[150px]">Almuerzo Mestizo</span>
+                      <span className="font-semibold text-white truncate max-w-[130px] sm:max-w-[160px]">Almuerzo Mestizo</span>
                     </div>
-                    <div className="flex items-center gap-2 font-mono text-[11px]">
+                    <div className="flex items-center gap-2 font-mono text-[10px] sm:text-[11px]">
                       <span className="text-slate-400 line-through">$50.000</span>
-                      <span className="text-emerald-400 font-bold bg-emerald-500/10 px-1.5 py-0.5 rounded border border-emerald-500/20 text-[10px]">
+                      <span className="text-emerald-400 font-bold bg-emerald-500/10 px-1.5 py-0.5 rounded border border-emerald-500/20 text-[9px] sm:text-[10px]">
                         $0 (Pagado)
                       </span>
                     </div>
@@ -381,9 +402,9 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onOpenAuth, onTryDemo 
                   <div className="flex items-center justify-between bg-slate-950/60 p-2 rounded-xl border border-slate-800 text-xs">
                     <div className="flex items-center gap-2 truncate">
                       <span className="text-slate-400 font-mono text-[10px]">26 Oct</span>
-                      <span className="font-semibold text-white truncate max-w-[150px]">Líder Supermercado</span>
+                      <span className="font-semibold text-white truncate max-w-[130px] sm:max-w-[160px]">Líder Supermercado</span>
                     </div>
-                    <div className="font-mono text-[11px] text-sky-300 font-bold bg-sky-500/10 px-2 py-0.5 rounded-lg border border-sky-400/20">
+                    <div className="font-mono text-[10px] sm:text-[11px] text-sky-300 font-bold bg-sky-500/10 px-2 py-0.5 rounded-lg border border-sky-400/20">
                       $68.000
                     </div>
                   </div>
@@ -392,14 +413,14 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onOpenAuth, onTryDemo 
               </div>
             </div>
 
-            {/* SATELLITE 3 & 4: Right Side */}
-            <div className="md:col-span-3 flex flex-col gap-4">
+            {/* SATELLITES RIGHT: Top-Right & Bottom-Right */}
+            <div className="md:col-span-3 flex flex-col gap-6 lg:gap-8 order-3 md:order-3">
               
-              {/* SATELLITE 3: Top-Right (Cuenta Corriente) */}
-              <div className="p-3.5 rounded-2xl bg-slate-900/90 border border-emerald-500/30 backdrop-blur-md shadow-xl shadow-emerald-500/10 text-left animate-float-slow hover:border-emerald-400 transition cursor-default">
+              {/* SATELLITE 3: Cuenta Corriente */}
+              <div className="p-3 sm:p-3.5 rounded-2xl bg-slate-900/90 border border-emerald-500/30 backdrop-blur-md shadow-xl shadow-emerald-500/10 text-left animate-float-slow hover:border-emerald-400 transition cursor-default">
                 <div className="flex items-center gap-2 mb-1.5">
                   <div className="p-1.5 rounded-lg bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
-                    <Building2 className="w-4 h-4" />
+                    <Building2 className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                   </div>
                   <div>
                     <span className="text-xs font-bold text-white block">Cta. Corriente BCI</span>
@@ -417,11 +438,11 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onOpenAuth, onTryDemo 
                 </div>
               </div>
 
-              {/* SATELLITE 4: Bottom-Right (Cartola Bancaria) */}
-              <div className="p-3.5 rounded-2xl bg-slate-900/90 border border-indigo-500/30 backdrop-blur-md shadow-xl shadow-indigo-500/10 text-left animate-float-reverse hover:border-indigo-400 transition cursor-default">
+              {/* SATELLITE 4: Cartola Bancaria */}
+              <div className="p-3 sm:p-3.5 rounded-2xl bg-slate-900/90 border border-indigo-500/30 backdrop-blur-md shadow-xl shadow-indigo-500/10 text-left animate-float-reverse hover:border-indigo-400 transition cursor-default">
                 <div className="flex items-center gap-2 mb-1.5">
                   <div className="p-1.5 rounded-lg bg-indigo-500/20 text-indigo-400 border border-indigo-500/30">
-                    <FileSpreadsheet className="w-4 h-4" />
+                    <FileSpreadsheet className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                   </div>
                   <div>
                     <span className="text-xs font-bold text-white block">Cartola Santander</span>
