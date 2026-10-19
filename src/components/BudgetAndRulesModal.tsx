@@ -31,13 +31,13 @@ export const BudgetAndRulesModal: React.FC<BudgetAndRulesModalProps> = ({
   // New Rule Form State
   const [newPattern, setNewPattern] = useState('');
   const [newSubcategory, setNewSubcategory] = useState(
-    categoryMappings[1]?.subcategories[0] || 'Alimentación & Supermercados'
+    categoryMappings[1]?.subcategories[0] || 'Alimentación y Supermercados'
   );
   const [appliedFeedback, setAppliedFeedback] = useState(false);
 
   // New Budget Form State
   const [selectedCategoryForBudget, setSelectedCategoryForBudget] = useState(
-    categoryMappings[1]?.name || 'Alimentación & Gastronomía'
+    categoryMappings[1]?.name || 'Alimentación y Gastronomía'
   );
   const [newBudgetLimit, setNewBudgetLimit] = useState('');
 
@@ -95,7 +95,7 @@ export const BudgetAndRulesModal: React.FC<BudgetAndRulesModalProps> = ({
         <div className="px-6 py-4 bg-slate-900 text-white flex items-center justify-between">
           <div className="flex items-center space-x-2">
             <Sparkles className="w-5 h-5 text-sky-400" />
-            <h2 className="text-base font-bold">Inteligencia de Reglas & Presupuestos</h2>
+            <h2 className="text-base font-bold">Inteligencia de Reglas y Presupuestos</h2>
           </div>
           <button
             onClick={onClose}
@@ -270,7 +270,7 @@ export const BudgetAndRulesModal: React.FC<BudgetAndRulesModalProps> = ({
                       className="w-full px-3 py-1.5 text-xs bg-white border border-slate-200 rounded-lg focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 cursor-pointer font-semibold text-slate-800"
                     >
                       {categoryMappings
-                        .filter((c) => c.name !== 'Abonos y Pagos' && c.name !== 'Ingresos & Transferencias')
+                        .filter((c) => c.name !== 'Abonos y Pagos' && c.name !== 'Ingresos y Transferencias' && c.name !== 'Ingresos & Transferencias')
                         .map((c) => (
                           <option key={c.id} value={c.name}>
                             {c.name}

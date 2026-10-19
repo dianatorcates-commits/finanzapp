@@ -230,7 +230,7 @@ export const CategoryManagementView: React.FC<CategoryManagementViewProps> = ({
           <div>
             <div className="flex items-center gap-2.5">
               <h2 className="text-xl sm:text-2xl font-black text-white tracking-tight">
-                Categorías & Subcategorías
+                Categorías y Subcategorías
               </h2>
               <span className="bg-sky-500/20 text-sky-300 text-[11px] font-bold px-2.5 py-0.5 rounded-full border border-sky-500/30">
                 Taxonomía

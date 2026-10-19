@@ -18,12 +18,12 @@ import {
 } from 'lucide-react';
 
 interface SidebarProps {
-  activeTab: 'dashboard' | 'transactions' | 'categories' | 'budgets';
-  onSelectTab: (tab: 'dashboard' | 'transactions' | 'categories' | 'budgets') => void;
+  activeTab: 'dashboard' | 'transactions' | 'categories' | 'budgets' | 'accounts';
+  onSelectTab: (tab: 'dashboard' | 'transactions' | 'categories' | 'budgets' | 'accounts') => void;
   currentUser?: any;
   isTelegramLinked?: boolean;
   onOpenImport: () => void;
-  onOpenAccountModal: () => void;
+  onOpenAccountModal?: () => void;
   onOpenCategoryModal?: () => void;
   onOpenBudgetModal?: () => void;
   onOpenTelegramModal: () => void;
@@ -109,7 +109,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
             }`}
           >
             <LayoutDashboard className={`w-4 h-4 transition ${activeTab === 'dashboard' ? 'text-sky-400' : 'text-slate-500 group-hover:text-slate-300'}`} />
-            <span>Dashboard & Resumen</span>
+            <span>Dashboard y Resumen</span>
           </button>
 
           <button
@@ -124,7 +124,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
             }`}
           >
             <ReceiptText className={`w-4 h-4 transition ${activeTab === 'transactions' ? 'text-sky-400' : 'text-slate-500 group-hover:text-slate-300'}`} />
-            <span>Movimientos & Cartola</span>
+            <span>Movimientos y Cartola</span>
           </button>
 
           <button
@@ -139,7 +139,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
             }`}
           >
             <Target className={`w-4 h-4 transition ${activeTab === 'budgets' ? 'text-sky-400' : 'text-slate-500 group-hover:text-amber-400'}`} />
-            <span>Presupuestos & Metas</span>
+            <span>Presupuestos y Metas</span>
           </button>
         </div>
 
@@ -188,18 +188,22 @@ export const Sidebar: React.FC<SidebarProps> = ({
         {/* Section 3: Configuration & Management */}
         <div className="space-y-1">
           <p className="text-[11px] font-bold text-slate-500 uppercase tracking-wider px-3 mb-2">
-            Configuración & Canales
+            Configuración y Canales
           </p>
 
           <button
             onClick={() => {
-              onOpenAccountModal();
+              onSelectTab('accounts');
               if (onCloseMobile) onCloseMobile();
             }}
-            className="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-medium text-slate-400 hover:text-slate-200 hover:bg-slate-900/50 transition group"
+            className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs transition group ${
+              activeTab === 'accounts'
+                ? 'bg-slate-900/90 text-sky-400 border-l-2 border-sky-400 font-semibold shadow-inner'
+                : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900/50 font-medium'
+            }`}
           >
-            <CreditCard className="w-4 h-4 text-slate-500 group-hover:text-sky-400 transition" />
-            <span>Mis Cuentas & Tarjetas</span>
+            <CreditCard className={`w-4 h-4 transition ${activeTab === 'accounts' ? 'text-sky-400' : 'text-slate-500 group-hover:text-sky-400'}`} />
+            <span>Mis Cuentas y Tarjetas</span>
           </button>
 
           <button
@@ -214,7 +218,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
             }`}
           >
             <Tag className={`w-4 h-4 transition ${activeTab === 'categories' ? 'text-sky-400' : 'text-slate-500 group-hover:text-indigo-400'}`} />
-            <span>Categorías & Reglas</span>
+            <span>Categorías y Reglas</span>
           </button>
 
           <button

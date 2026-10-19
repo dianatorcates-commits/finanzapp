@@ -170,7 +170,7 @@ export const TelegramModal: React.FC<TelegramModalProps> = ({
   const templateSample = `Tipo: Compra
 Cuenta: ${sampleAccountName}
 Monto: 14000
-Categoria: Alimentación & Gastronomía
+Categoria: Alimentación y Gastronomía
 Subcategoria: Supermercado
 Descripcion: Compras en el Jumbo
 Fecha: Hoy`;

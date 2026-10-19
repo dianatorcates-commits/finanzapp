@@ -645,7 +645,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onOpenAuth, onTryDemo 
                     <Calendar className="w-5 h-5" />
                   </div>
                   <div>
-                    <h3 className="text-base font-bold text-white">Ciclos & Fechas de Corte</h3>
+                    <h3 className="text-base font-bold text-white">Ciclos y Fechas de Corte</h3>
                     <p className="text-xs text-indigo-300">Adiós a las sorpresas de fin de mes</p>
                   </div>
                 </div>
@@ -800,7 +800,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onOpenAuth, onTryDemo 
                   <td className="p-4 sm:p-5 text-center text-slate-500">❌ Fórmulas complejas</td>
                   <td className="p-4 sm:p-5 text-center text-slate-500">❌ Solo cupo global</td>
                   <td className="p-4 sm:p-5 text-center bg-sky-500/10 border-x border-sky-500/20 text-emerald-400 font-bold">
-                    ✅ Automático (FIFO & Manual)
+                    ✅ Automático (FIFO y Manual)
                   </td>
                 </tr>
 
@@ -929,12 +929,12 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onOpenAuth, onTryDemo 
             />
             <span className="font-bold text-white text-sm">FinanzApp</span>
             <span className="text-slate-600">|</span>
-            <span className="text-slate-400">Control Inteligente de Finanzas & Tarjetas de Crédito</span>
+            <span className="text-slate-400">Control Inteligente de Finanzas y Tarjetas de Crédito</span>
           </div>
 
           <div className="flex items-center space-x-6 text-slate-400">
             <span className="flex items-center gap-1 text-emerald-400">
-              <Lock className="w-3.5 h-3.5" /> PostgreSQL & Supabase RLS
+              <Lock className="w-3.5 h-3.5" /> PostgreSQL y Supabase RLS
             </span>
             <span>Hecho para Chile 🇨🇱</span>
             <span>© 2026 FinanzApp</span>

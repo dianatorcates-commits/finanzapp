@@ -45,8 +45,8 @@ export const INITIAL_TRANSACTIONS: Transaction[] = [
     rawDescription: 'RESTAURANTE MESTIZO SANTIAGO CL',
     amount: 100000,
     transactionType: 'compra',
-    category: 'Alimentación & Gastronomía',
-    subcategory: 'Restaurantes & Bares',
+    category: 'Alimentación y Gastronomía',
+    subcategory: 'Restaurantes y Bares',
     allocations: [
       {
         id: 'alloc-demo-1',
@@ -65,8 +65,8 @@ export const INITIAL_TRANSACTIONS: Transaction[] = [
     rawDescription: 'SUPERMERCADO JUMBO ALTO LAS CONDES',
     amount: 85400,
     transactionType: 'compra',
-    category: 'Alimentación & Gastronomía',
-    subcategory: 'Alimentación & Supermercados',
+    category: 'Alimentación y Gastronomía',
+    subcategory: 'Alimentación y Supermercados',
     allocations: []
   },
   {
@@ -77,8 +77,8 @@ export const INITIAL_TRANSACTIONS: Transaction[] = [
     rawDescription: 'ESTACION SHELL COMBUSTIBLES',
     amount: 35000,
     transactionType: 'compra',
-    category: 'Transporte & Movilidad',
-    subcategory: 'Transporte & Vehículos',
+    category: 'Transporte y Movilidad',
+    subcategory: 'Transporte y Vehículos',
     allocations: []
   },
   {
@@ -90,8 +90,8 @@ export const INITIAL_TRANSACTIONS: Transaction[] = [
     amount: 24998,
     originalTotalAmount: 149990,
     transactionType: 'compra',
-    category: 'Compras & Estilo de Vida',
-    subcategory: 'Ropa, Tecnología & Compras',
+    category: 'Compras y Estilo de Vida',
+    subcategory: 'Ropa, Tecnología y Compras',
     installments: { current: 2, total: 6 },
     allocations: []
   },
@@ -103,8 +103,8 @@ export const INITIAL_TRANSACTIONS: Transaction[] = [
     rawDescription: 'NETFLIX.COM DIGITAL SUBSCRIPTION',
     amount: 10990,
     transactionType: 'compra',
-    category: 'Vivienda & Servicios',
-    subcategory: 'Suscripciones & Streaming',
+    category: 'Vivienda y Servicios',
+    subcategory: 'Suscripciones y Streaming',
     allocations: []
   },
   {
@@ -115,8 +115,8 @@ export const INITIAL_TRANSACTIONS: Transaction[] = [
     rawDescription: 'FARMACIA SALCOBRAND SANTIAGO',
     amount: 24900,
     transactionType: 'compra',
-    category: 'Salud & Bienestar',
-    subcategory: 'Salud & Farmacia',
+    category: 'Salud y Bienestar',
+    subcategory: 'Salud y Farmacia',
     allocations: []
   },
   // PAYMENTS ON TC SANTANDER
@@ -156,8 +156,8 @@ export const INITIAL_TRANSACTIONS: Transaction[] = [
     rawDescription: 'REMUNERACION DEPOSITO DIRECTO BANCO DE CHILE',
     amount: -2450000,
     transactionType: 'ingreso_venta',
-    category: 'Ingresos & Transferencias',
-    subcategory: 'Sueldo & Ventas',
+    category: 'Ingresos y Transferencias',
+    subcategory: 'Sueldo y Ventas',
     allocations: []
   },
   {
@@ -168,8 +168,8 @@ export const INITIAL_TRANSACTIONS: Transaction[] = [
     rawDescription: 'CARGO AUTOMATICO VTR TELECOMUNICACIONES',
     amount: 34990,
     transactionType: 'compra',
-    category: 'Vivienda & Servicios',
-    subcategory: 'Servicios Básicos & Hogar',
+    category: 'Vivienda y Servicios',
+    subcategory: 'Servicios Básicos y Hogar',
     allocations: []
   },
   {
@@ -180,8 +180,8 @@ export const INITIAL_TRANSACTIONS: Transaction[] = [
     rawDescription: 'CARGO PAC ENEL SANTIAGO',
     amount: 28500,
     transactionType: 'compra',
-    category: 'Vivienda & Servicios',
-    subcategory: 'Servicios Básicos & Hogar',
+    category: 'Vivienda y Servicios',
+    subcategory: 'Servicios Básicos y Hogar',
     allocations: []
   },
   {
@@ -192,7 +192,7 @@ export const INITIAL_TRANSACTIONS: Transaction[] = [
     rawDescription: 'TEF A PEDRO GOMEZ BANCO SANTANDER',
     amount: 450000,
     transactionType: 'transferencia_enviada',
-    category: 'Ingresos & Transferencias',
+    category: 'Ingresos y Transferencias',
     subcategory: 'Transferencias',
     allocations: []
   },
@@ -220,7 +220,7 @@ export const INITIAL_TRANSACTIONS: Transaction[] = [
     rawDescription: 'TEF RECIBIDA BANCOESTADO',
     amount: -80000,
     transactionType: 'transferencia_recibida',
-    category: 'Ingresos & Transferencias',
+    category: 'Ingresos y Transferencias',
     subcategory: 'Transferencias',
     allocations: []
   },
@@ -232,8 +232,8 @@ export const INITIAL_TRANSACTIONS: Transaction[] = [
     rawDescription: 'CARGATARJETA BIP METRO SANTIAGO',
     amount: 10000,
     transactionType: 'compra',
-    category: 'Transporte & Movilidad',
-    subcategory: 'Transporte & Vehículos',
+    category: 'Transporte y Movilidad',
+    subcategory: 'Transporte y Vehículos',
     allocations: []
   },
   {
@@ -244,8 +244,8 @@ export const INITIAL_TRANSACTIONS: Transaction[] = [
     rawDescription: 'COMPRA COMPRAS UNIMARC EXPRESS',
     amount: 22300,
     transactionType: 'compra',
-    category: 'Alimentación & Gastronomía',
-    subcategory: 'Alimentación & Supermercados',
+    category: 'Alimentación y Gastronomía',
+    subcategory: 'Alimentación y Supermercados',
     allocations: []
   }
 ];

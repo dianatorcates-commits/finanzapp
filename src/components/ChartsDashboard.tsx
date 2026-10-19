@@ -153,7 +153,7 @@ export const ChartsDashboard: React.FC<ChartsDashboardProps> = ({
               className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 text-xs font-bold rounded-xl border border-emerald-500/30 transition shadow-sm"
             >
               <Plus className="w-3.5 h-3.5" />
-              <span>Gestionar Presupuestos & Reglas</span>
+              <span>Gestionar Presupuestos y Reglas</span>
             </button>
           )}
         </div>

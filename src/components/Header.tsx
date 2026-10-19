@@ -54,7 +54,7 @@ export const Header: React.FC<HeaderProps> = ({
                 FinanzApp <span className="text-xs bg-sky-500/20 text-sky-300 font-semibold px-2 py-0.5 rounded-full border border-sky-500/30">v1.0</span>
               </h1>
               <p className="text-xs text-slate-400">
-                Gestión de Cartolas de Cuenta & Tarjetas de Crédito con Asociación de Pagos
+                Gestión de Cartolas de Cuenta y Tarjetas de Crédito con Asociación de Pagos
               </p>
             </div>
           </div>
@@ -125,7 +125,7 @@ export const Header: React.FC<HeaderProps> = ({
               title="Reglas de auto-categorización e hitos de presupuesto"
             >
               <Sparkles className="w-3.5 h-3.5 text-amber-400" />
-              <span className="hidden sm:inline">Reglas & Presupuestos</span>
+              <span className="hidden sm:inline">Reglas y Presupuestos</span>
             </button>
 
             {/* Telegram Bot Integration */}

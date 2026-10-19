@@ -47,7 +47,7 @@ export const TransactionTable: React.FC<TransactionTableProps> = ({
   const [newDesc, setNewDesc] = useState('');
   const [newAmount, setNewAmount] = useState('');
   const [newSubcategory, setNewSubcategory] = useState<string>(
-    categoryMappings[0]?.subcategories[0] || 'Restaurantes & Bares'
+    categoryMappings[0]?.subcategories[0] || 'Restaurantes y Bares'
   );
   const [newType, setNewType] = useState<TransactionType>('compra');
 
@@ -172,7 +172,7 @@ export const TransactionTable: React.FC<TransactionTableProps> = ({
       <div className="p-4 bg-slate-950/60 border-b border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
           <h2 className="text-sm font-bold text-white flex items-center gap-2">
-            <span>Movimientos & Cartolas Cargadas</span>
+            <span>Movimientos y Cartolas Cargadas</span>
             <span className="bg-sky-500/20 text-sky-300 border border-sky-500/40 text-xs font-semibold px-2 py-0.5 rounded-full">
               {transactions.length} registros
             </span>

@@ -58,7 +58,7 @@ export const CategoryManagerModal: React.FC<CategoryManagerModalProps> = ({
               <Tag className="w-5 h-5" />
             </div>
             <div>
-              <h3 className="font-bold text-base text-white">Módulo de Categorías & Subcategorías</h3>
+              <h3 className="font-bold text-base text-white">Módulo de Categorías y Subcategorías</h3>
               <p className="text-xs text-slate-400">Crea categorías generales (ej. Abonos y Pagos) y asóciales subcategorías</p>
             </div>
           </div>
@@ -140,7 +140,7 @@ export const CategoryManagerModal: React.FC<CategoryManagerModalProps> = ({
           {/* Active Hierarchy Tree List */}
           <div>
             <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wider mb-3">
-              Estructura Activa de Categorías & Subcategorías ({categoryMappings.length})
+              Estructura Activa de Categorías y Subcategorías ({categoryMappings.length})
             </h4>
             <div className="space-y-3">
               {categoryMappings.map((cat) => (

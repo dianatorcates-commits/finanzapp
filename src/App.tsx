@@ -39,7 +39,7 @@ import { ChartsDashboard } from './components/ChartsDashboard';
 import { TransactionTable } from './components/TransactionTable';
 import { PaymentModal } from './components/PaymentModal';
 import { ImportModal } from './components/ImportModal';
-import { AccountManagerModal } from './components/AccountManagerModal';
+import { AccountsManagementView } from './components/AccountsManagementView';
 import { CategoryManagementView } from './components/CategoryManagementView';
 import { BudgetAndGoalsView } from './components/BudgetAndGoalsView';
 import { BudgetAndRulesModal } from './components/BudgetAndRulesModal';
@@ -96,9 +96,9 @@ export function App() {
 
   // 5. State for Category Budgets
   const [budgets, setBudgets] = useState<CategoryBudget[]>([
-    { id: 'b-1', categoryName: 'Alimentación & Gastronomía', monthlyLimit: 350000 },
-    { id: 'b-2', categoryName: 'Transporte & Movilidad', monthlyLimit: 120000 },
-    { id: 'b-3', categoryName: 'Compras & Estilo de Vida', monthlyLimit: 200000 }
+    { id: 'b-1', categoryName: 'Alimentación y Gastronomía', monthlyLimit: 350000 },
+    { id: 'b-2', categoryName: 'Transporte y Movilidad', monthlyLimit: 120000 },
+    { id: 'b-3', categoryName: 'Compras y Estilo de Vida', monthlyLimit: 200000 }
   ]);
 
   // 6. State for Savings Goals
@@ -170,7 +170,7 @@ export function App() {
   }, [currentUser, isCloudLoading, accounts, categoryMappings, autoRules, budgets, transactions]);
 
   // Active view tab & Mobile Sidebar drawer state
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'transactions' | 'categories' | 'budgets'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'transactions' | 'categories' | 'budgets' | 'accounts'>('dashboard');
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
 
   // Filter State
@@ -187,7 +187,6 @@ export function App() {
 
   // Modals state
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
-  const [isAccountModalOpen, setIsAccountModalOpen] = useState(false);
   const [isBudgetModalOpen, setIsBudgetModalOpen] = useState(false);
   const [isTelegramModalOpen, setIsTelegramModalOpen] = useState(false);
   const [telegramProfile, setTelegramProfile] = useState<TelegramProfile | null>(null);
@@ -245,9 +244,9 @@ export function App() {
         const initialUserCategories = DEFAULT_CATEGORY_MAPPINGS;
         const initialUserRules = DEFAULT_AUTO_RULES;
         const initialUserBudgets = [
-          { id: 'b-1', categoryName: 'Alimentación & Gastronomía', monthlyLimit: 350000 },
-          { id: 'b-2', categoryName: 'Transporte & Movilidad', monthlyLimit: 120000 },
-          { id: 'b-3', categoryName: 'Compras & Estilo de Vida', monthlyLimit: 200000 }
+          { id: 'b-1', categoryName: 'Alimentación y Gastronomía', monthlyLimit: 350000 },
+          { id: 'b-2', categoryName: 'Transporte y Movilidad', monthlyLimit: 120000 },
+          { id: 'b-3', categoryName: 'Compras y Estilo de Vida', monthlyLimit: 200000 }
         ];
         const initialUserTransactions: Transaction[] = []; // CLEAN START FOR NEW USERS!
 
@@ -387,9 +386,9 @@ export function App() {
         setCategoryMappings(DEFAULT_CATEGORY_MAPPINGS);
         setAutoRules(DEFAULT_AUTO_RULES);
         setBudgets([
-          { id: 'b-1', categoryName: 'Alimentación & Gastronomía', monthlyLimit: 350000 },
-          { id: 'b-2', categoryName: 'Transporte & Movilidad', monthlyLimit: 120000 },
-          { id: 'b-3', categoryName: 'Compras & Estilo de Vida', monthlyLimit: 200000 }
+          { id: 'b-1', categoryName: 'Alimentación y Gastronomía', monthlyLimit: 350000 },
+          { id: 'b-2', categoryName: 'Transporte y Movilidad', monthlyLimit: 120000 },
+          { id: 'b-3', categoryName: 'Compras y Estilo de Vida', monthlyLimit: 200000 }
         ]);
         setTelegramProfile(null);
       }
@@ -407,9 +406,9 @@ export function App() {
     setCategoryMappings(DEFAULT_CATEGORY_MAPPINGS);
     setAutoRules(DEFAULT_AUTO_RULES);
     setBudgets([
-      { id: 'b-1', categoryName: 'Alimentación & Gastronomía', monthlyLimit: 350000 },
-      { id: 'b-2', categoryName: 'Transporte & Movilidad', monthlyLimit: 120000 },
-      { id: 'b-3', categoryName: 'Compras & Estilo de Vida', monthlyLimit: 200000 }
+      { id: 'b-1', categoryName: 'Alimentación y Gastronomía', monthlyLimit: 350000 },
+      { id: 'b-2', categoryName: 'Transporte y Movilidad', monthlyLimit: 120000 },
+      { id: 'b-3', categoryName: 'Compras y Estilo de Vida', monthlyLimit: 200000 }
     ]);
     setSavingsGoals(INITIAL_SAVINGS_GOALS);
     setCurrentUser(null);
@@ -910,7 +909,7 @@ export function App() {
         currentUser={currentUser}
         isTelegramLinked={Boolean(telegramProfile?.telegram_chat_id)}
         onOpenImport={() => setIsImportModalOpen(true)}
-        onOpenAccountModal={() => setIsAccountModalOpen(true)}
+        onOpenAccountModal={() => setActiveTab('accounts')}
         onOpenCategoryModal={() => setActiveTab('categories')}
         onOpenBudgetModal={() => setActiveTab('budgets')}
         onOpenTelegramModal={() => (currentUser ? setIsTelegramModalOpen(true) : setIsAuthModalOpen(true))}
@@ -975,7 +974,7 @@ export function App() {
           <main className="w-full max-w-7xl mx-auto p-4 sm:p-6 space-y-6 flex-1">
             
             {/* 1 & 2. Metric Cards & Filters (Only in Dashboard & Transactions) */}
-            {activeTab !== 'categories' && activeTab !== 'budgets' && (
+            {activeTab !== 'categories' && activeTab !== 'budgets' && activeTab !== 'accounts' && (
               <>
                 <MetricCards
                   computedTransactions={filteredTransactions}
@@ -1005,7 +1004,7 @@ export function App() {
               </>
             )}
 
-            {/* 3. Active Tab Content (Dashboard, Transactions, Categories, or Budgets) */}
+            {/* 3. Active Tab Content (Dashboard, Transactions, Categories, Budgets, or Accounts) */}
             {activeTab === 'dashboard' ? (
               <ChartsDashboard
                 computedTransactions={filteredTransactions}
@@ -1034,7 +1033,7 @@ export function App() {
                 onEditCategory={handleEditCategory}
                 onEditSubcategory={handleEditSubcategory}
               />
-            ) : (
+            ) : activeTab === 'budgets' ? (
               <BudgetAndGoalsView
                 budgets={budgets}
                 computedTransactions={filteredTransactions}
@@ -1048,13 +1047,21 @@ export function App() {
                 onDeleteSavingsGoal={handleDeleteSavingsGoal}
                 onContributeToGoal={handleContributeToGoal}
               />
+            ) : (
+              <AccountsManagementView
+                accounts={accounts}
+                transactions={transactions}
+                onAddAccount={handleAddAccount}
+                onUpdateAccount={handleUpdateAccount}
+                onDeleteAccount={handleDeleteAccount}
+              />
             )}
 
           </main>
 
           {/* Footer */}
           <footer className="w-full text-center text-xs text-slate-500 py-6 border-t border-slate-800">
-            <p>© 2026 FinanzApp - Control Inteligente de Cartolas Bancarias & Tarjetas de Crédito</p>
+            <p>© 2026 FinanzApp - Control Inteligente de Cartolas Bancarias y Tarjetas de Crédito</p>
           </footer>
         </div>
       </div>
@@ -1081,16 +1088,7 @@ export function App() {
         />
       )}
 
-      {/* Account Manager Modal */}
-      {isAccountModalOpen && (
-        <AccountManagerModal
-          accounts={accounts}
-          onClose={() => setIsAccountModalOpen(false)}
-          onAddAccount={handleAddAccount}
-          onUpdateAccount={handleUpdateAccount}
-          onDeleteAccount={handleDeleteAccount}
-        />
-      )}
+
 
 
 

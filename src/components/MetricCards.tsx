@@ -89,7 +89,7 @@ export const MetricCards: React.FC<MetricCardsProps> = ({
       {/* Total Payments & Income */}
       <div className="bg-slate-900/80 backdrop-blur-md rounded-2xl p-4 sm:p-4.5 shadow-xl border border-slate-800/80 flex flex-col justify-between hover:border-slate-700 transition">
         <div className="flex items-center justify-between">
-          <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Abonos, Pagos & Sueldos</span>
+          <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Abonos, Pagos y Sueldos</span>
           <div className="p-2.5 rounded-xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
             <TrendingUp className="w-5 h-5" />
           </div>

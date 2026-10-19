@@ -86,7 +86,7 @@ export const BudgetAndGoalsView: React.FC<BudgetAndGoalsViewProps> = ({
 
   // Form State: Add/Edit Budget
   const [formCategory, setFormCategory] = useState<string>(
-    categoryMappings[0]?.name || 'Alimentación & Gastronomía'
+    categoryMappings[0]?.name || 'Alimentación y Gastronomía'
   );
   const [formLimit, setFormLimit] = useState<string>('');
   const [editingBudgetId, setEditingBudgetId] = useState<string | null>(null);
@@ -226,7 +226,7 @@ export const BudgetAndGoalsView: React.FC<BudgetAndGoalsViewProps> = ({
           <div>
             <div className="flex items-center gap-2.5">
               <h2 className="text-xl sm:text-2xl font-black text-white tracking-tight">
-                Presupuestos & Metas Financieras
+                Presupuestos y Metas Financieras
               </h2>
               <span className="bg-amber-500/20 text-amber-300 text-[11px] font-bold px-2.5 py-0.5 rounded-full border border-amber-500/30">
                 Planificación
@@ -700,7 +700,7 @@ export const BudgetAndGoalsView: React.FC<BudgetAndGoalsViewProps> = ({
             <div className="flex items-center justify-between pb-3 border-b border-slate-800">
               <div className="flex items-center gap-2">
                 <Trophy className="w-4 h-4 text-amber-400" />
-                <h4 className="font-bold text-sm text-white">Metas de Ahorro & Fondos</h4>
+                <h4 className="font-bold text-sm text-white">Metas de Ahorro y Fondos</h4>
                 <span className="text-[11px] bg-slate-800 text-slate-300 font-semibold px-2 py-0.5 rounded-full">
                   {savingsGoals.length}
                 </span>

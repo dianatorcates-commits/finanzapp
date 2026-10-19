@@ -49,7 +49,7 @@ export const TopBar: React.FC<TopBarProps> = ({
             className="bg-transparent text-xs sm:text-sm text-slate-200 font-semibold focus:outline-none cursor-pointer pr-1 max-w-[180px] sm:max-w-[280px] truncate"
           >
             <option value="ALL" className="bg-slate-900 text-white font-normal">
-              Todas las Cuentas & TC
+              Todas las Cuentas y TC
             </option>
             {accounts.map((acc) => (
               <option key={acc.id} value={acc.id} className="bg-slate-900 text-white font-normal">

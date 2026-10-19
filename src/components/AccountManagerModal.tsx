@@ -133,7 +133,7 @@ export const AccountManagerModal: React.FC<AccountManagerModalProps> = ({
               <Landmark className="w-5 h-5" />
             </div>
             <div>
-              <h3 className="font-bold text-base text-white">Gestionar Cuentas & Tarjetas</h3>
+              <h3 className="font-bold text-base text-white">Gestionar Cuentas y Tarjetas</h3>
               <p className="text-xs text-slate-400">Configura cuentas, cupos y ciclos de facturación personalizados</p>
             </div>
           </div>

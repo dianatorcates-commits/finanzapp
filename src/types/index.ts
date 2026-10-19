@@ -1,4 +1,4 @@
-export type AccountType = 'credit_card' | 'checking' | 'savings' | 'sight';
+export type AccountType = 'credit_card' | 'checking' | 'savings' | 'sight' | 'cash';
 
 export interface Account {
   id: string;
@@ -8,6 +8,7 @@ export interface Account {
   accountNumber?: string;
   currency: string;
   creditLimit?: number;
+  initialBalance?: number;
   color?: string;
   closingDay?: number; // 1-31 (Día de corte de facturación mensual)
   dueDay?: number;     // 1-31 (Día límite de pago o vencimiento mensual)
@@ -24,7 +25,7 @@ export type TransactionType =
 
 export interface CategoryMapping {
   id: string;
-  name: string; // Categoría General (e.g. "Abonos y Pagos", "Alimentación & Gastronomía")
+  name: string; // Categoría General (e.g. "Abonos y Pagos", "Alimentación y Gastronomía")
   subcategories: string[]; // Subcategorías asociadas
 }
 
