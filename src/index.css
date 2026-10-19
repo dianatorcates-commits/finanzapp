@@ -7,3 +7,39 @@ body {
   font-family: 'Inter', system-ui, -apple-system, sans-serif;
   background-color: #f8fafc;
 }
+
+@keyframes floatSlow {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-8px); }
+}
+
+@keyframes floatSlowReverse {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(8px); }
+}
+
+@keyframes pulseGlow {
+  0%, 100% { opacity: 0.4; transform: scale(1); }
+  50% { opacity: 0.75; transform: scale(1.05); }
+}
+
+@keyframes dashFlow {
+  to { stroke-dashoffset: -32; }
+}
+
+.animate-float-slow {
+  animation: floatSlow 5s ease-in-out infinite;
+}
+
+.animate-float-reverse {
+  animation: floatSlowReverse 6s ease-in-out infinite;
+}
+
+.animate-pulse-glow {
+  animation: pulseGlow 4s ease-in-out infinite;
+}
+
+.animate-dash-flow {
+  stroke-dasharray: 8 8;
+  animation: dashFlow 1.8s linear infinite;
+}
