@@ -1,5 +1,5 @@
 import React from 'react';
-import { Wallet, Upload, CreditCard, RefreshCw, Link2, PlusCircle, Download, Tag, Sparkles, User, LogOut, Cloud, Send } from 'lucide-react';
+import { Upload, CreditCard, RefreshCw, Link2, PlusCircle, Download, Tag, Sparkles, User, LogOut, Cloud, Send } from 'lucide-react';
 import { Account } from '../types';
 
 interface HeaderProps {
@@ -43,10 +43,12 @@ export const Header: React.FC<HeaderProps> = ({
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           
           {/* Logo & Title */}
-          <div className="flex items-center space-x-3">
-            <div className="bg-sky-500 p-2.5 rounded-xl shadow-lg shadow-sky-500/20">
-              <Wallet className="w-6 h-6 text-white" />
-            </div>
+          <div className="flex items-center space-x-3 cursor-pointer">
+            <img
+              src="/images/wallet_mascot_logo_128x128.png"
+              alt="FinanzApp Logo"
+              className="w-9 h-9 object-contain drop-shadow-md rounded-xl transition-transform hover:scale-105"
+            />
             <div>
               <h1 className="text-xl font-bold tracking-tight text-white flex items-center gap-2">
                 FinanzApp <span className="text-xs bg-sky-500/20 text-sky-300 font-semibold px-2 py-0.5 rounded-full border border-sky-500/30">v1.0</span>

@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import {
-  Wallet,
   Sparkles,
   ShieldCheck,
   CreditCard,
@@ -62,9 +61,11 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onOpenAuth, onTryDemo 
           
           {/* Brand Logo */}
           <div className="flex items-center space-x-3 cursor-pointer" onClick={onTryDemo}>
-            <div className="bg-gradient-to-tr from-sky-500 to-indigo-600 p-2 rounded-xl shadow-lg shadow-sky-500/25 border border-sky-400/30">
-              <Wallet className="w-5 h-5 text-white" />
-            </div>
+            <img
+              src="/images/wallet_mascot_logo_128x128.png"
+              alt="FinanzApp Logo"
+              className="w-8 h-8 object-contain drop-shadow-md rounded-lg transition-transform hover:scale-105"
+            />
             <span className="text-lg font-bold tracking-tight text-white flex items-center gap-2">
               FinanzApp
               <span className="text-[10px] bg-sky-500/20 text-sky-300 font-bold px-2 py-0.5 rounded-full border border-sky-500/40 uppercase tracking-wider">
@@ -915,9 +916,11 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onOpenAuth, onTryDemo 
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row justify-between items-center gap-4">
           
           <div className="flex items-center space-x-2">
-            <div className="bg-gradient-to-tr from-sky-500 to-indigo-600 p-1.5 rounded-lg">
-              <Wallet className="w-4 h-4 text-white" />
-            </div>
+            <img
+              src="/images/wallet_mascot_logo_64x64.png"
+              alt="FinanzApp Logo"
+              className="w-6 h-6 object-contain"
+            />
             <span className="font-bold text-white text-sm">FinanzApp</span>
             <span className="text-slate-600">|</span>
             <span className="text-slate-400">Control Inteligente de Finanzas & Tarjetas de Crédito</span>
