@@ -107,3 +107,22 @@ export interface SavingsGoal {
   categoryIcon?: string;
 }
 
+export type CreditType = 'hipotecario' | 'consumo' | 'avance_tc' | 'cuotas_tc' | 'automotriz' | 'otro';
+
+export interface Credit {
+  id: string;
+  name: string;
+  type: CreditType;
+  bank: string;
+  totalAmount: number;          // Monto total inicial de la deuda/préstamo
+  totalInstallments: number;    // Cuotas totales (ej: 36, 240, 12)
+  paidInstallments: number;     // Cuotas pagadas hasta ahora (ej: 14)
+  installmentAmount: number;    // Valor de la cuota total cobrada por el banco
+  isShared?: boolean;           // Si el crédito se comparte con alguien más (ej: hermano/pareja)
+  mySharePercentage?: number;   // Porcentaje del usuario (ej: 50%)
+  myShareAmount: number;        // Monto real mensual que paga este usuario (ej: $120.000)
+  paymentDay?: number;          // Día del mes en que vence o se paga (1-31)
+  startDate?: string;           // Fecha o mes de inicio (YYYY-MM)
+  lastPaidPeriod?: string;      // Último mes en que se pagó la cuota (YYYY-MM)
+}
+

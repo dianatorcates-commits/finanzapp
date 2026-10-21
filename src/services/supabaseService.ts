@@ -1,5 +1,5 @@
 import { supabase } from '../utils/supabaseClient';
-import { Account, Transaction, CategoryMapping, AutoCategoryRule, CategoryBudget, PaymentAllocation, TelegramProfile, SavingsGoal } from '../types';
+import { Account, Transaction, CategoryMapping, AutoCategoryRule, CategoryBudget, PaymentAllocation, TelegramProfile, SavingsGoal, Credit } from '../types';
 
 // ==========================================
 // 1. AUTHENTICATION SERVICES
@@ -88,6 +88,13 @@ export async function fetchUserData(userId: string) {
       .eq('user_id', userId)
       .order('created_at', { ascending: false });
 
+    // 7. Fetch Credits
+    const { data: creditsData } = await supabase
+      .from('credits')
+      .select('*')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false });
+
     // Format DB transactions to local types
     const accounts: Account[] = (accountsData || []).map((a: any) => ({
       id: a.id,
@@ -163,13 +170,31 @@ export async function fetchUserData(userId: string) {
       categoryIcon: g.category_icon || '🎯'
     }));
 
+    const credits: Credit[] = (creditsData || []).map((c: any) => ({
+      id: c.id,
+      name: c.name,
+      type: c.type,
+      bank: c.bank,
+      totalAmount: parseFloat(c.total_amount) || 0,
+      totalInstallments: parseInt(c.total_installments, 10) || 0,
+      paidInstallments: parseInt(c.paid_installments, 10) || 0,
+      installmentAmount: parseFloat(c.installment_amount) || 0,
+      isShared: Boolean(c.is_shared),
+      mySharePercentage: c.my_share_percentage ? parseFloat(c.my_share_percentage) : undefined,
+      myShareAmount: parseFloat(c.my_share_amount) || 0,
+      paymentDay: c.payment_day ? parseInt(c.payment_day, 10) : undefined,
+      startDate: c.start_date || undefined,
+      lastPaidPeriod: c.last_paid_period || undefined
+    }));
+
     return {
       accounts,
       categoryMappings,
       autoRules,
       budgets,
       transactions,
-      savingsGoals
+      savingsGoals,
+      credits
     };
   } catch (error) {
     console.error('Error fetching cloud data:', error);
@@ -187,6 +212,7 @@ export async function syncLocalDataToCloud(
     budgets: CategoryBudget[];
     transactions: Transaction[];
     savingsGoals?: SavingsGoal[];
+    credits?: Credit[];
   }
 ) {
   try {
@@ -286,6 +312,29 @@ export async function syncLocalDataToCloud(
       }));
       const { error: goalErr } = await supabase.from('savings_goals').upsert(goalsPayload, { onConflict: 'id' });
       if (goalErr) console.error('Error syncing savings goals to cloud:', goalErr);
+    }
+
+    // 7. Upsert Credits
+    if (localState.credits && localState.credits.length > 0) {
+      const creditsPayload = localState.credits.map((c) => ({
+        id: c.id,
+        user_id: userId,
+        name: c.name,
+        type: c.type,
+        bank: c.bank,
+        total_amount: c.totalAmount,
+        total_installments: c.totalInstallments,
+        paid_installments: c.paidInstallments,
+        installment_amount: c.installmentAmount,
+        is_shared: c.isShared || false,
+        my_share_percentage: c.mySharePercentage || null,
+        my_share_amount: c.myShareAmount,
+        payment_day: c.paymentDay || null,
+        start_date: c.startDate || null,
+        last_paid_period: c.lastPaidPeriod || null
+      }));
+      const { error: credErr } = await supabase.from('credits').upsert(creditsPayload, { onConflict: 'id' });
+      if (credErr) console.error('Error syncing credits to cloud:', credErr);
     }
 
     return true;
@@ -485,6 +534,126 @@ export async function deleteSavingsGoalFromCloud(userId: string, goalId: string)
     }
   } catch (err) {
     console.error('Unexpected error deleting savings goal from cloud:', err);
+  }
+}
+
+// ==========================================
+// 2.2 CREDITS SERVICES (CRÉDITOS Y PRÉSTAMOS)
+// ==========================================
+
+export async function fetchCredits(userId: string): Promise<Credit[]> {
+  try {
+    const { data, error } = await supabase
+      .from('credits')
+      .select('*')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error('Error fetching credits from cloud:', error);
+      return [];
+    }
+
+    return (data || []).map((c: any) => ({
+      id: c.id,
+      name: c.name,
+      type: c.type,
+      bank: c.bank,
+      totalAmount: parseFloat(c.total_amount) || 0,
+      totalInstallments: parseInt(c.total_installments, 10) || 0,
+      paidInstallments: parseInt(c.paid_installments, 10) || 0,
+      installmentAmount: parseFloat(c.installment_amount) || 0,
+      isShared: Boolean(c.is_shared),
+      mySharePercentage: c.my_share_percentage ? parseFloat(c.my_share_percentage) : undefined,
+      myShareAmount: parseFloat(c.my_share_amount) || 0,
+      paymentDay: c.payment_day ? parseInt(c.payment_day, 10) : undefined,
+      startDate: c.start_date || undefined,
+      lastPaidPeriod: c.last_paid_period || undefined
+    }));
+  } catch (err) {
+    console.error('Unexpected error fetching credits:', err);
+    return [];
+  }
+}
+
+export async function saveCreditsToCloud(userId: string, credits: Credit[]): Promise<void> {
+  if (!credits || credits.length === 0) return;
+  try {
+    const payload = credits.map((c) => ({
+      id: c.id,
+      user_id: userId,
+      name: c.name,
+      type: c.type,
+      bank: c.bank,
+      total_amount: c.totalAmount,
+      total_installments: c.totalInstallments,
+      paid_installments: c.paidInstallments,
+      installment_amount: c.installmentAmount,
+      is_shared: c.isShared || false,
+      my_share_percentage: c.mySharePercentage || null,
+      my_share_amount: c.myShareAmount,
+      payment_day: c.paymentDay || null,
+      start_date: c.startDate || null,
+      last_paid_period: c.lastPaidPeriod || null
+    }));
+
+    const { error } = await supabase
+      .from('credits')
+      .upsert(payload, { onConflict: 'id' });
+
+    if (error) {
+      console.error('Error saving credits to cloud:', error);
+    }
+  } catch (err) {
+    console.error('Unexpected error saving credits to cloud:', err);
+  }
+}
+
+export async function saveCreditToCloud(userId: string, credit: Credit): Promise<void> {
+  try {
+    const payload = {
+      id: credit.id,
+      user_id: userId,
+      name: credit.name,
+      type: credit.type,
+      bank: credit.bank,
+      total_amount: credit.totalAmount,
+      total_installments: credit.totalInstallments,
+      paid_installments: credit.paidInstallments,
+      installment_amount: credit.installmentAmount,
+      is_shared: credit.isShared || false,
+      my_share_percentage: credit.mySharePercentage || null,
+      my_share_amount: credit.myShareAmount,
+      payment_day: credit.paymentDay || null,
+      start_date: credit.startDate || null,
+      last_paid_period: credit.lastPaidPeriod || null
+    };
+
+    const { error } = await supabase
+      .from('credits')
+      .upsert(payload, { onConflict: 'id' });
+
+    if (error) {
+      console.error('Error saving single credit to cloud:', error);
+    }
+  } catch (err) {
+    console.error('Unexpected error saving single credit to cloud:', err);
+  }
+}
+
+export async function deleteCreditFromCloud(userId: string, creditId: string): Promise<void> {
+  try {
+    const { error } = await supabase
+      .from('credits')
+      .delete()
+      .eq('id', creditId)
+      .eq('user_id', userId);
+
+    if (error) {
+      console.error('Error deleting credit from cloud:', error);
+    }
+  } catch (err) {
+    console.error('Unexpected error deleting credit from cloud:', err);
   }
 }
 

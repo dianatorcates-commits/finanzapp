@@ -14,12 +14,13 @@ import {
   RefreshCw,
   X,
   Sparkles,
-  ShieldCheck
+  ShieldCheck,
+  Landmark
 } from 'lucide-react';
 
 interface SidebarProps {
-  activeTab: 'dashboard' | 'transactions' | 'categories' | 'budgets' | 'accounts';
-  onSelectTab: (tab: 'dashboard' | 'transactions' | 'categories' | 'budgets' | 'accounts') => void;
+  activeTab: 'dashboard' | 'transactions' | 'categories' | 'budgets' | 'accounts' | 'credits';
+  onSelectTab: (tab: 'dashboard' | 'transactions' | 'categories' | 'budgets' | 'accounts' | 'credits') => void;
   currentUser?: any;
   isTelegramLinked?: boolean;
   onOpenImport: () => void;
@@ -204,6 +205,21 @@ export const Sidebar: React.FC<SidebarProps> = ({
           >
             <CreditCard className={`w-4 h-4 transition ${activeTab === 'accounts' ? 'text-sky-400' : 'text-slate-500 group-hover:text-sky-400'}`} />
             <span>Mis Cuentas y Tarjetas</span>
+          </button>
+
+          <button
+            onClick={() => {
+              onSelectTab('credits');
+              if (onCloseMobile) onCloseMobile();
+            }}
+            className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs transition group ${
+              activeTab === 'credits'
+                ? 'bg-slate-900/90 text-sky-400 border-l-2 border-sky-400 font-semibold shadow-inner'
+                : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900/50 font-medium'
+            }`}
+          >
+            <Landmark className={`w-4 h-4 transition ${activeTab === 'credits' ? 'text-sky-400' : 'text-slate-500 group-hover:text-emerald-400'}`} />
+            <span>Mis Créditos y Deudas</span>
           </button>
 
           <button

@@ -9,7 +9,8 @@ import {
   AutoCategoryRule,
   CategoryBudget,
   TelegramProfile,
-  SavingsGoal
+  SavingsGoal,
+  Credit
 } from './types';
 import { INITIAL_ACCOUNTS, INITIAL_TRANSACTIONS, DEMO_ACCOUNTS, DEMO_TRANSACTIONS } from './utils/demoData';
 import { DEFAULT_CATEGORY_MAPPINGS, DEFAULT_AUTO_RULES, getParentCategory, autoCategorize, applyAutoRulesToTransaction } from './utils/categorizer';
@@ -32,7 +33,11 @@ import {
   fetchSavingsGoals,
   saveSavingsGoalsToCloud,
   saveSavingsGoalToCloud,
-  deleteSavingsGoalFromCloud
+  deleteSavingsGoalFromCloud,
+  fetchCredits,
+  saveCreditsToCloud,
+  saveCreditToCloud,
+  deleteCreditFromCloud
 } from './services/supabaseService';
 import { calculateTransactionPeriod } from './utils/dateUtils';
 import { Sidebar } from './components/Sidebar';
@@ -46,6 +51,7 @@ import { ImportModal } from './components/ImportModal';
 import { AccountsManagementView } from './components/AccountsManagementView';
 import { CategoryManagementView } from './components/CategoryManagementView';
 import { BudgetAndGoalsView } from './components/BudgetAndGoalsView';
+import { CreditsManagementView } from './components/CreditsManagementView';
 import { BudgetAndRulesModal } from './components/BudgetAndRulesModal';
 import { TelegramModal } from './components/TelegramModal';
 import { AuthModal } from './components/AuthModal';
@@ -57,6 +63,7 @@ const STORAGE_KEY_CATEGORY_MAPPINGS = 'finanzapp_category_mappings_v1';
 const STORAGE_KEY_AUTO_RULES = 'finanzapp_auto_rules_v1';
 const STORAGE_KEY_BUDGETS = 'finanzapp_budgets_v1';
 const STORAGE_KEY_SAVINGS_GOALS = 'finanzapp_savings_goals_v1';
+const STORAGE_KEY_CREDITS = 'finanzapp_credits';
 
 export function App() {
   // 1. State for Accounts: always initialize strictly with clean demo accounts (never read generic or private localStorage on startup)
@@ -81,6 +88,9 @@ export function App() {
   // 6. State for Savings Goals: strictly empty array by default
   const [savingsGoals, setSavingsGoals] = useState<SavingsGoal[]>([]);
 
+  // 7. State for Credits & Loans: strictly empty array by default
+  const [credits, setCredits] = useState<Credit[]>([]);
+
   // Auth & Cloud State
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
@@ -96,6 +106,7 @@ export function App() {
       localStorage.removeItem(STORAGE_KEY_AUTO_RULES);
       localStorage.removeItem(STORAGE_KEY_BUDGETS);
       localStorage.removeItem(STORAGE_KEY_SAVINGS_GOALS);
+      localStorage.removeItem(STORAGE_KEY_CREDITS);
       localStorage.removeItem(`${STORAGE_KEY_SAVINGS_GOALS}_demo`);
     } catch (e) {
       console.warn('Error purging legacy un-isolated keys', e);
@@ -135,6 +146,13 @@ export function App() {
     } catch {}
   }, [savingsGoals, currentUser?.id]);
 
+  useEffect(() => {
+    if (!currentUser?.id) return;
+    try {
+      localStorage.setItem(`${STORAGE_KEY_CREDITS}_${currentUser.id}`, JSON.stringify(credits));
+    } catch {}
+  }, [credits, currentUser?.id]);
+
   // Auto-sync with Supabase Cloud whenever state changes for logged in user (only when cloud data has finished loading)
   useEffect(() => {
     if (currentUser?.id && !isCloudLoading) {
@@ -144,13 +162,14 @@ export function App() {
         autoRules,
         budgets,
         transactions,
-        savingsGoals
+        savingsGoals,
+        credits
       });
     }
-  }, [currentUser?.id, isCloudLoading, accounts, categoryMappings, autoRules, budgets, transactions, savingsGoals]);
+  }, [currentUser?.id, isCloudLoading, accounts, categoryMappings, autoRules, budgets, transactions, savingsGoals, credits]);
 
   // Active view tab & Mobile Sidebar drawer state
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'transactions' | 'categories' | 'budgets' | 'accounts'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'transactions' | 'categories' | 'budgets' | 'accounts' | 'credits'>('dashboard');
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
 
   // Filter State
@@ -183,6 +202,7 @@ export function App() {
       const userCachedRules = localStorage.getItem(`${STORAGE_KEY_AUTO_RULES}_${userId}`);
       const userCachedBudgets = localStorage.getItem(`${STORAGE_KEY_BUDGETS}_${userId}`);
       const userCachedGoals = localStorage.getItem(`${STORAGE_KEY_SAVINGS_GOALS}_${userId}`);
+      const userCachedCredits = localStorage.getItem(`${STORAGE_KEY_CREDITS}_${userId}`);
 
       if (userCachedAccounts) {
         try { setAccounts(JSON.parse(userCachedAccounts)); } catch {}
@@ -208,6 +228,12 @@ export function App() {
           setSavingsGoals(cleaned);
         } catch {}
       }
+      if (userCachedCredits) {
+        try {
+          const parsedCredits = JSON.parse(userCachedCredits);
+          if (Array.isArray(parsedCredits)) setCredits(parsedCredits);
+        } catch {}
+      }
 
       // 2. Fetch fresh data from Supabase Cloud
       const data = await fetchUserData(userId);
@@ -218,6 +244,11 @@ export function App() {
       const cloudGoals = data.savingsGoals || [];
       setSavingsGoals(cloudGoals);
       localStorage.setItem(`${STORAGE_KEY_SAVINGS_GOALS}_${userId}`, JSON.stringify(cloudGoals));
+
+      // Hydrate credits strictly from Supabase
+      const cloudCredits = data.credits || [];
+      setCredits(cloudCredits);
+      localStorage.setItem(`${STORAGE_KEY_CREDITS}_${userId}`, JSON.stringify(cloudCredits));
 
       if (isCloudSynced || data.accounts.length > 0 || data.transactions.length > 0) {
         setAccounts(data.accounts);
@@ -403,6 +434,7 @@ export function App() {
       { id: 'b-3', categoryName: 'Compras y Estilo de Vida', monthlyLimit: 200000 }
     ]);
     setSavingsGoals([]);
+    setCredits([]);
     setCurrentUser(null);
     setTelegramProfile(null);
     setViewMode('landing');
@@ -416,6 +448,7 @@ export function App() {
         localStorage.removeItem(`${STORAGE_KEY_AUTO_RULES}_${signingOutUserId}`);
         localStorage.removeItem(`${STORAGE_KEY_BUDGETS}_${signingOutUserId}`);
         localStorage.removeItem(`${STORAGE_KEY_SAVINGS_GOALS}_${signingOutUserId}`);
+        localStorage.removeItem(`${STORAGE_KEY_CREDITS}_${signingOutUserId}`);
         localStorage.removeItem(`finanzapp_cloud_synced_${signingOutUserId}`);
       }
 
@@ -823,6 +856,53 @@ export function App() {
     }
   };
 
+  // ----------------------------------------------------
+  // CREDITS & DEBT MANAGEMENT HANDLERS
+  // ----------------------------------------------------
+  const handleSaveCredit = async (credit: Credit) => {
+    setCredits((prev) => {
+      const exists = prev.some((c) => c.id === credit.id);
+      if (exists) {
+        return prev.map((c) => (c.id === credit.id ? credit : c));
+      }
+      return [credit, ...prev];
+    });
+
+    if (currentUser?.id) {
+      await saveCreditToCloud(currentUser.id, credit);
+    }
+  };
+
+  const handleDeleteCredit = async (creditId: string) => {
+    setCredits((prev) => prev.filter((c) => c.id !== creditId));
+
+    if (currentUser?.id) {
+      await deleteCreditFromCloud(currentUser.id, creditId);
+    }
+  };
+
+  const handlePayInstallment = async (creditId: string, period: string) => {
+    let creditToSave: Credit | null = null;
+    setCredits((prev) =>
+      prev.map((c) => {
+        if (c.id === creditId) {
+          const nextPaid = Math.min(c.totalInstallments, c.paidInstallments + 1);
+          creditToSave = {
+            ...c,
+            paidInstallments: nextPaid,
+            lastPaidPeriod: period
+          };
+          return creditToSave;
+        }
+        return c;
+      })
+    );
+
+    if (currentUser?.id && creditToSave) {
+      await saveCreditToCloud(currentUser.id, creditToSave);
+    }
+  };
+
   const handleUpdateTransaction = (id: string, updates: Partial<Transaction>) => {
     setTransactions((prev) =>
       prev.map((tx) => (tx.id === id ? { ...tx, ...updates } : tx))
@@ -987,7 +1067,7 @@ export function App() {
           <main className="w-full max-w-7xl mx-auto p-4 sm:p-6 space-y-6 flex-1">
             
             {/* 1 & 2. Metric Cards & Filters (Only in Dashboard & Transactions) */}
-            {activeTab !== 'categories' && activeTab !== 'budgets' && activeTab !== 'accounts' && (
+            {activeTab !== 'categories' && activeTab !== 'budgets' && activeTab !== 'accounts' && activeTab !== 'credits' && (
               <>
                 <MetricCards
                   computedTransactions={filteredTransactions}
@@ -1060,13 +1140,21 @@ export function App() {
                 onDeleteSavingsGoal={handleDeleteSavingsGoal}
                 onContributeToGoal={handleContributeToGoal}
               />
-            ) : (
+            ) : activeTab === 'accounts' ? (
               <AccountsManagementView
                 accounts={accounts}
                 transactions={transactions}
                 onAddAccount={handleAddAccount}
                 onUpdateAccount={handleUpdateAccount}
                 onDeleteAccount={handleDeleteAccount}
+              />
+            ) : (
+              <CreditsManagementView
+                credits={credits}
+                currentPeriod={filters.month !== 'ALL' ? filters.month : new Date().toISOString().slice(0, 7)}
+                onSaveCredit={handleSaveCredit}
+                onDeleteCredit={handleDeleteCredit}
+                onPayInstallment={handlePayInstallment}
               />
             )}
 
