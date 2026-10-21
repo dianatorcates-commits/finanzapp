@@ -95,6 +95,7 @@ export interface TelegramProfile {
   username?: string | null;
   link_token?: string | null;
   token_expires_at?: string | null;
+  webhook_token?: string | null;
   created_at?: string;
 }
 

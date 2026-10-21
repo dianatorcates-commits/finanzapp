@@ -15,7 +15,8 @@ import {
   X,
   Sparkles,
   ShieldCheck,
-  Landmark
+  Landmark,
+  Smartphone
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -28,6 +29,7 @@ interface SidebarProps {
   onOpenCategoryModal?: () => void;
   onOpenBudgetModal?: () => void;
   onOpenTelegramModal: () => void;
+  onOpenWalletModal: () => void;
   onOpenAuthModal: () => void;
   onSignOut: () => void;
   onAutoAllocate: () => void;
@@ -47,6 +49,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onOpenCategoryModal,
   onOpenBudgetModal,
   onOpenTelegramModal,
+  onOpenWalletModal,
   onOpenAuthModal,
   onSignOut,
   onAutoAllocate,
@@ -262,6 +265,26 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 Conectar
               </span>
             )}
+          </button>
+
+          <button
+            onClick={() => {
+              if (currentUser) {
+                onOpenWalletModal();
+              } else {
+                onOpenAuthModal();
+              }
+              if (onCloseMobile) onCloseMobile();
+            }}
+            className="w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-medium text-slate-400 hover:text-emerald-300 hover:bg-slate-900/50 transition group"
+          >
+            <div className="flex items-center gap-3">
+              <Smartphone className="w-4 h-4 text-emerald-400 transition group-hover:scale-110" />
+              <span>Wallet / Android</span>
+            </div>
+            <span className="text-[10px] bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 px-2 py-0.5 rounded-full font-semibold">
+              Webhook
+            </span>
           </button>
 
           {/* Reset Demo Option */}

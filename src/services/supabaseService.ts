@@ -742,4 +742,79 @@ export async function unlinkTelegramProfile(userId: string): Promise<boolean> {
   return true;
 }
 
+// ==========================================
+// 4. ANDROID / WALLET WEBHOOK SERVICES
+// ==========================================
+
+export async function getOrCreateWebhookToken(userId: string): Promise<string> {
+  try {
+    const { data: profile } = await supabase
+      .from('telegram_profiles')
+      .select('id, webhook_token')
+      .eq('user_id', userId)
+      .maybeSingle();
+
+    if (profile?.webhook_token) {
+      return profile.webhook_token;
+    }
+
+    const newToken = `fnz_${(Math.random().toString(36).substring(2, 10) + Math.random().toString(36).substring(2, 10) + Math.random().toString(36).substring(2, 10))}`;
+
+    if (profile) {
+      const { error } = await supabase
+        .from('telegram_profiles')
+        .update({ webhook_token: newToken })
+        .eq('user_id', userId);
+      if (error) console.error('Error updating webhook token:', error);
+    } else {
+      const { error } = await supabase
+        .from('telegram_profiles')
+        .insert({
+          id: crypto.randomUUID(),
+          user_id: userId,
+          webhook_token: newToken
+        });
+      if (error) console.error('Error inserting profile with webhook token:', error);
+    }
+
+    return newToken;
+  } catch (err) {
+    console.error('Unexpected error getting/creating webhook token:', err);
+    throw err;
+  }
+}
+
+export async function regenerateWebhookToken(userId: string): Promise<string> {
+  const newToken = `fnz_${(Math.random().toString(36).substring(2, 10) + Math.random().toString(36).substring(2, 10) + Math.random().toString(36).substring(2, 10))}`;
+  try {
+    const { data: profile } = await supabase
+      .from('telegram_profiles')
+      .select('id')
+      .eq('user_id', userId)
+      .maybeSingle();
+
+    if (profile) {
+      const { error } = await supabase
+        .from('telegram_profiles')
+        .update({ webhook_token: newToken })
+        .eq('user_id', userId);
+      if (error) throw error;
+    } else {
+      const { error } = await supabase
+        .from('telegram_profiles')
+        .insert({
+          id: crypto.randomUUID(),
+          user_id: userId,
+          webhook_token: newToken
+        });
+      if (error) throw error;
+    }
+
+    return newToken;
+  } catch (err) {
+    console.error('Unexpected error regenerating webhook token:', err);
+    throw err;
+  }
+}
+
 
