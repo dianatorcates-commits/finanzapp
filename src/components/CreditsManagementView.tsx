@@ -54,16 +54,37 @@ export function formatPeriodLabel(period: string): string {
 
 export function calculateEstimatedPayoff(
   remainingInstallments: number,
-  basePeriod: string
+  basePeriod: string,
+  startDate?: string,
+  totalInstallments?: number,
+  isPaidThisPeriod: boolean = false
 ): string {
-  if (remainingInstallments <= 0) return 'Liquidado';
-  let date = new Date();
-  if (basePeriod && /^\d{4}-\d{2}$/.test(basePeriod)) {
-    const [y, m] = basePeriod.split('-').map(Number);
+  if (remainingInstallments <= 0) return '🎉 ¡Totalmente Liquidado!';
+
+  let date: Date;
+
+  // Prioridad 1: Si se cuenta con Mes de Inicio y Total de Cuotas, calcular la fecha natural de término:
+  if (startDate && totalInstallments && /^\d{4}-\d{2}$/.test(startDate)) {
+    const [y, m] = startDate.split('-').map(Number);
     date = new Date(y, m - 1, 1);
+    // Ejemplo: Agosto (cuota 1) + (3 - 1) cuotas = Octubre (cuota 3)
+    date.setMonth(date.getMonth() + (totalInstallments - 1));
+  } else {
+    // Prioridad 2: Calcular a partir del período activo (basePeriod):
+    const [y, m] = (basePeriod && /^\d{4}-\d{2}$/.test(basePeriod)
+      ? basePeriod
+      : new Date().toISOString().substring(0, 7)
+    ).split('-').map(Number);
+    date = new Date(y, m - 1, 1);
+
+    // Si la cuota de este período ya fue pagada, las restantes empiezan el próximo mes (+remaining)
+    // Si la cuota de este período está pendiente, la última termina en (remaining - 1)
+    const monthsToAdd = isPaidThisPeriod
+      ? remainingInstallments
+      : Math.max(0, remainingInstallments - 1);
+    date.setMonth(date.getMonth() + monthsToAdd);
   }
-  // Add remaining installments months
-  date.setMonth(date.getMonth() + remainingInstallments);
+
   const monthName = date.toLocaleDateString('es-CL', { month: 'long' });
   const capitalized = monthName.charAt(0).toUpperCase() + monthName.slice(1);
   return `${capitalized} de ${date.getFullYear()}`;
@@ -1002,7 +1023,10 @@ export const CreditsManagementView: React.FC<CreditsManagementViewProps> = ({
                           <span className="text-white font-extrabold underline decoration-sky-400 underline-offset-4">
                             {calculateEstimatedPayoff(
                               selectedCredit.totalInstallments - selectedCredit.paidInstallments,
-                              activePeriod
+                              activePeriod,
+                              selectedCredit.startDate,
+                              selectedCredit.totalInstallments,
+                              selectedCredit.lastPaidPeriod === activePeriod
                             )}
                           </span>
                         </h4>
