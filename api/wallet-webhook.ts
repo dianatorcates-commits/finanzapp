@@ -467,13 +467,23 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     // ------------------------------------------------------------
     const { data: userAccounts, error: accErr } = await supabaseAdmin
       .from('accounts')
-      .select('id, name, bank, type, account_number, closing_day, due_day')
+      .select('*')
       .eq('user_id', userId);
 
-    if (accErr || !userAccounts || userAccounts.length === 0) {
+    if (accErr) {
+      console.error('Error consultando cuentas en Supabase:', accErr);
+      return res.status(500).json({
+        success: false,
+        error: `Error al consultar cuentas en la base de datos: ${accErr.message}`,
+        details: accErr,
+      });
+    }
+
+    if (!userAccounts || userAccounts.length === 0) {
       return res.status(400).json({
         success: false,
         error: 'El usuario no tiene cuentas o tarjetas registradas en FinanzApp. Crea una cuenta en la aplicación web primero.',
+        userId,
       });
     }
 
@@ -521,16 +531,25 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       allocations: [],
     };
 
-    const { error: insertErr } = await supabaseAdmin
+    let { error: insertErr } = await supabaseAdmin
       .from('transactions')
       .insert(insertPayload);
 
     if (insertErr) {
-      console.error('Error insertando transacción desde Webhook:', insertErr);
-      return res.status(500).json({
-        success: false,
-        error: 'Error al registrar la transacción en la base de datos.',
-      });
+      console.warn('Primer intento de insert falló, reintentando sin allocations:', insertErr.message);
+      const { allocations, ...fallbackPayload } = insertPayload;
+      const { error: fallbackErr } = await supabaseAdmin
+        .from('transactions')
+        .insert(fallbackPayload);
+
+      if (fallbackErr) {
+        console.error('Error insertando transacción desde Webhook:', fallbackErr);
+        return res.status(500).json({
+          success: false,
+          error: `Error al registrar la transacción en la base de datos: ${fallbackErr.message}`,
+          details: fallbackErr,
+        });
+      }
     }
 
     // ------------------------------------------------------------
