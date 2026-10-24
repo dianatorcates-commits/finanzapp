@@ -513,6 +513,31 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const period = calculateTransactionPeriod(todayDate, matchedAccount.closing_day);
 
     // ------------------------------------------------------------
+    // 6.5 DEDUPLICATION CHECK (Prevents duplicate entries on retries)
+    // ------------------------------------------------------------
+    const thirtyMinutesAgo = new Date(Date.now() - 30 * 60 * 1000).toISOString();
+    const { data: existingDuplicate } = await supabaseAdmin
+      .from('transactions')
+      .select('id, description, amount, created_at')
+      .eq('user_id', userId)
+      .eq('account_id', matchedAccount.id)
+      .eq('date', todayDate)
+      .eq('amount', parsedAmount)
+      .eq('description', merchant)
+      .gte('created_at', thirtyMinutesAgo)
+      .limit(1);
+
+    if (existingDuplicate && existingDuplicate.length > 0) {
+      console.log('Transacción idéntica ya registrada recientemente, ignorando reintento duplicado:', existingDuplicate[0]);
+      return res.status(200).json({
+        success: true,
+        duplicated: true,
+        message: `Transacción ya registrada previamente: ${merchant} por ${formatCLP(parsedAmount)}`,
+        transaction: existingDuplicate[0],
+      });
+    }
+
+    // ------------------------------------------------------------
     // 7. INSERT TRANSACTION INTO SUPABASE
     // ------------------------------------------------------------
     const transactionId = crypto.randomUUID();
