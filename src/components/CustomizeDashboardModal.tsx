@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import {
   X,
@@ -20,8 +20,7 @@ import {
   ShoppingCart,
   Layers,
   ChevronRight,
-  ArrowUp,
-  ArrowDown
+  Equal
 } from 'lucide-react';
 import {
   DashboardConfig,
@@ -59,6 +58,26 @@ export const CustomizeDashboardModal: React.FC<CustomizeDashboardModalProps> = (
   const [localConfig, setLocalConfig] = useState<DashboardConfig>(initialConfig);
   const [activeTab, setActiveTab] = useState<'metrics' | 'charts'>('metrics');
 
+  // Drag and drop states for metrics
+  const [draggedMetricIndex, setDraggedMetricIndex] = useState<number | null>(null);
+  const [touchStartY, setTouchStartY] = useState<number | null>(null);
+  const [touchMetricIndex, setTouchMetricIndex] = useState<number | null>(null);
+
+  // Drag and drop states for charts
+  const [draggedChartIndex, setDraggedChartIndex] = useState<number | null>(null);
+  const [touchChartStartY, setTouchChartStartY] = useState<number | null>(null);
+  const [touchChartIndex, setTouchChartIndex] = useState<number | null>(null);
+
+  // Synchronize localConfig whenever the modal opens or config updates
+  useEffect(() => {
+    if (isOpen && config) {
+      setLocalConfig({
+        metrics: Array.isArray(config.metrics) ? [...config.metrics] : [...DEFAULT_DASHBOARD_CONFIG.metrics],
+        charts: Array.isArray(config.charts) ? [...config.charts] : [...DEFAULT_DASHBOARD_CONFIG.charts],
+      });
+    }
+  }, [isOpen, config]);
+
   // Form states for creating a new metric card
   const [isCreatingMetric, setIsCreatingMetric] = useState(false);
   const [newMetricTitle, setNewMetricTitle] = useState('');
@@ -67,7 +86,6 @@ export const CustomizeDashboardModal: React.FC<CustomizeDashboardModalProps> = (
   const [newMetricCategory, setNewMetricCategory] = useState('ALL');
   const [newMetricColor, setNewMetricColor] = useState<CustomMetricCard['color']>('rose');
   const [newMetricIcon, setNewMetricIcon] = useState('shopping-cart');
-  const [newMetricPosition, setNewMetricPosition] = useState<'start' | 'end'>('start');
 
   // Form states for adding an account-specific chart
   const [isCreatingChart, setIsCreatingChart] = useState(false);
@@ -76,40 +94,126 @@ export const CustomizeDashboardModal: React.FC<CustomizeDashboardModalProps> = (
 
   if (!isOpen) return null;
 
-  // Move metric card up or down in list
-  const handleMoveMetric = (index: number, direction: 'up' | 'down', e: React.MouseEvent) => {
-    e.stopPropagation();
-    const targetIndex = direction === 'up' ? index - 1 : index + 1;
-    if (targetIndex < 0 || targetIndex >= localConfig.metrics.length) return;
+  // Desktop Drag & Drop Handlers for Metrics
+  const handleDragStart = (index: number) => {
+    setDraggedMetricIndex(index);
+  };
+
+  const handleDragOver = (targetIndex: number, e: React.DragEvent) => {
+    e.preventDefault();
+    if (draggedMetricIndex === null || draggedMetricIndex === targetIndex) return;
 
     setLocalConfig((prev) => {
       const nextMetrics = [...prev.metrics];
-      const temp = nextMetrics[index];
-      nextMetrics[index] = nextMetrics[targetIndex];
-      nextMetrics[targetIndex] = temp;
+      const item = nextMetrics.splice(draggedMetricIndex, 1)[0];
+      nextMetrics.splice(targetIndex, 0, item);
       return {
         ...prev,
         metrics: nextMetrics,
       };
     });
+    setDraggedMetricIndex(targetIndex);
   };
 
-  // Move chart widget up or down in list
-  const handleMoveChart = (index: number, direction: 'up' | 'down', e: React.MouseEvent) => {
-    e.stopPropagation();
-    const targetIndex = direction === 'up' ? index - 1 : index + 1;
-    if (targetIndex < 0 || targetIndex >= localConfig.charts.length) return;
+  const handleDragEnd = () => {
+    setDraggedMetricIndex(null);
+  };
+
+  // Mobile Touch Drag & Drop Handlers for Metrics
+  const handleTouchStart = (index: number, e: React.TouchEvent) => {
+    setTouchMetricIndex(index);
+    setTouchStartY(e.touches[0].clientY);
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (touchMetricIndex === null || touchStartY === null) return;
+    const currentY = e.touches[0].clientY;
+    const diffY = currentY - touchStartY;
+
+    if (Math.abs(diffY) > 35) {
+      const direction = diffY > 0 ? 1 : -1;
+      const targetIndex = touchMetricIndex + direction;
+
+      if (targetIndex >= 0 && targetIndex < localConfig.metrics.length) {
+        setLocalConfig((prev) => {
+          const nextMetrics = [...prev.metrics];
+          const item = nextMetrics.splice(touchMetricIndex, 1)[0];
+          nextMetrics.splice(targetIndex, 0, item);
+          return {
+            ...prev,
+            metrics: nextMetrics,
+          };
+        });
+        setTouchMetricIndex(targetIndex);
+        setTouchStartY(currentY);
+      }
+    }
+  };
+
+  const handleTouchEnd = () => {
+    setTouchMetricIndex(null);
+    setTouchStartY(null);
+  };
+
+  // Desktop Drag & Drop Handlers for Charts
+  const handleChartDragStart = (index: number) => {
+    setDraggedChartIndex(index);
+  };
+
+  const handleChartDragOver = (targetIndex: number, e: React.DragEvent) => {
+    e.preventDefault();
+    if (draggedChartIndex === null || draggedChartIndex === targetIndex) return;
 
     setLocalConfig((prev) => {
       const nextCharts = [...prev.charts];
-      const temp = nextCharts[index];
-      nextCharts[index] = nextCharts[targetIndex];
-      nextCharts[targetIndex] = temp;
+      const item = nextCharts.splice(draggedChartIndex, 1)[0];
+      nextCharts.splice(targetIndex, 0, item);
       return {
         ...prev,
         charts: nextCharts,
       };
     });
+    setDraggedChartIndex(targetIndex);
+  };
+
+  const handleChartDragEnd = () => {
+    setDraggedChartIndex(null);
+  };
+
+  // Mobile Touch Drag & Drop Handlers for Charts
+  const handleChartTouchStart = (index: number, e: React.TouchEvent) => {
+    setTouchChartIndex(index);
+    setTouchChartStartY(e.touches[0].clientY);
+  };
+
+  const handleChartTouchMove = (e: React.TouchEvent) => {
+    if (touchChartIndex === null || touchChartStartY === null) return;
+    const currentY = e.touches[0].clientY;
+    const diffY = currentY - touchChartStartY;
+
+    if (Math.abs(diffY) > 35) {
+      const direction = diffY > 0 ? 1 : -1;
+      const targetIndex = touchChartIndex + direction;
+
+      if (targetIndex >= 0 && targetIndex < localConfig.charts.length) {
+        setLocalConfig((prev) => {
+          const nextCharts = [...prev.charts];
+          const item = nextCharts.splice(touchChartIndex, 1)[0];
+          nextCharts.splice(targetIndex, 0, item);
+          return {
+            ...prev,
+            charts: nextCharts,
+          };
+        });
+        setTouchChartIndex(targetIndex);
+        setTouchChartStartY(currentY);
+      }
+    }
+  };
+
+  const handleChartTouchEnd = () => {
+    setTouchChartIndex(null);
+    setTouchChartStartY(null);
   };
 
   // Toggle metric enabled/disabled
@@ -123,10 +227,12 @@ export const CustomizeDashboardModal: React.FC<CustomizeDashboardModalProps> = (
   // Delete metric card
   const handleDeleteMetric = (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    setLocalConfig((prev) => ({
-      ...prev,
-      metrics: prev.metrics.filter((m) => m.id !== id),
-    }));
+    const nextConfig = {
+      ...localConfig,
+      metrics: localConfig.metrics.filter((m) => m.id !== id),
+    };
+    setLocalConfig(nextConfig);
+    onSaveConfig(nextConfig);
   };
 
   // Toggle chart enabled/disabled
@@ -140,10 +246,12 @@ export const CustomizeDashboardModal: React.FC<CustomizeDashboardModalProps> = (
   // Delete custom chart widget
   const handleDeleteChart = (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    setLocalConfig((prev) => ({
-      ...prev,
-      charts: prev.charts.filter((c) => c.id !== id),
-    }));
+    const nextConfig = {
+      ...localConfig,
+      charts: localConfig.charts.filter((c) => c.id !== id),
+    };
+    setLocalConfig(nextConfig);
+    onSaveConfig(nextConfig);
   };
 
   // Submit new metric card
@@ -163,17 +271,21 @@ export const CustomizeDashboardModal: React.FC<CustomizeDashboardModalProps> = (
       isSystem: false,
     };
 
-    setLocalConfig((prev) => ({
-      ...prev,
-      metrics: newMetricPosition === 'start' ? [newCard, ...prev.metrics] : [...prev.metrics, newCard],
-    }));
+    // Prepend new card so it immediately appears at the beginning as Diana requested
+    const nextConfig = {
+      ...localConfig,
+      metrics: [newCard, ...localConfig.metrics],
+    };
+
+    setLocalConfig(nextConfig);
+    // Auto-save immediately so it's guaranteed never to disappear
+    onSaveConfig(nextConfig);
 
     // Reset form
     setNewMetricTitle('');
     setNewMetricType('compra');
     setNewMetricAccountId('ALL');
     setNewMetricCategory('ALL');
-    setNewMetricPosition('start');
     setIsCreatingMetric(false);
   };
 
@@ -452,35 +564,6 @@ export const CustomizeDashboardModal: React.FC<CustomizeDashboardModalProps> = (
                     </div>
                   </div>
 
-                  {/* Position selector */}
-                  <div>
-                    <label className="block text-[11px] font-semibold text-slate-400 mb-1.5">
-                      ¿Dónde ubicar la nueva tarjeta?
-                    </label>
-                    <div className="flex flex-wrap items-center gap-3 text-xs">
-                      <label className="flex items-center gap-2 cursor-pointer bg-slate-900 px-3 py-1.5 rounded-xl border border-slate-800 hover:border-slate-700">
-                        <input
-                          type="radio"
-                          name="newMetricPosition"
-                          checked={newMetricPosition === 'start'}
-                          onChange={() => setNewMetricPosition('start')}
-                          className="text-sky-500 focus:ring-0"
-                        />
-                        <span className="text-white font-medium">Al inicio (Primera en el Dashboard)</span>
-                      </label>
-                      <label className="flex items-center gap-2 cursor-pointer bg-slate-900 px-3 py-1.5 rounded-xl border border-slate-800 hover:border-slate-700">
-                        <input
-                          type="radio"
-                          name="newMetricPosition"
-                          checked={newMetricPosition === 'end'}
-                          onChange={() => setNewMetricPosition('end')}
-                          className="text-sky-500 focus:ring-0"
-                        />
-                        <span className="text-slate-300">Al final</span>
-                      </label>
-                    </div>
-                  </div>
-
                   <div className="flex justify-end gap-2 pt-2">
                     <button
                       type="button"
@@ -499,44 +582,25 @@ export const CustomizeDashboardModal: React.FC<CustomizeDashboardModalProps> = (
                 </form>
               )}
 
-              {/* List of Existing Metric Cards */}
+              {/* List of Existing Metric Cards with Drag & Drop */}
               <div className="space-y-2.5">
                 {localConfig.metrics.map((card, index) => (
                   <div
                     key={card.id}
+                    draggable
+                    onDragStart={() => handleDragStart(index)}
+                    onDragOver={(e) => handleDragOver(index, e)}
+                    onDragEnd={handleDragEnd}
                     onClick={() => handleToggleMetric(card.id)}
-                    className={`p-3.5 rounded-2xl border transition cursor-pointer flex items-center justify-between ${
-                      card.enabled
-                        ? 'bg-slate-950/80 border-slate-700 shadow-sm'
+                    className={`p-3.5 rounded-2xl border transition select-none flex items-center justify-between ${
+                      draggedMetricIndex === index || touchMetricIndex === index
+                        ? 'opacity-40 border-sky-500 ring-2 ring-sky-500/30 scale-[0.98]'
+                        : card.enabled
+                        ? 'bg-slate-950/80 border-slate-700 shadow-sm hover:border-slate-600'
                         : 'bg-slate-950/30 border-slate-800/80 opacity-60 hover:opacity-80'
                     }`}
                   >
                     <div className="flex items-center gap-3">
-                      {/* Reorder Up/Down Buttons */}
-                      <div
-                        className="flex flex-col gap-0.5 bg-slate-900 p-1 rounded-xl border border-slate-800"
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        <button
-                          type="button"
-                          disabled={index === 0}
-                          onClick={(e) => handleMoveMetric(index, 'up', e)}
-                          className="p-1 rounded text-slate-400 hover:text-white hover:bg-slate-800 disabled:opacity-20 disabled:hover:bg-transparent transition"
-                          title="Mover hacia arriba"
-                        >
-                          <ArrowUp className="w-3.5 h-3.5" />
-                        </button>
-                        <button
-                          type="button"
-                          disabled={index === localConfig.metrics.length - 1}
-                          onClick={(e) => handleMoveMetric(index, 'down', e)}
-                          className="p-1 rounded text-slate-400 hover:text-white hover:bg-slate-800 disabled:opacity-20 disabled:hover:bg-transparent transition"
-                          title="Mover hacia abajo"
-                        >
-                          <ArrowDown className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
-
                       <div className="p-2.5 rounded-xl bg-slate-900 border border-slate-800 text-slate-300">
                         {renderIcon(card.icon)}
                       </div>
@@ -555,7 +619,7 @@ export const CustomizeDashboardModal: React.FC<CustomizeDashboardModalProps> = (
                       </div>
                     </div>
 
-                    <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-3" onClick={(e) => e.stopPropagation()}>
                       {!card.isSystem && (
                         <button
                           type="button"
@@ -566,7 +630,21 @@ export const CustomizeDashboardModal: React.FC<CustomizeDashboardModalProps> = (
                           <Trash2 className="w-4 h-4" />
                         </button>
                       )}
-                      <ToggleSwitch active={card.enabled} />
+                      
+                      <div onClick={() => handleToggleMetric(card.id)} className="cursor-pointer">
+                        <ToggleSwitch active={card.enabled} />
+                      </div>
+
+                      {/* Botón de 2 rayitas al lado derecho para arrastrar y mover */}
+                      <div
+                        className="p-1.5 rounded-lg text-slate-500 hover:text-sky-400 hover:bg-slate-800/80 cursor-grab active:cursor-grabbing transition touch-none"
+                        title="Mantén presionado y arrastra para reordenar"
+                        onTouchStart={(e) => handleTouchStart(index, e)}
+                        onTouchMove={handleTouchMove}
+                        onTouchEnd={handleTouchEnd}
+                      >
+                        <Equal className="w-5 h-5 text-slate-400 hover:text-sky-300" />
+                      </div>
                     </div>
                   </div>
                 ))}
@@ -652,7 +730,7 @@ export const CustomizeDashboardModal: React.FC<CustomizeDashboardModalProps> = (
                 </form>
               )}
 
-              {/* List of Existing Charts */}
+              {/* List of Existing Charts with Drag & Drop */}
               <div className="space-y-2.5">
                 {localConfig.charts.map((chart, index) => {
                   const targetAcc = accounts.find((a) => a.id === chart.targetAccountId);
@@ -660,39 +738,20 @@ export const CustomizeDashboardModal: React.FC<CustomizeDashboardModalProps> = (
                   return (
                     <div
                       key={chart.id}
+                      draggable
+                      onDragStart={() => handleChartDragStart(index)}
+                      onDragOver={(e) => handleChartDragOver(index, e)}
+                      onDragEnd={handleChartDragEnd}
                       onClick={() => handleToggleChart(chart.id)}
-                      className={`p-3.5 rounded-2xl border transition cursor-pointer flex items-center justify-between ${
-                        chart.enabled
-                          ? 'bg-slate-950/80 border-slate-700 shadow-sm'
+                      className={`p-3.5 rounded-2xl border transition select-none flex items-center justify-between ${
+                        draggedChartIndex === index || touchChartIndex === index
+                          ? 'opacity-40 border-sky-500 ring-2 ring-sky-500/30 scale-[0.98]'
+                          : chart.enabled
+                          ? 'bg-slate-950/80 border-slate-700 shadow-sm hover:border-slate-600'
                           : 'bg-slate-950/30 border-slate-800/80 opacity-60 hover:opacity-80'
                       }`}
                     >
                       <div className="flex items-center gap-3">
-                        {/* Reorder Up/Down Buttons */}
-                        <div
-                          className="flex flex-col gap-0.5 bg-slate-900 p-1 rounded-xl border border-slate-800"
-                          onClick={(e) => e.stopPropagation()}
-                        >
-                          <button
-                            type="button"
-                            disabled={index === 0}
-                            onClick={(e) => handleMoveChart(index, 'up', e)}
-                            className="p-1 rounded text-slate-400 hover:text-white hover:bg-slate-800 disabled:opacity-20 disabled:hover:bg-transparent transition"
-                            title="Mover hacia arriba"
-                          >
-                            <ArrowUp className="w-3.5 h-3.5" />
-                          </button>
-                          <button
-                            type="button"
-                            disabled={index === localConfig.charts.length - 1}
-                            onClick={(e) => handleMoveChart(index, 'down', e)}
-                            className="p-1 rounded text-slate-400 hover:text-white hover:bg-slate-800 disabled:opacity-20 disabled:hover:bg-transparent transition"
-                            title="Mover hacia abajo"
-                          >
-                            <ArrowDown className="w-3.5 h-3.5" />
-                          </button>
-                        </div>
-
                         <div className="p-2.5 rounded-xl bg-slate-900 border border-slate-800 text-slate-300">
                           {chart.chartType === 'budgets_progress' && <Target className="w-4 h-4 text-emerald-400" />}
                           {chart.chartType === 'category_pie' && <PieChart className="w-4 h-4 text-sky-400" />}
@@ -719,7 +778,7 @@ export const CustomizeDashboardModal: React.FC<CustomizeDashboardModalProps> = (
                         </div>
                       </div>
 
-                      <div className="flex items-center gap-3">
+                      <div className="flex items-center gap-3" onClick={(e) => e.stopPropagation()}>
                         {!chart.isSystem && (
                           <button
                             type="button"
@@ -730,7 +789,20 @@ export const CustomizeDashboardModal: React.FC<CustomizeDashboardModalProps> = (
                             <Trash2 className="w-4 h-4" />
                           </button>
                         )}
-                        <ToggleSwitch active={chart.enabled} />
+                        <div onClick={() => handleToggleChart(chart.id)} className="cursor-pointer">
+                          <ToggleSwitch active={chart.enabled} />
+                        </div>
+
+                        {/* Botón de 2 rayitas al lado derecho para arrastrar y mover */}
+                        <div
+                          className="p-1.5 rounded-lg text-slate-500 hover:text-sky-400 hover:bg-slate-800/80 cursor-grab active:cursor-grabbing transition touch-none"
+                          title="Mantén presionado y arrastra para reordenar"
+                          onTouchStart={(e) => handleChartTouchStart(index, e)}
+                          onTouchMove={handleChartTouchMove}
+                          onTouchEnd={handleChartTouchEnd}
+                        >
+                          <Equal className="w-5 h-5 text-slate-400 hover:text-sky-300" />
+                        </div>
                       </div>
                     </div>
                   );

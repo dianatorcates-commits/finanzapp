@@ -213,6 +213,14 @@ export function App() {
   // Dashboard Customization State (defaults to DEFAULT_DASHBOARD_CONFIG for users without custom config)
   const [dashboardConfig, setDashboardConfig] = useState<DashboardConfig>(() => {
     try {
+      // Look for user-specific cached config first so it appears instantly upon refresh
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key && key.startsWith('finanzapp_dashboard_config_') && key !== 'finanzapp_dashboard_config_default') {
+          const userSaved = localStorage.getItem(key);
+          if (userSaved) return normalizeDashboardConfig(JSON.parse(userSaved));
+        }
+      }
       const saved = localStorage.getItem('finanzapp_dashboard_config_default');
       return saved ? normalizeDashboardConfig(JSON.parse(saved)) : DEFAULT_DASHBOARD_CONFIG;
     } catch {
@@ -223,9 +231,9 @@ export function App() {
 
   const handleSaveDashboardConfig = (newConfig: DashboardConfig) => {
     setDashboardConfig(newConfig);
-    const storageKey = currentUser?.id ? `finanzapp_dashboard_config_${currentUser.id}` : 'finanzapp_dashboard_config_default';
-    localStorage.setItem(storageKey, JSON.stringify(newConfig));
+    localStorage.setItem('finanzapp_dashboard_config_default', JSON.stringify(newConfig));
     if (currentUser?.id) {
+      localStorage.setItem(`finanzapp_dashboard_config_${currentUser.id}`, JSON.stringify(newConfig));
       saveDashboardConfigToCloud(currentUser.id, newConfig);
     }
   };
@@ -341,6 +349,7 @@ export function App() {
           const norm = normalizeDashboardConfig(cloudConfig);
           setDashboardConfig(norm);
           localStorage.setItem(`finanzapp_dashboard_config_${userId}`, JSON.stringify(norm));
+          localStorage.setItem('finanzapp_dashboard_config_default', JSON.stringify(norm));
         }
       }).catch(() => {});
     } catch (err) {
