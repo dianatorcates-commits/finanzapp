@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import * as XLSX from 'xlsx';
+import { SlidersHorizontal } from 'lucide-react';
 import {
   Account,
   Transaction,
@@ -1154,6 +1155,20 @@ export function App() {
             {/* 1 & 2. Metric Cards & Filters (Only in Dashboard & Transactions) */}
             {activeTab !== 'categories' && activeTab !== 'budgets' && activeTab !== 'accounts' && activeTab !== 'credits' && (
               <>
+                <div className="flex items-center justify-between pb-1">
+                  <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">
+                    Resumen Financiero
+                  </span>
+                  <button
+                    onClick={() => setIsCustomizeDashboardModalOpen(true)}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-slate-800/90 text-indigo-300 hover:text-white hover:bg-slate-700 border border-indigo-500/30 hover:border-indigo-500/60 transition-all shadow-sm"
+                    title="Crear o personalizar tarjetas de métricas y gráficos"
+                  >
+                    <SlidersHorizontal className="w-3.5 h-3.5 text-indigo-400" />
+                    <span>Personalizar Dashboard</span>
+                  </button>
+                </div>
+
                 <MetricCards
                   computedTransactions={filteredTransactions}
                   accounts={accounts}
