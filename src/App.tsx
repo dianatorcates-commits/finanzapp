@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import * as XLSX from 'xlsx';
 import {
   Account,
@@ -184,6 +184,9 @@ export function App() {
     searchQuery: '',
     onlyPendingTC: false
   });
+
+  // Flag to auto-select the latest period upon signing in or loading data
+  const hasAutoSelectedMonth = useRef(false);
 
   // Modals state
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
@@ -416,6 +419,17 @@ export function App() {
         ]);
         setSavingsGoals([]);
         setTelegramProfile(null);
+        hasAutoSelectedMonth.current = false;
+        setFilters({
+          month: 'ALL',
+          accountId: 'ALL',
+          accountType: 'ALL',
+          transactionType: 'ALL',
+          categories: [],
+          subcategories: [],
+          searchQuery: '',
+          onlyPendingTC: false
+        });
       }
     });
 
@@ -424,6 +438,17 @@ export function App() {
 
   const handleSignOut = async () => {
     const signingOutUserId = currentUser?.id;
+    hasAutoSelectedMonth.current = false;
+    setFilters({
+      month: 'ALL',
+      accountId: 'ALL',
+      accountType: 'ALL',
+      transactionType: 'ALL',
+      categories: [],
+      subcategories: [],
+      searchQuery: '',
+      onlyPendingTC: false
+    });
 
     // 1. Immediately reset React state to clean demo data before any re-render or async operations
     setAccounts(INITIAL_ACCOUNTS);
@@ -507,6 +532,14 @@ export function App() {
     });
     return Array.from(months).sort().reverse();
   }, [computedTransactions]);
+
+  // Auto-apply latest period/month filter upon signing in or loading user data
+  useEffect(() => {
+    if (currentUser && !hasAutoSelectedMonth.current && availableMonths.length > 0) {
+      setFilters((prev) => ({ ...prev, month: availableMonths[0] }));
+      hasAutoSelectedMonth.current = true;
+    }
+  }, [currentUser, availableMonths]);
 
   // Filter transactions
   const filteredTransactions = useMemo(() => {
