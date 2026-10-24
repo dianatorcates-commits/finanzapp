@@ -1,13 +1,22 @@
 import React from 'react';
-import { TrendingDown, TrendingUp, CreditCard, ShieldCheck, DollarSign, Calendar, PiggyBank } from 'lucide-react';
-import { ComputedTransaction, Account, DashboardMetricCardsConfig, DEFAULT_DASHBOARD_CONFIG } from '../types';
+import {
+  TrendingDown,
+  TrendingUp,
+  CreditCard,
+  ShieldCheck,
+  Calendar,
+  PiggyBank,
+  ShoppingCart,
+  Landmark
+} from 'lucide-react';
+import { ComputedTransaction, Account, CustomMetricCard, DEFAULT_DASHBOARD_CONFIG } from '../types';
 import { isPaymentOrIncomeTransaction } from '../utils/paymentAllocation';
 
 interface MetricCardsProps {
   computedTransactions: ComputedTransaction[];
   accounts: Account[];
   activeAccountId: string;
-  config?: DashboardMetricCardsConfig;
+  metrics?: CustomMetricCard[];
 }
 
 export function formatCLP(amount: number): string {
@@ -22,61 +31,21 @@ export const MetricCards: React.FC<MetricCardsProps> = ({
   computedTransactions,
   accounts,
   activeAccountId,
-  config = DEFAULT_DASHBOARD_CONFIG.metrics
+  metrics = DEFAULT_DASHBOARD_CONFIG.metrics
 }) => {
-  // computedTransactions is already filtered by month, account, category, etc. from App.tsx
   const transactions = computedTransactions || [];
-
-  // Separate TC purchases vs general expenses (amount > 0 and not a payment/income)
-  const grossExpenses = transactions
-    .filter((tx) => !isPaymentOrIncomeTransaction(tx) && tx.amount > 0)
-    .reduce((sum, tx) => sum + tx.amount, 0);
-
-  const totalPaymentsAndIncome = transactions
-    .filter((tx) => isPaymentOrIncomeTransaction(tx))
-    .reduce((sum, tx) => sum + Math.abs(tx.amount), 0);
-
-  // Sum of total allocated payments to purchases
-  const totalAllocatedPayments = transactions
-    .filter((tx) => !isPaymentOrIncomeTransaction(tx) && tx.amount > 0)
-    .reduce((sum, tx) => sum + (tx.totalAllocated || 0), 0);
-
-  // Monto Real Utilizado = Gross Expenses - Allocated Payments
-  const netAmountUsed = transactions
-    .filter((tx) => !isPaymentOrIncomeTransaction(tx) && tx.amount > 0)
-    .reduce((sum, tx) => sum + (tx.netAmount || 0), 0);
-
-  // Unallocated payments balance on TC
-  const unallocatedTcPayments = transactions
-    .filter((tx) => tx.transactionType === 'pago_tc' || (tx.category === 'Abonos y Pagos' && isPaymentOrIncomeTransaction(tx)))
-    .reduce((sum, tx) => sum + (tx.unallocatedPaymentBalance || 0), 0);
-
-  // Balance Neto / Ahorro (Ingresos - Gastos)
-  const netBalance = totalPaymentsAndIncome - grossExpenses;
 
   const selectedAcc = accounts.find((a) => a.id === activeAccountId);
   const cycleInfo = selectedAcc?.closingDay
     ? `Ciclo de Facturación: Corte el día ${selectedAcc.closingDay}${selectedAcc.dueDay ? ` • Vencimiento el día ${selectedAcc.dueDay}` : ''}`
     : null;
 
-  const showGrossExpenses = config.grossExpenses ?? true;
-  const showTotalPayments = config.totalPaymentsAndIncome ?? true;
-  const showNetAmount = config.netAmountUsed ?? true;
-  const showUnallocatedTc = config.unallocatedTcPayments ?? true;
-  const showNetBalance = config.netBalance ?? false;
+  // Filter only enabled cards
+  const enabledMetrics = (metrics || []).filter((m) => m.enabled);
+  if (enabledMetrics.length === 0) return null;
 
-  const visibleCardsCount = [
-    showGrossExpenses,
-    showTotalPayments,
-    showNetAmount,
-    showUnallocatedTc,
-    showNetBalance
-  ].filter(Boolean).length;
-
-  if (visibleCardsCount === 0) return null;
-
-  const getGridColsClass = () => {
-    switch (visibleCardsCount) {
+  const getGridColsClass = (count: number) => {
+    switch (count) {
       case 1:
         return 'grid-cols-1';
       case 2:
@@ -86,12 +55,12 @@ export const MetricCards: React.FC<MetricCardsProps> = ({
       case 4:
         return 'grid-cols-1 sm:grid-cols-2 xl:grid-cols-4';
       default:
-        return 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5';
+        return 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4';
     }
   };
 
   return (
-    <div className={`grid ${getGridColsClass()} gap-4 mb-6`}>
+    <div className={`grid ${getGridColsClass(enabledMetrics.length)} gap-4 mb-6`}>
       
       {/* Active Account Billing Cycle Banner */}
       {cycleInfo && (
@@ -108,109 +77,174 @@ export const MetricCards: React.FC<MetricCardsProps> = ({
         </div>
       )}
 
-      {/* 1. Gross Expenses */}
-      {showGrossExpenses && (
-        <div className="bg-slate-900/80 backdrop-blur-md rounded-2xl p-4 sm:p-4.5 shadow-xl border border-slate-800/80 flex flex-col justify-between hover:border-slate-700 transition">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Gastos Totales (Original)</span>
-            <div className="p-2.5 rounded-xl bg-rose-500/10 text-rose-400 border border-rose-500/20">
-              <TrendingDown className="w-5 h-5" />
-            </div>
-          </div>
-          <div className="mt-4">
-            <p className="text-xl sm:text-2xl xl:text-[26px] font-black text-white tracking-tight whitespace-nowrap overflow-hidden text-ellipsis">{formatCLP(grossExpenses)}</p>
-            <p className="text-xs text-slate-400 mt-1">Suma bruta de compras y cargos</p>
-          </div>
-        </div>
-      )}
+      {/* Render Dynamic Cards */}
+      {enabledMetrics.map((card) => {
+        const { value, subtitle } = calculateMetricValue(card, transactions);
+        const { badgeClass, borderHoverClass, textValClass } = getColorClasses(card.color, card.type === 'net_amount_used');
 
-      {/* 2. Total Payments & Income */}
-      {showTotalPayments && (
-        <div className="bg-slate-900/80 backdrop-blur-md rounded-2xl p-4 sm:p-4.5 shadow-xl border border-slate-800/80 flex flex-col justify-between hover:border-slate-700 transition">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Abonos, Pagos y Sueldos</span>
-            <div className="p-2.5 rounded-xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-              <TrendingUp className="w-5 h-5" />
+        return (
+          <div
+            key={card.id}
+            className={`bg-slate-900/80 backdrop-blur-md rounded-2xl p-4 sm:p-4.5 shadow-xl border flex flex-col justify-between transition ${borderHoverClass}`}
+          >
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold text-slate-400 uppercase tracking-wider truncate pr-2">
+                {card.title}
+              </span>
+              <div className={`p-2.5 rounded-xl border ${badgeClass}`}>
+                {renderIcon(card.icon)}
+              </div>
             </div>
-          </div>
-          <div className="mt-4">
-            <p className="text-xl sm:text-2xl xl:text-[26px] font-black text-white tracking-tight whitespace-nowrap overflow-hidden text-ellipsis">{formatCLP(totalPaymentsAndIncome)}</p>
-            <div className="flex justify-between items-center text-[11px] sm:text-xs text-slate-400 mt-1 gap-1">
-              <span className="truncate">Asociado a Compras:</span>
-              <span className="font-bold text-emerald-400 whitespace-nowrap">{formatCLP(totalAllocatedPayments)}</span>
-            </div>
-          </div>
-        </div>
-      )}
 
-      {/* 3. Monto Real Utilizado */}
-      {showNetAmount && (
-        <div className="border border-sky-500/40 bg-gradient-to-br from-slate-900 via-slate-900 to-sky-950/60 shadow-xl shadow-sky-500/10 backdrop-blur-md rounded-2xl p-4 sm:p-4.5 text-white flex flex-col justify-between relative overflow-hidden group hover:border-sky-400/60 transition">
-          <div className="absolute top-0 right-0 w-32 h-32 bg-sky-500/10 rounded-full blur-2xl pointer-events-none" />
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-sky-300 uppercase tracking-wider">Monto Real Utilizado</span>
-            <div className="p-2.5 rounded-xl bg-sky-500/20 text-sky-300 border border-sky-400/30 shadow-inner">
-              <ShieldCheck className="w-5 h-5" />
+            <div className="mt-4">
+              <p className={`text-xl sm:text-2xl xl:text-[26px] font-black tracking-tight whitespace-nowrap overflow-hidden text-ellipsis ${textValClass}`}>
+                {formatCLP(value)}
+              </p>
+              <p className="text-xs text-slate-400 mt-1 truncate">
+                {subtitle}
+              </p>
             </div>
           </div>
-          <div className="mt-4">
-            <p className="text-xl sm:text-2xl xl:text-[26px] font-black text-sky-300 tracking-tight whitespace-nowrap overflow-hidden text-ellipsis">{formatCLP(netAmountUsed)}</p>
-            <p className="text-xs text-sky-200/80 mt-1">
-              Gasto neto deduciendo abonos y pagos aplicados
-            </p>
-          </div>
-        </div>
-      )}
-
-      {/* 4. Unallocated Payments or Pending Credit Debt */}
-      {showUnallocatedTcPayments(showUnallocatedTc, unallocatedTcPayments)}
-
-      {/* 5. Balance Neto / Ahorro Mensual */}
-      {showNetBalance && (
-        <div className="bg-slate-900/80 backdrop-blur-md rounded-2xl p-4 sm:p-4.5 shadow-xl border border-slate-800/80 flex flex-col justify-between hover:border-slate-700 transition">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Balance Neto / Ahorro</span>
-            <div className={`p-2.5 rounded-xl border ${
-              netBalance >= 0
-                ? 'bg-teal-500/10 text-teal-400 border-teal-500/20'
-                : 'bg-rose-500/10 text-rose-400 border-rose-500/20'
-            }`}>
-              <PiggyBank className="w-5 h-5" />
-            </div>
-          </div>
-          <div className="mt-4">
-            <p className={`text-xl sm:text-2xl xl:text-[26px] font-black tracking-tight whitespace-nowrap overflow-hidden text-ellipsis ${
-              netBalance >= 0 ? 'text-teal-400' : 'text-rose-400'
-            }`}>
-              {formatCLP(netBalance)}
-            </p>
-            <p className="text-xs text-slate-400 mt-1">
-              {netBalance >= 0 ? 'Superávit neto del período' : 'Déficit neto del período'}
-            </p>
-          </div>
-        </div>
-      )}
+        );
+      })}
 
     </div>
   );
 };
 
-function showUnallocatedTcPayments(show: boolean, unallocatedTcPayments: number) {
-  if (!show) return null;
-  return (
-    <div className="bg-slate-900/80 backdrop-blur-md rounded-2xl p-4 sm:p-4.5 shadow-xl border border-slate-800/80 flex flex-col justify-between hover:border-slate-700 transition">
-      <div className="flex items-center justify-between">
-        <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Abonos TC Sin Asignar</span>
-        <div className="p-2.5 rounded-xl bg-purple-500/10 text-purple-400 border border-purple-500/20">
-          <CreditCard className="w-5 h-5" />
-        </div>
-      </div>
-      <div className="mt-4">
-        <p className="text-xl sm:text-2xl xl:text-[26px] font-black text-white tracking-tight whitespace-nowrap overflow-hidden text-ellipsis">{formatCLP(unallocatedTcPayments)}</p>
-        <p className="text-xs text-slate-400 mt-1">
-          Pagos a TC disponibles para asociar a compras
-        </p>
-      </div>
-    </div>
-  );
+function calculateMetricValue(card: CustomMetricCard, transactions: ComputedTransaction[]) {
+  switch (card.type) {
+    case 'gross_expenses': {
+      const val = transactions
+        .filter((tx) => !isPaymentOrIncomeTransaction(tx) && tx.amount > 0)
+        .reduce((sum, tx) => sum + tx.amount, 0);
+      return { value: val, subtitle: 'Suma bruta de compras y cargos' };
+    }
+    case 'total_payments': {
+      const val = transactions
+        .filter((tx) => isPaymentOrIncomeTransaction(tx))
+        .reduce((sum, tx) => sum + Math.abs(tx.amount), 0);
+      return { value: val, subtitle: 'Total de abonos y sueldos recibidos' };
+    }
+    case 'net_amount_used': {
+      const val = transactions
+        .filter((tx) => !isPaymentOrIncomeTransaction(tx) && tx.amount > 0)
+        .reduce((sum, tx) => sum + (tx.netAmount || 0), 0);
+      return { value: val, subtitle: 'Gasto neto deduciendo abonos' };
+    }
+    case 'unallocated_tc': {
+      const val = transactions
+        .filter((tx) => tx.transactionType === 'pago_tc' || (tx.category === 'Abonos y Pagos' && isPaymentOrIncomeTransaction(tx)))
+        .reduce((sum, tx) => sum + (tx.unallocatedPaymentBalance || 0), 0);
+      return { value: val, subtitle: 'Pagos a TC disponibles para asociar' };
+    }
+    case 'net_balance': {
+      const gross = transactions
+        .filter((tx) => !isPaymentOrIncomeTransaction(tx) && tx.amount > 0)
+        .reduce((sum, tx) => sum + tx.amount, 0);
+      const inc = transactions
+        .filter((tx) => isPaymentOrIncomeTransaction(tx))
+        .reduce((sum, tx) => sum + Math.abs(tx.amount), 0);
+      const val = inc - gross;
+      return { value: val, subtitle: val >= 0 ? 'Superávit neto del período' : 'Déficit neto del período' };
+    }
+    case 'compra': {
+      let matching = transactions.filter((tx) => tx.transactionType === 'compra' || (!isPaymentOrIncomeTransaction(tx) && tx.amount > 0));
+      if (card.filterAccountId && card.filterAccountId !== 'ALL') {
+        matching = matching.filter((tx) => tx.accountId === card.filterAccountId);
+      }
+      const val = matching.reduce((sum, tx) => sum + tx.amount, 0);
+      return { value: val, subtitle: `${matching.length} compra${matching.length === 1 ? '' : 's'} realizada${matching.length === 1 ? '' : 's'}` };
+    }
+    case 'pago_tc': {
+      let matching = transactions.filter((tx) => tx.transactionType === 'pago_tc' || tx.category === 'Abonos y Pagos');
+      if (card.filterAccountId && card.filterAccountId !== 'ALL') {
+        matching = matching.filter((tx) => tx.accountId === card.filterAccountId);
+      }
+      const val = matching.reduce((sum, tx) => sum + Math.abs(tx.amount), 0);
+      return { value: val, subtitle: `${matching.length} pago${matching.length === 1 ? '' : 's'} realizado${matching.length === 1 ? '' : 's'}` };
+    }
+    case 'custom': {
+      let filtered = transactions;
+      if (card.filterAccountId && card.filterAccountId !== 'ALL') {
+        filtered = filtered.filter((tx) => tx.accountId === card.filterAccountId);
+      }
+      if (card.filterCategory && card.filterCategory !== 'ALL') {
+        filtered = filtered.filter((tx) => tx.category === card.filterCategory || tx.subcategory === card.filterCategory);
+      }
+      const val = filtered
+        .filter((tx) => !isPaymentOrIncomeTransaction(tx) && tx.amount > 0)
+        .reduce((sum, tx) => sum + tx.amount, 0);
+      return { value: val, subtitle: `${filtered.length} movimiento${filtered.length === 1 ? '' : 's'} coincidentes` };
+    }
+    default:
+      return { value: 0, subtitle: '' };
+  }
+}
+
+function renderIcon(iconName?: string) {
+  switch (iconName) {
+    case 'trending-up': return <TrendingUp className="w-5 h-5" />;
+    case 'shield-check': return <ShieldCheck className="w-5 h-5" />;
+    case 'credit-card': return <CreditCard className="w-5 h-5" />;
+    case 'piggy-bank': return <PiggyBank className="w-5 h-5" />;
+    case 'shopping-cart': return <ShoppingCart className="w-5 h-5" />;
+    case 'landmark': return <Landmark className="w-5 h-5" />;
+    default: return <TrendingDown className="w-5 h-5" />;
+  }
+}
+
+function getColorClasses(color?: string, isHighlighted: boolean = false) {
+  if (isHighlighted) {
+    return {
+      badgeClass: 'bg-sky-500/20 text-sky-300 border-sky-400/30',
+      borderHoverClass: 'border-sky-500/40 hover:border-sky-400/60 shadow-sky-500/10',
+      textValClass: 'text-sky-300',
+    };
+  }
+
+  switch (color) {
+    case 'rose':
+      return {
+        badgeClass: 'bg-rose-500/10 text-rose-400 border-rose-500/20',
+        borderHoverClass: 'border-slate-800/80 hover:border-rose-500/40',
+        textValClass: 'text-white',
+      };
+    case 'emerald':
+      return {
+        badgeClass: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20',
+        borderHoverClass: 'border-slate-800/80 hover:border-emerald-500/40',
+        textValClass: 'text-white',
+      };
+    case 'purple':
+      return {
+        badgeClass: 'bg-purple-500/10 text-purple-400 border-purple-500/20',
+        borderHoverClass: 'border-slate-800/80 hover:border-purple-500/40',
+        textValClass: 'text-white',
+      };
+    case 'teal':
+      return {
+        badgeClass: 'bg-teal-500/10 text-teal-400 border-teal-500/20',
+        borderHoverClass: 'border-slate-800/80 hover:border-teal-500/40',
+        textValClass: 'text-teal-400',
+      };
+    case 'amber':
+      return {
+        badgeClass: 'bg-amber-500/10 text-amber-400 border-amber-500/20',
+        borderHoverClass: 'border-slate-800/80 hover:border-amber-500/40',
+        textValClass: 'text-amber-300',
+      };
+    case 'indigo':
+      return {
+        badgeClass: 'bg-indigo-500/10 text-indigo-400 border-indigo-500/20',
+        borderHoverClass: 'border-slate-800/80 hover:border-indigo-500/40',
+        textValClass: 'text-indigo-300',
+      };
+    default:
+      return {
+        badgeClass: 'bg-sky-500/10 text-sky-400 border-sky-500/20',
+        borderHoverClass: 'border-slate-800/80 hover:border-sky-500/40',
+        textValClass: 'text-white',
+      };
+  }
 }

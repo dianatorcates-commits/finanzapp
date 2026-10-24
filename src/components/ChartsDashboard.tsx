@@ -12,7 +12,7 @@ import {
   Legend,
   CartesianGrid
 } from 'recharts';
-import { ComputedTransaction, Account, CategoryBudget, DashboardChartsConfig, DEFAULT_DASHBOARD_CONFIG } from '../types';
+import { ComputedTransaction, Account, CategoryBudget, CustomChartWidget, DEFAULT_DASHBOARD_CONFIG } from '../types';
 import { formatCLP } from './MetricCards';
 import { Target, AlertTriangle, CheckCircle2, Plus, Calendar, CreditCard, Landmark, Sliders } from 'lucide-react';
 import { formatBillingCycle } from '../utils/dateUtils';
@@ -22,7 +22,7 @@ interface ChartsDashboardProps {
   accounts: Account[];
   budgets?: CategoryBudget[];
   onOpenBudgetModal?: () => void;
-  chartsConfig?: DashboardChartsConfig;
+  charts?: CustomChartWidget[];
   onOpenCustomizeModal?: () => void;
 }
 
@@ -44,16 +44,19 @@ export const ChartsDashboard: React.FC<ChartsDashboardProps> = ({
   accounts,
   budgets = [],
   onOpenBudgetModal,
-  chartsConfig = DEFAULT_DASHBOARD_CONFIG.charts,
+  charts = DEFAULT_DASHBOARD_CONFIG.charts,
   onOpenCustomizeModal
 }) => {
   const [pieViewMode, setPieViewMode] = useState<'category' | 'subcategory'>('category');
 
-  const showBudgets = chartsConfig?.budgetsProgress ?? true;
-  const showPie = chartsConfig?.categoryPie ?? true;
-  const showTrend = chartsConfig?.monthlyTrend ?? true;
-  const showAccounts = chartsConfig?.accountBreakdown ?? true;
-  const visibleCount = [showBudgets, showPie, showTrend, showAccounts].filter(Boolean).length;
+  const activeCharts = charts || DEFAULT_DASHBOARD_CONFIG.charts;
+  const showBudgets = activeCharts.some((c) => c.chartType === 'budgets_progress' && c.enabled);
+  const showPie = activeCharts.some((c) => c.chartType === 'category_pie' && c.enabled);
+  const showTrend = activeCharts.some((c) => c.chartType === 'monthly_trend' && c.enabled);
+  const showAccounts = activeCharts.some((c) => c.chartType === 'account_breakdown' && c.enabled);
+  const accountSpecificCharts = activeCharts.filter((c) => c.chartType === 'account_specific' && c.enabled && c.targetAccountId);
+
+  const visibleCount = [showBudgets, showPie, showTrend, showAccounts, accountSpecificCharts.length > 0].filter(Boolean).length;
 
   // Calculate net spending per general category for budget progress
   const categorySpendingMap = useMemo(() => {
@@ -455,6 +458,100 @@ export const ChartsDashboard: React.FC<ChartsDashboardProps> = ({
         </div>
       </div>
       )}
+
+      {/* Dynamic Account-Specific Charts */}
+      {accountSpecificCharts.map((chartWidget) => {
+        const acc = accounts.find((a) => a.id === chartWidget.targetAccountId);
+        if (!acc) return null;
+
+        const accTxs = computedTransactions.filter((tx) => tx.accountId === acc.id);
+        const accMonthMap = new Map<string, { month: string; compras: number; pagos: number; montoReal: number }>();
+        
+        accTxs.forEach((tx) => {
+          const mKey = tx.period || (tx.date ? tx.date.substring(0, 7) : 'Sin Mes');
+          const cur = accMonthMap.get(mKey) || { month: mKey, compras: 0, pagos: 0, montoReal: 0 };
+          if (tx.amount > 0 && tx.transactionType !== 'pago_tc' && tx.transactionType !== 'ingreso_venta') {
+            cur.compras += tx.amount;
+            cur.montoReal += tx.netAmount;
+          } else if (tx.transactionType === 'pago_tc' || (tx.category === 'Abonos y Pagos' && tx.amount < 0)) {
+            cur.pagos += Math.abs(tx.amount);
+          }
+          accMonthMap.set(mKey, cur);
+        });
+
+        const accMonthlyData = Array.from(accMonthMap.values()).sort((a, b) => a.month.localeCompare(b.month));
+        const totalPurchases = accTxs.filter((t) => t.amount > 0 && t.transactionType !== 'pago_tc').reduce((s, t) => s + t.amount, 0);
+        const totalPaid = accTxs.filter((t) => t.transactionType === 'pago_tc' || (t.category === 'Abonos y Pagos' && t.amount < 0)).reduce((s, t) => s + Math.abs(t.amount), 0);
+        const totalNetUsed = accTxs.filter((t) => t.amount > 0 && t.transactionType !== 'pago_tc').reduce((s, t) => s + t.netAmount, 0);
+        const cycle = formatBillingCycle(acc.closingDay, acc.dueDay);
+
+        return (
+          <div key={chartWidget.id} className="bg-slate-900/80 backdrop-blur-md p-5 rounded-2xl shadow-xl border border-slate-800/80">
+            <div className="border-b border-slate-800/80 pb-3 mb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+              <div className="flex items-center gap-3">
+                <div className="p-2.5 rounded-xl bg-sky-500/10 text-sky-400 border border-sky-500/20">
+                  {acc.type === 'credit_card' ? <CreditCard className="w-5 h-5 text-rose-400" /> : <Landmark className="w-5 h-5 text-sky-400" />}
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-white flex items-center gap-2">
+                    <span>{chartWidget.title || `Análisis Exclusivo: ${acc.name}`}</span>
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-800 text-slate-300 border border-slate-700">
+                      {acc.bank}
+                    </span>
+                  </h3>
+                  <p className="text-xs text-slate-400">
+                    Historial de compras, abonos y monto utilizado exclusivo para esta cuenta
+                  </p>
+                </div>
+              </div>
+
+              {cycle && (
+                <span className="inline-flex items-center gap-1 text-xs font-semibold bg-sky-500/10 text-sky-300 px-3 py-1 rounded-full border border-sky-500/30">
+                  <Calendar className="w-3 h-3" />
+                  <span>{cycle}</span>
+                </span>
+              )}
+            </div>
+
+            {/* Quick Metrics Bar for this card */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
+              <div className="bg-slate-950/70 p-3 rounded-xl border border-slate-800">
+                <span className="text-[10px] text-slate-400 uppercase font-bold tracking-wider">Compras Brutas</span>
+                <p className="text-base font-black text-rose-400 mt-0.5">{formatCLP(totalPurchases)}</p>
+              </div>
+              <div className="bg-slate-950/70 p-3 rounded-xl border border-slate-800">
+                <span className="text-[10px] text-slate-400 uppercase font-bold tracking-wider">Abonos Realizados</span>
+                <p className="text-base font-black text-emerald-400 mt-0.5">{formatCLP(totalPaid)}</p>
+              </div>
+              <div className="bg-slate-950/70 p-3 rounded-xl border border-slate-800">
+                <span className="text-[10px] text-slate-400 uppercase font-bold tracking-wider">Monto Real Restante</span>
+                <p className="text-base font-black text-sky-400 mt-0.5">{formatCLP(totalNetUsed)}</p>
+              </div>
+            </div>
+
+            {accMonthlyData.length > 0 ? (
+              <div className="h-60 w-full">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={accMonthlyData} margin={{ top: 10, right: 10, left: 10, bottom: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
+                    <XAxis dataKey="month" tick={{ fill: '#94a3b8', fontSize: 11 }} />
+                    <YAxis tickFormatter={(val) => `$${(val / 1000).toFixed(0)}k`} tick={{ fill: '#94a3b8', fontSize: 11 }} />
+                    <Tooltip content={<CustomTooltip />} />
+                    <Legend wrapperStyle={{ fontSize: '11px', color: '#cbd5e1' }} />
+                    <Bar dataKey="compras" name="Compras" fill="#f43f5e" radius={[4, 4, 0, 0]} />
+                    <Bar dataKey="montoReal" name="Monto Real" fill="#0284c7" radius={[4, 4, 0, 0]} />
+                    <Bar dataKey="pagos" name="Abonos" fill="#10b981" radius={[4, 4, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            ) : (
+              <div className="h-40 flex items-center justify-center text-xs text-slate-500">
+                No hay movimientos registrados para esta cuenta en los filtros actuales
+              </div>
+            )}
+          </div>
+        );
+      })}
     </div>
   );
 };

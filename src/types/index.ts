@@ -131,40 +131,127 @@ export interface Credit {
 // DASHBOARD CUSTOMIZATION CONFIGURATION
 // ==========================================
 
-export interface DashboardMetricCardsConfig {
-  grossExpenses: boolean;          // Gastos Totales (Original)
-  totalPaymentsAndIncome: boolean; // Abonos, Pagos y Sueldos
-  netAmountUsed: boolean;          // Monto Real Utilizado
-  unallocatedTcPayments: boolean;  // Abonos TC Sin Asignar
-  netBalance: boolean;             // Balance Neto / Ahorro Mensual
+export type MetricType =
+  | 'gross_expenses'          // Gastos Totales (Original)
+  | 'total_payments'          // Abonos, Pagos y Sueldos
+  | 'net_amount_used'         // Monto Real Utilizado
+  | 'unallocated_tc'          // Abonos TC Sin Asignar
+  | 'net_balance'             // Balance Neto / Ahorro
+  | 'compra'                  // Solo compras realizadas
+  | 'pago_tc'                 // Solo pagos realizados a tarjetas
+  | 'custom';                 // Filtro personalizado por cuenta/categoría
+
+export interface CustomMetricCard {
+  id: string;
+  title: string;
+  type: MetricType;
+  filterAccountId?: string;   // 'ALL' o ID de cuenta específica
+  filterCategory?: string;    // 'ALL' o Categoría específica
+  color: 'rose' | 'emerald' | 'sky' | 'purple' | 'amber' | 'teal' | 'indigo';
+  icon: string;               // 'trending-down' | 'trending-up' | 'shield-check' | 'credit-card' | 'piggy-bank' | 'shopping-cart' | 'landmark'
+  enabled: boolean;
+  isSystem?: boolean;
 }
 
-export interface DashboardChartsConfig {
-  budgetsProgress: boolean;        // Control de Presupuestos Mensuales
-  categoryPie: boolean;            // Gráfico de Gastos por Categoría / Subcategoría
-  monthlyTrend: boolean;           // Gráfico de Evolución Mensual
-  accountBreakdown: boolean;       // Resumen y Comparativa por Tarjeta / Cuenta
+export type ChartType =
+  | 'budgets_progress'        // Control de Presupuestos
+  | 'category_pie'            // Gastos por Categoría (Dona)
+  | 'monthly_trend'           // Evolución Mensual (Barras)
+  | 'account_breakdown'       // Resumen Comparativo de todas las cuentas
+  | 'account_specific';       // Gráfico específico de una cuenta/tarjeta en particular
+
+export interface CustomChartWidget {
+  id: string;
+  title: string;
+  chartType: ChartType;
+  targetAccountId?: string;   // ID de la cuenta para 'account_specific'
+  enabled: boolean;
+  isSystem?: boolean;
 }
 
 export interface DashboardConfig {
-  metrics: DashboardMetricCardsConfig;
-  charts: DashboardChartsConfig;
+  metrics: CustomMetricCard[];
+  charts: CustomChartWidget[];
 }
 
 export const DEFAULT_DASHBOARD_CONFIG: DashboardConfig = {
-  metrics: {
-    grossExpenses: true,
-    totalPaymentsAndIncome: true,
-    netAmountUsed: true,
-    unallocatedTcPayments: true,
-    netBalance: false,
-  },
-  charts: {
-    budgetsProgress: true,
-    categoryPie: true,
-    monthlyTrend: true,
-    accountBreakdown: true,
-  },
+  metrics: [
+    {
+      id: 'm-gross-expenses',
+      title: 'Gastos Totales (Original)',
+      type: 'gross_expenses',
+      color: 'rose',
+      icon: 'trending-down',
+      enabled: true,
+      isSystem: true
+    },
+    {
+      id: 'm-total-payments',
+      title: 'Abonos, Pagos y Sueldos',
+      type: 'total_payments',
+      color: 'emerald',
+      icon: 'trending-up',
+      enabled: true,
+      isSystem: true
+    },
+    {
+      id: 'm-net-amount',
+      title: 'Monto Real Utilizado',
+      type: 'net_amount_used',
+      color: 'sky',
+      icon: 'shield-check',
+      enabled: true,
+      isSystem: true
+    },
+    {
+      id: 'm-unallocated-tc',
+      title: 'Abonos TC Sin Asignar',
+      type: 'unallocated_tc',
+      color: 'purple',
+      icon: 'credit-card',
+      enabled: true,
+      isSystem: true
+    },
+    {
+      id: 'm-net-balance',
+      title: 'Balance Neto / Ahorro',
+      type: 'net_balance',
+      color: 'teal',
+      icon: 'piggy-bank',
+      enabled: false,
+      isSystem: true
+    }
+  ],
+  charts: [
+    {
+      id: 'c-budgets',
+      title: 'Control de Presupuestos Mensuales',
+      chartType: 'budgets_progress',
+      enabled: true,
+      isSystem: true
+    },
+    {
+      id: 'c-pie',
+      title: 'Distribución de Gastos por Categoría',
+      chartType: 'category_pie',
+      enabled: true,
+      isSystem: true
+    },
+    {
+      id: 'c-trend',
+      title: 'Evolución Histórica Mensual',
+      chartType: 'monthly_trend',
+      enabled: true,
+      isSystem: true
+    },
+    {
+      id: 'c-accounts',
+      title: 'Resumen por Tarjeta / Cuenta',
+      chartType: 'account_breakdown',
+      enabled: true,
+      isSystem: true
+    }
+  ]
 };
 
 

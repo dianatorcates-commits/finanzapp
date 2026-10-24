@@ -201,11 +201,19 @@ export function App() {
   const [telegramProfile, setTelegramProfile] = useState<TelegramProfile | null>(null);
   const [selectedPurchaseForPayment, setSelectedPurchaseForPayment] = useState<ComputedTransaction | null>(null);
 
+  // Helper to ensure dashboard config conforms to array format
+  const normalizeDashboardConfig = (raw: any): DashboardConfig => {
+    if (!raw || !Array.isArray(raw.metrics) || !Array.isArray(raw.charts)) {
+      return DEFAULT_DASHBOARD_CONFIG;
+    }
+    return raw as DashboardConfig;
+  };
+
   // Dashboard Customization State (defaults to DEFAULT_DASHBOARD_CONFIG for users without custom config)
   const [dashboardConfig, setDashboardConfig] = useState<DashboardConfig>(() => {
     try {
       const saved = localStorage.getItem('finanzapp_dashboard_config_default');
-      return saved ? JSON.parse(saved) : DEFAULT_DASHBOARD_CONFIG;
+      return saved ? normalizeDashboardConfig(JSON.parse(saved)) : DEFAULT_DASHBOARD_CONFIG;
     } catch {
       return DEFAULT_DASHBOARD_CONFIG;
     }
@@ -236,7 +244,7 @@ export function App() {
       const userCachedDashboard = localStorage.getItem(`finanzapp_dashboard_config_${userId}`);
 
       if (userCachedDashboard) {
-        try { setDashboardConfig(JSON.parse(userCachedDashboard)); } catch {}
+        try { setDashboardConfig(normalizeDashboardConfig(JSON.parse(userCachedDashboard))); } catch {}
       }
 
       if (userCachedAccounts) {
@@ -329,8 +337,9 @@ export function App() {
       getTelegramProfile(userId).then((prof) => setTelegramProfile(prof)).catch(() => {});
       fetchDashboardConfig(userId).then((cloudConfig) => {
         if (cloudConfig) {
-          setDashboardConfig(cloudConfig);
-          localStorage.setItem(`finanzapp_dashboard_config_${userId}`, JSON.stringify(cloudConfig));
+          const norm = normalizeDashboardConfig(cloudConfig);
+          setDashboardConfig(norm);
+          localStorage.setItem(`finanzapp_dashboard_config_${userId}`, JSON.stringify(norm));
         }
       }).catch(() => {});
     } catch (err) {
@@ -1149,7 +1158,7 @@ export function App() {
                   computedTransactions={filteredTransactions}
                   accounts={accounts}
                   activeAccountId={filters.accountId}
-                  config={dashboardConfig.metrics}
+                  metrics={dashboardConfig.metrics}
                 />
 
                 <Filters
@@ -1181,7 +1190,7 @@ export function App() {
                 accounts={accounts}
                 budgets={budgets}
                 onOpenBudgetModal={() => setActiveTab('budgets')}
-                chartsConfig={dashboardConfig.charts}
+                charts={dashboardConfig.charts}
                 onOpenCustomizeModal={() => setIsCustomizeDashboardModalOpen(true)}
               />
             ) : activeTab === 'transactions' ? (
@@ -1310,6 +1319,8 @@ export function App() {
         isOpen={isCustomizeDashboardModalOpen}
         onClose={() => setIsCustomizeDashboardModalOpen(false)}
         config={dashboardConfig}
+        accounts={accounts}
+        categoryMappings={categoryMappings}
         onSaveConfig={handleSaveDashboardConfig}
       />
 
