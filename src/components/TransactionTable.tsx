@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { createPortal } from 'react-dom';
 import {
   Link2,
   Trash2,
@@ -166,7 +167,7 @@ export const TransactionTable: React.FC<TransactionTableProps> = ({
   };
 
   return (
-    <div className="bg-slate-900/80 backdrop-blur-md rounded-2xl shadow-xl border border-slate-800/80 overflow-hidden mb-8">
+    <div className="bg-slate-900 rounded-2xl shadow-xl border border-slate-800/80 overflow-hidden mb-8">
       
       {/* Header Bar */}
       <div className="p-4 bg-slate-950/60 border-b border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
@@ -531,45 +532,47 @@ export const TransactionTable: React.FC<TransactionTableProps> = ({
       </div>
 
       {/* Delete Confirmation Modal */}
-      {deleteConfirmModal.isOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-md animate-fadeIn">
-          <div className="bg-slate-900 rounded-2xl shadow-2xl max-w-md w-full border border-slate-700/80 overflow-hidden p-6 space-y-4 text-slate-100">
-            <div className="flex items-center gap-3">
-              <div className="p-3 bg-rose-500/10 text-rose-400 rounded-xl border border-rose-500/20">
-                <AlertTriangle className="w-6 h-6" />
+      {deleteConfirmModal.isOpen &&
+        createPortal(
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm animate-fadeIn">
+            <div className="bg-slate-900 rounded-2xl shadow-2xl max-w-md w-full border border-slate-700/80 overflow-hidden p-6 space-y-4 text-slate-100">
+              <div className="flex items-center gap-3">
+                <div className="p-3 bg-rose-500/10 text-rose-400 rounded-xl border border-rose-500/20">
+                  <AlertTriangle className="w-6 h-6" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-base text-white">{deleteConfirmModal.title}</h3>
+                  <p className="text-xs text-slate-400">
+                    {deleteConfirmModal.idsToDelete.length === 1 ? 'Confirmación de eliminación' : 'Confirmación de borrado masivo'}
+                  </p>
+                </div>
               </div>
-              <div>
-                <h3 className="font-bold text-base text-white">{deleteConfirmModal.title}</h3>
-                <p className="text-xs text-slate-400">
-                  {deleteConfirmModal.idsToDelete.length === 1 ? 'Confirmación de eliminación' : 'Confirmación de borrado masivo'}
-                </p>
+
+              <p className="text-xs text-slate-300 leading-relaxed bg-slate-950 p-3.5 rounded-xl border border-slate-800">
+                {deleteConfirmModal.message}
+              </p>
+
+              <div className="flex justify-end gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setDeleteConfirmModal({ isOpen: false, idsToDelete: [], title: '', message: '' })}
+                  className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold rounded-xl transition border border-slate-700"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  onClick={handleConfirmDelete}
+                  className="px-4 py-2 bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold rounded-xl transition shadow-lg shadow-rose-600/30 flex items-center gap-1.5"
+                >
+                  <Trash2 className="w-4 h-4" />
+                  <span>{deleteConfirmModal.idsToDelete.length === 1 ? 'Sí, Eliminar' : 'Confirmar Borrado Masivo'}</span>
+                </button>
               </div>
             </div>
-
-            <p className="text-xs text-slate-300 leading-relaxed bg-slate-950 p-3.5 rounded-xl border border-slate-800">
-              {deleteConfirmModal.message}
-            </p>
-
-            <div className="flex justify-end gap-2 pt-2">
-              <button
-                type="button"
-                onClick={() => setDeleteConfirmModal({ isOpen: false, idsToDelete: [], title: '', message: '' })}
-                className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold rounded-xl transition border border-slate-700"
-              >
-                Cancelar
-              </button>
-              <button
-                type="button"
-                onClick={handleConfirmDelete}
-                className="px-4 py-2 bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold rounded-xl transition shadow-lg shadow-rose-600/30 flex items-center gap-1.5"
-              >
-                <Trash2 className="w-4 h-4" />
-                <span>{deleteConfirmModal.idsToDelete.length === 1 ? 'Sí, Eliminar' : 'Confirmar Borrado Masivo'}</span>
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+          </div>,
+          document.body
+        )}
 
     </div>
   );
