@@ -19,7 +19,9 @@ import {
   Trash2,
   ShoppingCart,
   Layers,
-  ChevronRight
+  ChevronRight,
+  ArrowUp,
+  ArrowDown
 } from 'lucide-react';
 import {
   DashboardConfig,
@@ -65,6 +67,7 @@ export const CustomizeDashboardModal: React.FC<CustomizeDashboardModalProps> = (
   const [newMetricCategory, setNewMetricCategory] = useState('ALL');
   const [newMetricColor, setNewMetricColor] = useState<CustomMetricCard['color']>('rose');
   const [newMetricIcon, setNewMetricIcon] = useState('shopping-cart');
+  const [newMetricPosition, setNewMetricPosition] = useState<'start' | 'end'>('start');
 
   // Form states for adding an account-specific chart
   const [isCreatingChart, setIsCreatingChart] = useState(false);
@@ -72,6 +75,42 @@ export const CustomizeDashboardModal: React.FC<CustomizeDashboardModalProps> = (
   const [newChartTitle, setNewChartTitle] = useState('');
 
   if (!isOpen) return null;
+
+  // Move metric card up or down in list
+  const handleMoveMetric = (index: number, direction: 'up' | 'down', e: React.MouseEvent) => {
+    e.stopPropagation();
+    const targetIndex = direction === 'up' ? index - 1 : index + 1;
+    if (targetIndex < 0 || targetIndex >= localConfig.metrics.length) return;
+
+    setLocalConfig((prev) => {
+      const nextMetrics = [...prev.metrics];
+      const temp = nextMetrics[index];
+      nextMetrics[index] = nextMetrics[targetIndex];
+      nextMetrics[targetIndex] = temp;
+      return {
+        ...prev,
+        metrics: nextMetrics,
+      };
+    });
+  };
+
+  // Move chart widget up or down in list
+  const handleMoveChart = (index: number, direction: 'up' | 'down', e: React.MouseEvent) => {
+    e.stopPropagation();
+    const targetIndex = direction === 'up' ? index - 1 : index + 1;
+    if (targetIndex < 0 || targetIndex >= localConfig.charts.length) return;
+
+    setLocalConfig((prev) => {
+      const nextCharts = [...prev.charts];
+      const temp = nextCharts[index];
+      nextCharts[index] = nextCharts[targetIndex];
+      nextCharts[targetIndex] = temp;
+      return {
+        ...prev,
+        charts: nextCharts,
+      };
+    });
+  };
 
   // Toggle metric enabled/disabled
   const handleToggleMetric = (id: string) => {
@@ -126,7 +165,7 @@ export const CustomizeDashboardModal: React.FC<CustomizeDashboardModalProps> = (
 
     setLocalConfig((prev) => ({
       ...prev,
-      metrics: [...prev.metrics, newCard],
+      metrics: newMetricPosition === 'start' ? [newCard, ...prev.metrics] : [...prev.metrics, newCard],
     }));
 
     // Reset form
@@ -134,6 +173,7 @@ export const CustomizeDashboardModal: React.FC<CustomizeDashboardModalProps> = (
     setNewMetricType('compra');
     setNewMetricAccountId('ALL');
     setNewMetricCategory('ALL');
+    setNewMetricPosition('start');
     setIsCreatingMetric(false);
   };
 
@@ -412,6 +452,35 @@ export const CustomizeDashboardModal: React.FC<CustomizeDashboardModalProps> = (
                     </div>
                   </div>
 
+                  {/* Position selector */}
+                  <div>
+                    <label className="block text-[11px] font-semibold text-slate-400 mb-1.5">
+                      ¿Dónde ubicar la nueva tarjeta?
+                    </label>
+                    <div className="flex flex-wrap items-center gap-3 text-xs">
+                      <label className="flex items-center gap-2 cursor-pointer bg-slate-900 px-3 py-1.5 rounded-xl border border-slate-800 hover:border-slate-700">
+                        <input
+                          type="radio"
+                          name="newMetricPosition"
+                          checked={newMetricPosition === 'start'}
+                          onChange={() => setNewMetricPosition('start')}
+                          className="text-sky-500 focus:ring-0"
+                        />
+                        <span className="text-white font-medium">Al inicio (Primera en el Dashboard)</span>
+                      </label>
+                      <label className="flex items-center gap-2 cursor-pointer bg-slate-900 px-3 py-1.5 rounded-xl border border-slate-800 hover:border-slate-700">
+                        <input
+                          type="radio"
+                          name="newMetricPosition"
+                          checked={newMetricPosition === 'end'}
+                          onChange={() => setNewMetricPosition('end')}
+                          className="text-sky-500 focus:ring-0"
+                        />
+                        <span className="text-slate-300">Al final</span>
+                      </label>
+                    </div>
+                  </div>
+
                   <div className="flex justify-end gap-2 pt-2">
                     <button
                       type="button"
@@ -432,7 +501,7 @@ export const CustomizeDashboardModal: React.FC<CustomizeDashboardModalProps> = (
 
               {/* List of Existing Metric Cards */}
               <div className="space-y-2.5">
-                {localConfig.metrics.map((card) => (
+                {localConfig.metrics.map((card, index) => (
                   <div
                     key={card.id}
                     onClick={() => handleToggleMetric(card.id)}
@@ -443,6 +512,31 @@ export const CustomizeDashboardModal: React.FC<CustomizeDashboardModalProps> = (
                     }`}
                   >
                     <div className="flex items-center gap-3">
+                      {/* Reorder Up/Down Buttons */}
+                      <div
+                        className="flex flex-col gap-0.5 bg-slate-900 p-1 rounded-xl border border-slate-800"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <button
+                          type="button"
+                          disabled={index === 0}
+                          onClick={(e) => handleMoveMetric(index, 'up', e)}
+                          className="p-1 rounded text-slate-400 hover:text-white hover:bg-slate-800 disabled:opacity-20 disabled:hover:bg-transparent transition"
+                          title="Mover hacia arriba"
+                        >
+                          <ArrowUp className="w-3.5 h-3.5" />
+                        </button>
+                        <button
+                          type="button"
+                          disabled={index === localConfig.metrics.length - 1}
+                          onClick={(e) => handleMoveMetric(index, 'down', e)}
+                          className="p-1 rounded text-slate-400 hover:text-white hover:bg-slate-800 disabled:opacity-20 disabled:hover:bg-transparent transition"
+                          title="Mover hacia abajo"
+                        >
+                          <ArrowDown className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+
                       <div className="p-2.5 rounded-xl bg-slate-900 border border-slate-800 text-slate-300">
                         {renderIcon(card.icon)}
                       </div>
@@ -560,7 +654,7 @@ export const CustomizeDashboardModal: React.FC<CustomizeDashboardModalProps> = (
 
               {/* List of Existing Charts */}
               <div className="space-y-2.5">
-                {localConfig.charts.map((chart) => {
+                {localConfig.charts.map((chart, index) => {
                   const targetAcc = accounts.find((a) => a.id === chart.targetAccountId);
 
                   return (
@@ -574,6 +668,31 @@ export const CustomizeDashboardModal: React.FC<CustomizeDashboardModalProps> = (
                       }`}
                     >
                       <div className="flex items-center gap-3">
+                        {/* Reorder Up/Down Buttons */}
+                        <div
+                          className="flex flex-col gap-0.5 bg-slate-900 p-1 rounded-xl border border-slate-800"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <button
+                            type="button"
+                            disabled={index === 0}
+                            onClick={(e) => handleMoveChart(index, 'up', e)}
+                            className="p-1 rounded text-slate-400 hover:text-white hover:bg-slate-800 disabled:opacity-20 disabled:hover:bg-transparent transition"
+                            title="Mover hacia arriba"
+                          >
+                            <ArrowUp className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            type="button"
+                            disabled={index === localConfig.charts.length - 1}
+                            onClick={(e) => handleMoveChart(index, 'down', e)}
+                            className="p-1 rounded text-slate-400 hover:text-white hover:bg-slate-800 disabled:opacity-20 disabled:hover:bg-transparent transition"
+                            title="Mover hacia abajo"
+                          >
+                            <ArrowDown className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+
                         <div className="p-2.5 rounded-xl bg-slate-900 border border-slate-800 text-slate-300">
                           {chart.chartType === 'budgets_progress' && <Target className="w-4 h-4 text-emerald-400" />}
                           {chart.chartType === 'category_pie' && <PieChart className="w-4 h-4 text-sky-400" />}
