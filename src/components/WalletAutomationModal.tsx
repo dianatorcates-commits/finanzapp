@@ -78,8 +78,8 @@ export const WalletAutomationModal: React.FC<WalletAutomationModalProps> = ({
   const handleCopyBody = async () => {
     const jsonBody = JSON.stringify(
       {
-        title: '{not_title}',
-        text: '{not_body}',
+        title: '[not_title]',
+        text: '[not_body]',
       },
       null,
       2
@@ -179,8 +179,8 @@ Objetivo: Capturar automáticamente compras de Google Wallet o notificaciones ba
    • Tipo de contenido (Content-Type): application/json
    • Cuerpo del contenido (Body):
      {
-       "title": "{not_title}",
-       "text": "{not_body}"
+       "title": "[not_title]",
+       "text": "[not_body]"
      }
 
 3. RESTRICCIONES (OPCIONAL):
@@ -470,8 +470,8 @@ ${webhookUrl}
                 <div className="relative pl-6">
                   <pre className="p-3 rounded-xl bg-slate-900 border border-slate-800 text-[11px] font-mono text-emerald-300 overflow-x-auto">
 {`{
-  "title": "{not_title}",
-  "text": "{not_body}"
+  "title": "[not_title]",
+  "text": "[not_body]"
 }`}
                   </pre>
                   <button
