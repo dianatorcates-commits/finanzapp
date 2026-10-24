@@ -571,13 +571,15 @@ export function App() {
     return Array.from(months).sort().reverse();
   }, [computedTransactions]);
 
-  // Auto-apply latest period/month filter upon signing in or loading user data
+  // Auto-apply latest period/month filter upon signing in and completing cloud data load
   useEffect(() => {
-    if (currentUser && !hasAutoSelectedMonth.current && availableMonths.length > 0) {
-      setFilters((prev) => ({ ...prev, month: availableMonths[0] }));
+    if (currentUser && !isCloudLoading && !hasAutoSelectedMonth.current && availableMonths.length > 0) {
+      const currentCalMonth = new Date().toISOString().substring(0, 7);
+      const targetMonth = availableMonths.includes(currentCalMonth) ? currentCalMonth : availableMonths[0];
+      setFilters((prev) => ({ ...prev, month: targetMonth }));
       hasAutoSelectedMonth.current = true;
     }
-  }, [currentUser, availableMonths]);
+  }, [currentUser, isCloudLoading, availableMonths]);
 
   // Filter transactions
   const filteredTransactions = useMemo(() => {
