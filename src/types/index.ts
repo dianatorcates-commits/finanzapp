@@ -127,3 +127,44 @@ export interface Credit {
   lastPaidPeriod?: string;      // Último mes en que se pagó la cuota (YYYY-MM)
 }
 
+// ==========================================
+// DASHBOARD CUSTOMIZATION CONFIGURATION
+// ==========================================
+
+export interface DashboardMetricCardsConfig {
+  grossExpenses: boolean;          // Gastos Totales (Original)
+  totalPaymentsAndIncome: boolean; // Abonos, Pagos y Sueldos
+  netAmountUsed: boolean;          // Monto Real Utilizado
+  unallocatedTcPayments: boolean;  // Abonos TC Sin Asignar
+  netBalance: boolean;             // Balance Neto / Ahorro Mensual
+}
+
+export interface DashboardChartsConfig {
+  budgetsProgress: boolean;        // Control de Presupuestos Mensuales
+  categoryPie: boolean;            // Gráfico de Gastos por Categoría / Subcategoría
+  monthlyTrend: boolean;           // Gráfico de Evolución Mensual
+  accountBreakdown: boolean;       // Resumen y Comparativa por Tarjeta / Cuenta
+}
+
+export interface DashboardConfig {
+  metrics: DashboardMetricCardsConfig;
+  charts: DashboardChartsConfig;
+}
+
+export const DEFAULT_DASHBOARD_CONFIG: DashboardConfig = {
+  metrics: {
+    grossExpenses: true,
+    totalPaymentsAndIncome: true,
+    netAmountUsed: true,
+    unallocatedTcPayments: true,
+    netBalance: false,
+  },
+  charts: {
+    budgetsProgress: true,
+    categoryPie: true,
+    monthlyTrend: true,
+    accountBreakdown: true,
+  },
+};
+
+

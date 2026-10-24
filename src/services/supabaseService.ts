@@ -1,5 +1,5 @@
 import { supabase } from '../utils/supabaseClient';
-import { Account, Transaction, CategoryMapping, AutoCategoryRule, CategoryBudget, PaymentAllocation, TelegramProfile, SavingsGoal, Credit } from '../types';
+import { Account, Transaction, CategoryMapping, AutoCategoryRule, CategoryBudget, PaymentAllocation, TelegramProfile, SavingsGoal, Credit, DashboardConfig } from '../types';
 
 // ==========================================
 // 1. AUTHENTICATION SERVICES
@@ -816,5 +816,46 @@ export async function regenerateWebhookToken(userId: string): Promise<string> {
     throw err;
   }
 }
+
+// ==========================================
+// 4. USER SETTINGS & DASHBOARD CONFIG
+// ==========================================
+
+export async function fetchDashboardConfig(userId: string): Promise<DashboardConfig | null> {
+  try {
+    const { data, error } = await supabase
+      .from('user_settings')
+      .select('dashboard_config')
+      .eq('user_id', userId)
+      .maybeSingle();
+
+    if (error) {
+      // Table might not exist yet if user hasn't run the SQL migration
+      return null;
+    }
+    return data?.dashboard_config as DashboardConfig | null;
+  } catch {
+    return null;
+  }
+}
+
+export async function saveDashboardConfigToCloud(userId: string, config: DashboardConfig): Promise<void> {
+  try {
+    const { error } = await supabase
+      .from('user_settings')
+      .upsert({
+        user_id: userId,
+        dashboard_config: config,
+        updated_at: new Date().toISOString()
+      }, { onConflict: 'user_id' });
+
+    if (error) {
+      console.warn('Notice saving dashboard config to cloud (user_settings):', error.message);
+    }
+  } catch (err) {
+    console.warn('Notice saving dashboard config to cloud:', err);
+  }
+}
+
 
 

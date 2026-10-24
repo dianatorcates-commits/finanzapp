@@ -10,7 +10,9 @@ import {
   CategoryBudget,
   TelegramProfile,
   SavingsGoal,
-  Credit
+  Credit,
+  DashboardConfig,
+  DEFAULT_DASHBOARD_CONFIG
 } from './types';
 import { INITIAL_ACCOUNTS, INITIAL_TRANSACTIONS, DEMO_ACCOUNTS, DEMO_TRANSACTIONS } from './utils/demoData';
 import { DEFAULT_CATEGORY_MAPPINGS, DEFAULT_AUTO_RULES, getParentCategory, autoCategorize, applyAutoRulesToTransaction } from './utils/categorizer';
@@ -37,7 +39,9 @@ import {
   fetchCredits,
   saveCreditsToCloud,
   saveCreditToCloud,
-  deleteCreditFromCloud
+  deleteCreditFromCloud,
+  fetchDashboardConfig,
+  saveDashboardConfigToCloud
 } from './services/supabaseService';
 import { calculateTransactionPeriod } from './utils/dateUtils';
 import { Sidebar } from './components/Sidebar';
@@ -55,6 +59,7 @@ import { CreditsManagementView } from './components/CreditsManagementView';
 import { BudgetAndRulesModal } from './components/BudgetAndRulesModal';
 import { TelegramModal } from './components/TelegramModal';
 import { WalletAutomationModal } from './components/WalletAutomationModal';
+import { CustomizeDashboardModal } from './components/CustomizeDashboardModal';
 import { AuthModal } from './components/AuthModal';
 import { LandingPage } from './components/LandingPage';
 
@@ -196,6 +201,26 @@ export function App() {
   const [telegramProfile, setTelegramProfile] = useState<TelegramProfile | null>(null);
   const [selectedPurchaseForPayment, setSelectedPurchaseForPayment] = useState<ComputedTransaction | null>(null);
 
+  // Dashboard Customization State (defaults to DEFAULT_DASHBOARD_CONFIG for users without custom config)
+  const [dashboardConfig, setDashboardConfig] = useState<DashboardConfig>(() => {
+    try {
+      const saved = localStorage.getItem('finanzapp_dashboard_config_default');
+      return saved ? JSON.parse(saved) : DEFAULT_DASHBOARD_CONFIG;
+    } catch {
+      return DEFAULT_DASHBOARD_CONFIG;
+    }
+  });
+  const [isCustomizeDashboardModalOpen, setIsCustomizeDashboardModalOpen] = useState(false);
+
+  const handleSaveDashboardConfig = (newConfig: DashboardConfig) => {
+    setDashboardConfig(newConfig);
+    const storageKey = currentUser?.id ? `finanzapp_dashboard_config_${currentUser.id}` : 'finanzapp_dashboard_config_default';
+    localStorage.setItem(storageKey, JSON.stringify(newConfig));
+    if (currentUser?.id) {
+      saveDashboardConfigToCloud(currentUser.id, newConfig);
+    }
+  };
+
   // Load cloud data from Supabase if user is logged in
   const loadCloudData = async (userId: string) => {
     setIsCloudLoading(true);
@@ -208,6 +233,11 @@ export function App() {
       const userCachedBudgets = localStorage.getItem(`${STORAGE_KEY_BUDGETS}_${userId}`);
       const userCachedGoals = localStorage.getItem(`${STORAGE_KEY_SAVINGS_GOALS}_${userId}`);
       const userCachedCredits = localStorage.getItem(`${STORAGE_KEY_CREDITS}_${userId}`);
+      const userCachedDashboard = localStorage.getItem(`finanzapp_dashboard_config_${userId}`);
+
+      if (userCachedDashboard) {
+        try { setDashboardConfig(JSON.parse(userCachedDashboard)); } catch {}
+      }
 
       if (userCachedAccounts) {
         try { setAccounts(JSON.parse(userCachedAccounts)); } catch {}
@@ -295,8 +325,14 @@ export function App() {
         localStorage.setItem(`${STORAGE_KEY_TRANSACTIONS}_${userId}`, JSON.stringify(initialUserTransactions));
       }
 
-      // Also load Telegram Profile
+      // Also load Telegram Profile & Custom Dashboard Config
       getTelegramProfile(userId).then((prof) => setTelegramProfile(prof)).catch(() => {});
+      fetchDashboardConfig(userId).then((cloudConfig) => {
+        if (cloudConfig) {
+          setDashboardConfig(cloudConfig);
+          localStorage.setItem(`finanzapp_dashboard_config_${userId}`, JSON.stringify(cloudConfig));
+        }
+      }).catch(() => {});
     } catch (err) {
       console.error('Error al cargar/sincronizar datos desde Supabase:', err);
     } finally {
@@ -419,6 +455,7 @@ export function App() {
         ]);
         setSavingsGoals([]);
         setTelegramProfile(null);
+        setDashboardConfig(DEFAULT_DASHBOARD_CONFIG);
         hasAutoSelectedMonth.current = false;
         setFilters({
           month: 'ALL',
@@ -462,6 +499,7 @@ export function App() {
     ]);
     setSavingsGoals([]);
     setCredits([]);
+    setDashboardConfig(DEFAULT_DASHBOARD_CONFIG);
     setCurrentUser(null);
     setTelegramProfile(null);
     setViewMode('landing');
@@ -1109,6 +1147,7 @@ export function App() {
                   computedTransactions={filteredTransactions}
                   accounts={accounts}
                   activeAccountId={filters.accountId}
+                  config={dashboardConfig.metrics}
                 />
 
                 <Filters
@@ -1140,6 +1179,8 @@ export function App() {
                 accounts={accounts}
                 budgets={budgets}
                 onOpenBudgetModal={() => setActiveTab('budgets')}
+                chartsConfig={dashboardConfig.charts}
+                onOpenCustomizeModal={() => setIsCustomizeDashboardModalOpen(true)}
               />
             ) : activeTab === 'transactions' ? (
               <TransactionTable
@@ -1261,6 +1302,14 @@ export function App() {
           onClose={() => setIsWalletModalOpen(false)}
         />
       )}
+
+      {/* Customize Dashboard Modal */}
+      <CustomizeDashboardModal
+        isOpen={isCustomizeDashboardModalOpen}
+        onClose={() => setIsCustomizeDashboardModalOpen(false)}
+        config={dashboardConfig}
+        onSaveConfig={handleSaveDashboardConfig}
+      />
 
       {/* Auth Modal */}
       {isAuthModalOpen && (
