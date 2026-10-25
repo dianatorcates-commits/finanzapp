@@ -1,12 +1,14 @@
-import React, { useState } from 'react';
-import { X, Link2, Trash2, CheckCircle2, AlertCircle, ArrowRight } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { X, Link2, Trash2, CheckCircle2, AlertCircle, ArrowRight, Building2, CreditCard } from 'lucide-react';
 import { ComputedTransaction, Account } from '../types';
+import { isPaymentOrIncomeTransaction } from '../utils/paymentAllocation';
 import { formatCLP } from './MetricCards';
 
 interface PaymentModalProps {
   purchase: ComputedTransaction;
   allTransactions: ComputedTransaction[];
   account?: Account;
+  accounts?: Account[];
   onClose: () => void;
   onAddAllocation: (purchaseId: string, paymentId: string, amount: number) => void;
   onRemoveAllocation: (purchaseId: string, allocationId: string) => void;
@@ -16,22 +18,72 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
   purchase,
   allTransactions,
   account,
+  accounts = [],
   onClose,
   onAddAllocation,
   onRemoveAllocation
 }) => {
-  // Available payments for this credit card account
-  const availablePayments = allTransactions.filter(
-    (tx) =>
-      tx.accountId === purchase.accountId &&
-      (tx.transactionType === 'pago_tc' || (tx.amount < 0 && tx.category === 'Pagos de Tarjeta')) &&
-      (tx.unallocatedPaymentBalance || 0) > 0
-  );
+  // Cross-account filter toggle (defaults to true to allow linking payments from checking accounts)
+  const [showAllAccounts, setShowAllAccounts] = useState<boolean>(true);
+
+  // Helper to determine if a transaction qualifies as a payment / abono
+  const isEligiblePayment = (tx: ComputedTransaction): boolean => {
+    // Cannot associate a purchase to itself
+    if (tx.id === purchase.id) return false;
+
+    // Must have available balance to allocate
+    if ((tx.unallocatedPaymentBalance || 0) <= 0) return false;
+
+    // 1. Explicit transaction type
+    if (tx.transactionType === 'pago_tc') return true;
+
+    // 2. Negative amount
+    if (tx.amount < 0) return true;
+
+    // 3. Category parent 'Abonos y Pagos' or subcategory with 'pago' / 'abono'
+    const cat = (tx.category || '').toLowerCase();
+    const subcat = (tx.subcategory || '').toLowerCase();
+    const desc = (tx.description || '').toLowerCase();
+
+    if (
+      cat.includes('abonos') ||
+      cat.includes('pagos') ||
+      subcat.includes('pago') ||
+      subcat.includes('abono')
+    ) {
+      return true;
+    }
+
+    // 4. Transfers or payments from checking account with payment keywords
+    if (
+      tx.transactionType === 'transferencia_enviada' &&
+      (desc.includes('pago') || desc.includes('abono') || desc.includes('tc') || desc.includes('tarjeta'))
+    ) {
+      return true;
+    }
+
+    // 5. Fallback to general payment/income detector
+    return isPaymentOrIncomeTransaction(tx);
+  };
+
+  // Filter available payments based on eligibility and selected account scope
+  const availablePayments = allTransactions.filter((tx) => {
+    if (!isEligiblePayment(tx)) return false;
+    if (!showAllAccounts && tx.accountId !== purchase.accountId) return false;
+    return true;
+  });
 
   const [selectedPaymentId, setSelectedPaymentId] = useState<string>(
     availablePayments[0]?.id || ''
   );
   const [allocationAmount, setAllocationAmount] = useState<string>('');
+
+  // Auto-sync selected payment if list changes
+  useEffect(() => {
+    if (availablePayments.length > 0 && !availablePayments.some((p) => p.id === selectedPaymentId)) {
+      setSelectedPaymentId(availablePayments[0].id);
+    }
+  }, [availablePayments, selectedPaymentId]);
 
   const selectedPayment = availablePayments.find((p) => p.id === selectedPaymentId);
 
@@ -64,8 +116,11 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
               <Link2 className="w-5 h-5" />
             </div>
             <div>
-              <h3 className="font-bold text-base text-white">Asociar Pago a Compra de TC</h3>
-              <p className="text-xs text-slate-400">{account?.name || 'Tarjeta de Crédito'}</p>
+              <h3 className="font-bold text-base text-white">Asociar Pago o Abono a Compra</h3>
+              <p className="text-xs text-slate-400 flex items-center gap-1">
+                <CreditCard className="w-3.5 h-3.5 text-sky-400" />
+                <span>{account?.name || 'Tarjeta de Crédito'}</span>
+              </p>
             </div>
           </div>
           <button
@@ -82,7 +137,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
             <div>
               <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Transacción Seleccionada</span>
               <h4 className="font-bold text-slate-800 text-base">{purchase.description}</h4>
-              <p className="text-xs text-slate-500">{purchase.date} • {purchase.category}</p>
+              <p className="text-xs text-slate-500">{purchase.date} • {purchase.category} &gt; {purchase.subcategory}</p>
             </div>
             <div className="text-right">
               <span className="text-xs text-slate-500">Monto Original:</span>
@@ -107,7 +162,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
         </div>
 
         {/* Modal Body */}
-        <div className="p-4 overflow-y-auto space-y-6">
+        <div className="p-4 overflow-y-auto space-y-5">
           
           {/* Active Allocations List */}
           <div>
@@ -120,17 +175,25 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
               <div className="space-y-2">
                 {purchase.allocations.map((alloc) => {
                   const paymentTx = allTransactions.find((t) => t.id === alloc.paymentTransactionId);
+                  const originAcc = accounts.find((a) => a.id === paymentTx?.accountId);
                   return (
                     <div
                       key={alloc.id}
                       className="flex items-center justify-between bg-emerald-50/60 border border-emerald-200 p-2.5 rounded-xl text-xs"
                     >
                       <div>
-                        <p className="font-semibold text-emerald-900">
-                          {paymentTx ? paymentTx.description : 'Pago de TC'}
-                        </p>
-                        <p className="text-[11px] text-emerald-700">
-                          Fecha Pago: {paymentTx?.date || 'N/A'}
+                        <div className="flex items-center gap-1.5">
+                          {originAcc && (
+                            <span className="px-1.5 py-0.5 text-[10px] font-bold rounded bg-emerald-200/60 text-emerald-900">
+                              {originAcc.name}
+                            </span>
+                          )}
+                          <p className="font-semibold text-emerald-900">
+                            {paymentTx ? paymentTx.description : 'Pago / Abono'}
+                          </p>
+                        </div>
+                        <p className="text-[11px] text-emerald-700 mt-0.5">
+                          Fecha: {paymentTx?.date || 'N/A'} • {paymentTx?.category}
                         </p>
                       </div>
                       <div className="flex items-center gap-3">
@@ -156,28 +219,71 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
 
           {/* Add New Allocation Form */}
           {purchase.netAmount > 0 ? (
-            <div className="border-t border-slate-200 pt-4">
-              <h5 className="text-xs font-bold text-slate-700 uppercase tracking-wider mb-2 flex items-center gap-1">
-                <ArrowRight className="w-4 h-4 text-sky-600" />
-                <span>Asociar Nuevo Pago Disponible</span>
-              </h5>
+            <div className="border-t border-slate-200 pt-4 space-y-3">
+              <div className="flex items-center justify-between">
+                <h5 className="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1">
+                  <ArrowRight className="w-4 h-4 text-sky-600" />
+                  <span>Asociar Nuevo Pago Disponible</span>
+                </h5>
+                <span className="text-[11px] text-slate-400">
+                  {availablePayments.length} abono(s) disponible(s)
+                </span>
+              </div>
+
+              {/* Cross-Account Filter Switch */}
+              <div className="flex items-center justify-between bg-slate-50 border border-slate-200 px-3 py-2 rounded-xl text-xs">
+                <div className="flex items-center gap-2">
+                  <Building2 className="w-4 h-4 text-sky-600 flex-shrink-0" />
+                  <div>
+                    <span className="font-semibold text-slate-800">
+                      {showAllAccounts ? 'Mostrando pagos de todas las cuentas' : `Solo pagos de ${account?.name || 'esta tarjeta'}`}
+                    </span>
+                    <p className="text-[11px] text-slate-500">
+                      {showAllAccounts
+                        ? 'Permite vincular pagos o transferencias desde tu Cuenta Corriente'
+                        : 'Filtrando únicamente abonos registrados en esta tarjeta'}
+                    </p>
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => setShowAllAccounts(!showAllAccounts)}
+                  className={`relative inline-flex h-5 w-10 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                    showAllAccounts ? 'bg-sky-600' : 'bg-slate-300'
+                  }`}
+                  role="switch"
+                  aria-checked={showAllAccounts}
+                  title="Alternar entre ver pagos de todas las cuentas o solo de esta tarjeta"
+                >
+                  <span
+                    className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                      showAllAccounts ? 'translate-x-5' : 'translate-x-0'
+                    }`}
+                  />
+                </button>
+              </div>
 
               {availablePayments.length > 0 ? (
                 <form onSubmit={handleApply} className="space-y-3 bg-slate-50 p-3 rounded-xl border border-slate-200">
                   <div>
                     <label className="block text-xs font-semibold text-slate-600 mb-1">
-                      Seleccionar Abono / Pago de TC
+                      Seleccionar Abono / Pago Disponible
                     </label>
                     <select
                       value={selectedPaymentId}
                       onChange={(e) => setSelectedPaymentId(e.target.value)}
-                      className="w-full text-xs py-2 px-3 bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500/20"
+                      className="w-full text-xs py-2 px-3 bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500/20 font-medium"
                     >
-                      {availablePayments.map((p) => (
-                        <option key={p.id} value={p.id}>
-                          {p.date} - {p.description} (Disp: {formatCLP(p.unallocatedPaymentBalance || 0)})
-                        </option>
-                      ))}
+                      {availablePayments.map((p) => {
+                        const originAcc = accounts.find((a) => a.id === p.accountId);
+                        const accTag = originAcc ? `[${originAcc.name}] ` : '';
+                        return (
+                          <option key={p.id} value={p.id}>
+                            {accTag}{p.date} - {p.description} (Disp: {formatCLP(p.unallocatedPaymentBalance || 0)})
+                          </option>
+                        );
+                      })}
                     </select>
                   </div>
 
@@ -191,7 +297,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
                         onClick={handleFillMax}
                         className="text-[11px] font-semibold text-sky-600 hover:text-sky-700"
                       >
-                        Asignar Máximo Posible
+                        Asignar Máximo Posible ({formatCLP(Math.min(purchase.netAmount, selectedPayment?.unallocatedPaymentBalance || 0))})
                       </button>
                     </div>
                     <input
@@ -199,7 +305,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
                       placeholder={`Ej: ${Math.min(purchase.netAmount, selectedPayment?.unallocatedPaymentBalance || 0)}`}
                       value={allocationAmount}
                       onChange={(e) => setAllocationAmount(e.target.value)}
-                      className="w-full text-xs py-2 px-3 bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500/20"
+                      className="w-full text-xs py-2 px-3 bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500/20 font-mono"
                     />
                   </div>
 
@@ -213,15 +319,20 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
               ) : (
                 <div className="bg-amber-50 border border-amber-200 p-3 rounded-xl flex items-center gap-2 text-amber-800 text-xs">
                   <AlertCircle className="w-5 h-5 flex-shrink-0 text-amber-600" />
-                  <span>
-                    No hay abonos o pagos a TC con saldo disponible. Carga una cartola con un pago a la tarjeta de crédito para asociarlo.
-                  </span>
+                  <div>
+                    <p className="font-bold">No hay pagos con saldo disponible para asociar.</p>
+                    <p className="text-amber-700 mt-0.5">
+                      {!showAllAccounts
+                        ? 'Activa el interruptor superior para buscar pagos o transferencias en tu Cuenta Corriente u otras cuentas.'
+                        : 'Puedes registrar un abono manualmente con monto negativo o cargar una cartola con el pago de tu tarjeta.'}
+                    </p>
+                  </div>
                 </div>
               )}
             </div>
           ) : (
             <div className="bg-emerald-50 border border-emerald-200 p-3 rounded-xl text-center text-emerald-800 text-xs font-semibold">
-              🎉 ¡Esta compra ha sido totalmente pagada/cobierta por abonos! Monto Real Utilizado restante = $0.
+              🎉 ¡Esta compra ha sido totalmente pagada/cubierta por abonos! Monto Real Utilizado restante = $0.
             </div>
           )}
 

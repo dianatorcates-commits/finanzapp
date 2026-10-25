@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { X, Sparkles, Target, Plus, Trash2, Check, AlertCircle, RefreshCw } from 'lucide-react';
-import { CategoryMapping, AutoCategoryRule, CategoryBudget } from '../types';
+import { CategoryMapping, AutoCategoryRule, CategoryBudget, TransactionType } from '../types';
 import { getParentCategory } from '../utils/categorizer';
 
 interface BudgetAndRulesModalProps {
@@ -33,6 +33,7 @@ export const BudgetAndRulesModal: React.FC<BudgetAndRulesModalProps> = ({
   const [newSubcategory, setNewSubcategory] = useState(
     categoryMappings[1]?.subcategories[0] || 'Alimentación y Supermercados'
   );
+  const [newTransactionType, setNewTransactionType] = useState<TransactionType | 'auto'>('auto');
   const [appliedFeedback, setAppliedFeedback] = useState(false);
 
   // New Budget Form State
@@ -61,11 +62,13 @@ export const BudgetAndRulesModal: React.FC<BudgetAndRulesModalProps> = ({
       id: `rule-${Date.now()}`,
       pattern: newPattern.trim().toUpperCase(),
       category: parentCategory,
-      subcategory: newSubcategory
+      subcategory: newSubcategory,
+      transactionType: newTransactionType === 'auto' ? undefined : newTransactionType
     };
 
     onAddRule(rule);
     setNewPattern('');
+    setNewTransactionType('auto');
   };
 
   const handleApplyRules = () => {
@@ -85,6 +88,25 @@ export const BudgetAndRulesModal: React.FC<BudgetAndRulesModalProps> = ({
 
   const formatCLP = (val: number) => {
     return new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP', maximumFractionDigits: 0 }).format(val);
+  };
+
+  const renderTypeBadge = (type?: TransactionType) => {
+    switch (type) {
+      case 'pago_tc':
+        return <span className="px-2 py-0.5 text-[10px] font-bold rounded-full bg-purple-100 text-purple-700 border border-purple-200">💳 Pago Tarjeta</span>;
+      case 'compra':
+        return <span className="px-2 py-0.5 text-[10px] font-bold rounded-full bg-sky-100 text-sky-700 border border-sky-200">🛍️ Compra</span>;
+      case 'ingreso_venta':
+        return <span className="px-2 py-0.5 text-[10px] font-bold rounded-full bg-emerald-100 text-emerald-700 border border-emerald-200">💰 Ingreso</span>;
+      case 'transferencia_enviada':
+        return <span className="px-2 py-0.5 text-[10px] font-bold rounded-full bg-amber-100 text-amber-700 border border-amber-200">↗️ Transf. Enviada</span>;
+      case 'transferencia_recibida':
+        return <span className="px-2 py-0.5 text-[10px] font-bold rounded-full bg-teal-100 text-teal-700 border border-teal-200">↙️ Transf. Recibida</span>;
+      case 'comision_interes':
+        return <span className="px-2 py-0.5 text-[10px] font-bold rounded-full bg-rose-100 text-rose-700 border border-rose-200">🏦 Comisión</span>;
+      default:
+        return <span className="px-2 py-0.5 text-[10px] font-semibold rounded-full bg-slate-100 text-slate-600 border border-slate-200">⚙️ Auto</span>;
+    }
   };
 
   return (
@@ -144,9 +166,9 @@ export const BudgetAndRulesModal: React.FC<BudgetAndRulesModalProps> = ({
                 <div className="flex items-center gap-3">
                   <Sparkles className="w-6 h-6 text-sky-600 flex-shrink-0" />
                   <div className="text-xs text-sky-900">
-                    <p className="font-bold">Auto-Categorización por Coincidencia de Texto</p>
+                    <p className="font-bold">Auto-Categorización y Clasificación Inteligente</p>
                     <p className="text-sky-700 font-medium">
-                      Cuando cargues una cartola, las descripciones que contengan estas palabras clave se categorizarán automáticamente.
+                      Cuando cargues una cartola o agregues movimientos, las descripciones coincidentes asignarán categoría y tipo de movimiento (ej: Abonos y Pagos de Tarjeta).
                     </p>
                   </div>
                 </div>
@@ -157,23 +179,45 @@ export const BudgetAndRulesModal: React.FC<BudgetAndRulesModalProps> = ({
                   className="flex-shrink-0 flex items-center gap-1.5 px-3 py-2 bg-sky-600 hover:bg-sky-700 text-white text-xs font-semibold rounded-lg shadow-sm transition"
                 >
                   {appliedFeedback ? <Check className="w-4 h-4" /> : <RefreshCw className="w-4 h-4" />}
-                  <span>{appliedFeedback ? '¡Reglas Aplicadas!' : 'Ejecutar en Transacciones Actuales'}</span>
+                  <span>{appliedFeedback ? '¡Reglas Aplicadas!' : 'Ejecutar en Transacciones'}</span>
                 </button>
               </div>
 
               {/* Form to Add New Rule */}
               <form onSubmit={handleCreateRule} className="bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-3">
-                <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wider">
-                  Agregar Nueva Regla de Coincidencia
-                </h3>
+                <div className="flex items-center justify-between">
+                  <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wider">
+                    Agregar Nueva Regla de Coincidencia
+                  </h3>
+                  <span className="text-[11px] text-slate-500">
+                    Define texto clave, subcategoría y tipo de movimiento
+                  </span>
+                </div>
+
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                   <div>
                     <label className="block text-xs font-semibold text-slate-500 mb-1">Palabra Clave (Texto en Cartola)</label>
                     <input
                       type="text"
-                      placeholder="Ej. UBER, JUMBO, COPEC"
+                      placeholder="Ej. PAGO TC, ABONO, UBER, JUMBO"
                       value={newPattern}
-                      onChange={(e) => setNewPattern(e.target.value)}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setNewPattern(val);
+                        // Smart auto-suggestion for payment patterns
+                        const upper = val.toUpperCase();
+                        if (upper.includes('PAGO') || upper.includes('ABONO')) {
+                          if (newTransactionType === 'auto') {
+                            setNewTransactionType('pago_tc');
+                            const abonoSub = allSubcategoriesWithParent.find(
+                              (s) => s.subcategory.toLowerCase().includes('pago') || s.subcategory.toLowerCase().includes('abono')
+                            );
+                            if (abonoSub) {
+                              setNewSubcategory(abonoSub.subcategory);
+                            }
+                          }
+                        }
+                      }}
                       className="w-full px-3 py-1.5 text-xs bg-white border border-slate-200 rounded-lg focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 uppercase font-semibold"
                     />
                   </div>
@@ -182,7 +226,13 @@ export const BudgetAndRulesModal: React.FC<BudgetAndRulesModalProps> = ({
                     <label className="block text-xs font-semibold text-slate-500 mb-1">Asignar a Subcategoría</label>
                     <select
                       value={newSubcategory}
-                      onChange={(e) => setNewSubcategory(e.target.value)}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setNewSubcategory(val);
+                        if (val.toLowerCase().includes('pago') || val.toLowerCase().includes('abono')) {
+                          setNewTransactionType('pago_tc');
+                        }
+                      }}
                       className="w-full px-3 py-1.5 text-xs bg-white border border-slate-200 rounded-lg focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 cursor-pointer font-medium"
                     >
                       {allSubcategoriesWithParent.map((item) => (
@@ -193,16 +243,33 @@ export const BudgetAndRulesModal: React.FC<BudgetAndRulesModalProps> = ({
                     </select>
                   </div>
 
-                  <div className="flex items-end">
-                    <button
-                      type="submit"
-                      disabled={!newPattern.trim()}
-                      className="w-full flex items-center justify-center gap-1.5 py-1.5 px-4 bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold rounded-lg shadow transition disabled:opacity-50"
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-500 mb-1">Tipo de Movimiento</label>
+                    <select
+                      value={newTransactionType}
+                      onChange={(e) => setNewTransactionType(e.target.value as TransactionType | 'auto')}
+                      className="w-full px-3 py-1.5 text-xs bg-white border border-slate-200 rounded-lg focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 cursor-pointer font-medium"
                     >
-                      <Plus className="w-4 h-4" />
-                      <span>Guardar Regla</span>
-                    </button>
+                      <option value="auto">⚙️ Automático (según categoría)</option>
+                      <option value="pago_tc">💳 Pago de Tarjeta / Abono (pago_tc)</option>
+                      <option value="compra">🛍️ Compra / Gasto (compra)</option>
+                      <option value="ingreso_venta">💰 Ingreso / Sueldo (ingreso_venta)</option>
+                      <option value="transferencia_enviada">↗️ Transferencia Enviada</option>
+                      <option value="transferencia_recibida">↙️ Transferencia Recibida</option>
+                      <option value="comision_interes">🏦 Comisión / Interés Banco</option>
+                    </select>
                   </div>
+                </div>
+
+                <div className="flex justify-end pt-1">
+                  <button
+                    type="submit"
+                    disabled={!newPattern.trim()}
+                    className="flex items-center justify-center gap-1.5 py-1.5 px-5 bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold rounded-lg shadow transition disabled:opacity-50"
+                  >
+                    <Plus className="w-4 h-4" />
+                    <span>Guardar Regla</span>
+                  </button>
                 </div>
               </form>
 
@@ -214,16 +281,17 @@ export const BudgetAndRulesModal: React.FC<BudgetAndRulesModalProps> = ({
                 <div className="divide-y divide-slate-100 border border-slate-200 rounded-xl overflow-hidden bg-white">
                   {autoRules.map((rule) => (
                     <div key={rule.id} className="p-3 flex items-center justify-between hover:bg-slate-50 transition">
-                      <div className="flex items-center space-x-3">
+                      <div className="flex items-center space-x-3 flex-wrap gap-y-1">
                         <span className="px-2 py-1 bg-slate-100 font-mono text-xs font-bold text-slate-800 rounded-md border border-slate-200">
                           {rule.pattern}
                         </span>
                         <span className="text-xs text-slate-400">➔</span>
-                        <div className="text-xs">
+                        <div className="text-xs flex items-center gap-1">
                           <span className="font-semibold text-slate-700">{rule.category}</span>
-                          <span className="text-slate-400 mx-1 border-b border-slate-300">/</span>
+                          <span className="text-slate-400">/</span>
                           <span className="text-sky-600 font-bold">{rule.subcategory}</span>
                         </div>
+                        {renderTypeBadge(rule.transactionType)}
                       </div>
 
                       <button

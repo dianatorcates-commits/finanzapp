@@ -79,6 +79,7 @@ export interface AutoCategoryRule {
   pattern: string; // e.g. "JUMBO", "UBER", "NETFLIX"
   category: string; // General Category name
   subcategory: string; // Subcategory name
+  transactionType?: TransactionType; // e.g. 'compra', 'pago_tc', 'ingreso_venta'
 }
 
 export interface CategoryBudget {

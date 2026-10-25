@@ -7,13 +7,13 @@ export interface CategorizationResult {
 }
 
 export const DEFAULT_AUTO_RULES: AutoCategoryRule[] = [
-  { id: 'rule-jumbo', pattern: 'JUMBO', category: 'Alimentación y Gastronomía', subcategory: 'Alimentación y Supermercados' },
-  { id: 'rule-lider', pattern: 'LIDER', category: 'Alimentación y Gastronomía', subcategory: 'Alimentación y Supermercados' },
-  { id: 'rule-uber', pattern: 'UBER', category: 'Transporte y Movilidad', subcategory: 'Transporte y Vehículos' },
-  { id: 'rule-netflix', pattern: 'NETFLIX', category: 'Vivienda y Servicios', subcategory: 'Suscripciones y Streaming' },
-  { id: 'rule-spotify', pattern: 'SPOTIFY', category: 'Vivienda y Servicios', subcategory: 'Suscripciones y Streaming' },
-  { id: 'rule-starbucks', pattern: 'STARBUCKS', category: 'Alimentación y Gastronomía', subcategory: 'Restaurantes y Bares' },
-  { id: 'rule-pago-tc', pattern: 'PAGO TC', category: 'Abonos y Pagos', subcategory: 'Pagos de Tarjeta' }
+  { id: 'rule-jumbo', pattern: 'JUMBO', category: 'Alimentación y Gastronomía', subcategory: 'Alimentación y Supermercados', transactionType: 'compra' },
+  { id: 'rule-lider', pattern: 'LIDER', category: 'Alimentación y Gastronomía', subcategory: 'Alimentación y Supermercados', transactionType: 'compra' },
+  { id: 'rule-uber', pattern: 'UBER', category: 'Transporte y Movilidad', subcategory: 'Transporte y Vehículos', transactionType: 'compra' },
+  { id: 'rule-netflix', pattern: 'NETFLIX', category: 'Vivienda y Servicios', subcategory: 'Suscripciones y Streaming', transactionType: 'compra' },
+  { id: 'rule-spotify', pattern: 'SPOTIFY', category: 'Vivienda y Servicios', subcategory: 'Suscripciones y Streaming', transactionType: 'compra' },
+  { id: 'rule-starbucks', pattern: 'STARBUCKS', category: 'Alimentación y Gastronomía', subcategory: 'Restaurantes y Bares', transactionType: 'compra' },
+  { id: 'rule-pago-tc', pattern: 'PAGO TC', category: 'Abonos y Pagos', subcategory: 'Pagos de Tarjeta', transactionType: 'pago_tc' }
 ];
 
 export const DEFAULT_CATEGORY_MAPPINGS: CategoryMapping[] = [
@@ -115,18 +115,24 @@ export function applyAutoRulesToTransaction(
     const matchedRule = customRules.find((rule) => rule.pattern && descUpper.includes(rule.pattern.toUpperCase()));
     if (matchedRule) {
       const parentCat = matchedRule.category || getParentCategory(matchedRule.subcategory, categoryMappings);
-      let ruleTxType: TransactionType = tx.transactionType || 'compra';
-      const normParent = normalizeCategoryName(parentCat).toLowerCase();
-      const normSub = normalizeCategoryName(matchedRule.subcategory).toLowerCase();
+      let ruleTxType: TransactionType;
 
-      if (normParent === 'ingresos y transferencias' || normSub === 'sueldo y ventas') {
-        ruleTxType = 'ingreso_venta';
-      } else if (normSub === 'transferencias') {
-        ruleTxType = tx.transactionType === 'transferencia_recibida' ? 'transferencia_recibida' : 'transferencia_enviada';
-      } else if (normParent === 'abonos y pagos' || normSub.includes('pago')) {
-        ruleTxType = 'pago_tc';
-      } else if (tx.transactionType === 'ingreso_venta' || tx.transactionType === 'transferencia_recibida') {
-        ruleTxType = tx.transactionType;
+      if (matchedRule.transactionType) {
+        ruleTxType = matchedRule.transactionType;
+      } else {
+        ruleTxType = tx.transactionType || 'compra';
+        const normParent = normalizeCategoryName(parentCat).toLowerCase();
+        const normSub = normalizeCategoryName(matchedRule.subcategory).toLowerCase();
+
+        if (normParent === 'ingresos y transferencias' || normSub === 'sueldo y ventas') {
+          ruleTxType = 'ingreso_venta';
+        } else if (normSub === 'transferencias') {
+          ruleTxType = tx.transactionType === 'transferencia_recibida' ? 'transferencia_recibida' : 'transferencia_enviada';
+        } else if (normParent === 'abonos y pagos' || normSub.includes('pago') || normSub.includes('abono')) {
+          ruleTxType = 'pago_tc';
+        } else if (tx.transactionType === 'ingreso_venta' || tx.transactionType === 'transferencia_recibida') {
+          ruleTxType = tx.transactionType;
+        }
       }
 
       return {
@@ -141,16 +147,22 @@ export function applyAutoRulesToTransaction(
   const matchedDefaultRule = DEFAULT_AUTO_RULES.find((rule) => rule.pattern && descUpper.includes(rule.pattern.toUpperCase()));
   if (matchedDefaultRule) {
     const parentCat = matchedDefaultRule.category || getParentCategory(matchedDefaultRule.subcategory, categoryMappings);
-    let defaultTxType: TransactionType = tx.transactionType || 'compra';
-    const normParent = normalizeCategoryName(parentCat).toLowerCase();
-    const normSub = normalizeCategoryName(matchedDefaultRule.subcategory).toLowerCase();
+    let defaultTxType: TransactionType;
 
-    if (normParent === 'ingresos y transferencias' || normSub === 'sueldo y ventas') {
-      defaultTxType = 'ingreso_venta';
-    } else if (normParent === 'abonos y pagos' || normSub.includes('pago')) {
-      defaultTxType = 'pago_tc';
-    } else if (tx.transactionType === 'ingreso_venta' || tx.transactionType === 'transferencia_recibida') {
-      defaultTxType = tx.transactionType;
+    if (matchedDefaultRule.transactionType) {
+      defaultTxType = matchedDefaultRule.transactionType;
+    } else {
+      defaultTxType = tx.transactionType || 'compra';
+      const normParent = normalizeCategoryName(parentCat).toLowerCase();
+      const normSub = normalizeCategoryName(matchedDefaultRule.subcategory).toLowerCase();
+
+      if (normParent === 'ingresos y transferencias' || normSub === 'sueldo y ventas') {
+        defaultTxType = 'ingreso_venta';
+      } else if (normParent === 'abonos y pagos' || normSub.includes('pago') || normSub.includes('abono')) {
+        defaultTxType = 'pago_tc';
+      } else if (tx.transactionType === 'ingreso_venta' || tx.transactionType === 'transferencia_recibida') {
+        defaultTxType = tx.transactionType;
+      }
     }
 
     return {
@@ -185,19 +197,24 @@ export function autoCategorize(
     const matchedRule = customRules.find((rule) => rule.pattern && descUpper.includes(rule.pattern.toUpperCase()));
     if (matchedRule) {
       const parentCat = matchedRule.category || getParentCategory(matchedRule.subcategory, categoryMappings);
-      let ruleTxType: TransactionType = 'compra';
-      const normParent = normalizeCategoryName(parentCat).toLowerCase();
-      const normSub = normalizeCategoryName(matchedRule.subcategory).toLowerCase();
+      let ruleTxType: TransactionType;
 
-      if (normParent === 'ingresos y transferencias' || normSub === 'sueldo y ventas') {
-        ruleTxType = 'ingreso_venta';
-      } else if (normSub === 'transferencias') {
-        ruleTxType = (existingTxType === 'transferencia_recibida' || rawAmount < 0) ? 'transferencia_recibida' : 'transferencia_enviada';
-      } else if (normParent === 'abonos y pagos' || normSub.includes('pago')) {
-        ruleTxType = 'pago_tc';
-      } else if (existingTxType === 'ingreso_venta' || existingTxType === 'transferencia_recibida') {
-        // Preserve income transaction type if existing type was income and rule is not an explicit payment/expense
-        ruleTxType = existingTxType;
+      if (matchedRule.transactionType) {
+        ruleTxType = matchedRule.transactionType;
+      } else {
+        ruleTxType = 'compra';
+        const normParent = normalizeCategoryName(parentCat).toLowerCase();
+        const normSub = normalizeCategoryName(matchedRule.subcategory).toLowerCase();
+
+        if (normParent === 'ingresos y transferencias' || normSub === 'sueldo y ventas') {
+          ruleTxType = 'ingreso_venta';
+        } else if (normSub === 'transferencias') {
+          ruleTxType = (existingTxType === 'transferencia_recibida' || rawAmount < 0) ? 'transferencia_recibida' : 'transferencia_enviada';
+        } else if (normParent === 'abonos y pagos' || normSub.includes('pago') || normSub.includes('abono')) {
+          ruleTxType = 'pago_tc';
+        } else if (existingTxType === 'ingreso_venta' || existingTxType === 'transferencia_recibida' || existingTxType === 'pago_tc') {
+          ruleTxType = existingTxType;
+        }
       }
 
       return {
@@ -208,7 +225,16 @@ export function autoCategorize(
     }
   }
 
-  // 2. Default Pattern Recognition
+  // 2. Immediate checks for credit card negative amounts or explicit pago_tc
+  if (rawAmount < 0 && accountType === 'credit_card') {
+    return { category: 'Abonos y Pagos', subcategory: 'Pagos de Tarjeta', transactionType: 'pago_tc' };
+  }
+
+  if (existingTxType === 'pago_tc') {
+    return { category: 'Abonos y Pagos', subcategory: 'Pagos de Tarjeta', transactionType: 'pago_tc' };
+  }
+
+  // 3. Default Pattern Recognition
   if (
     descUpper.includes('PAGO TC') ||
     descUpper.includes('ABONO TC') ||
@@ -217,7 +243,8 @@ export function autoCategorize(
     descUpper.includes('PAGO PESOS TC') ||
     descUpper.includes('ABONO TARJETA') ||
     descUpper.includes('PAGO DESDE CTA') ||
-    descUpper.includes('PAGO PAC TC')
+    descUpper.includes('PAGO PAC TC') ||
+    (accountType === 'credit_card' && (descUpper.includes('PAGO') || descUpper.includes('ABONO') || descUpper.includes('TRANSF')))
   ) {
     subcategory = 'Pagos de Tarjeta';
     return { category: 'Abonos y Pagos', subcategory, transactionType: 'pago_tc' };

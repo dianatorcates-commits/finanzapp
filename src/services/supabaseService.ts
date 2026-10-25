@@ -118,7 +118,8 @@ export async function fetchUserData(userId: string) {
       id: r.id,
       pattern: r.pattern,
       category: r.category,
-      subcategory: r.subcategory
+      subcategory: r.subcategory,
+      transactionType: r.transaction_type || r.transactionType || undefined
     }));
 
     const budgets: CategoryBudget[] = (budgetsData || []).map((b: any) => ({
@@ -245,17 +246,29 @@ export async function syncLocalDataToCloud(
       if (catErr) console.error('Error syncing categories to cloud:', catErr);
     }
 
-    // 3. Upsert Auto Rules
+    // 3. Upsert Auto Rules (with transaction_type and graceful fallback)
     if (localState.autoRules.length > 0) {
       const rulesPayload = localState.autoRules.map((r) => ({
         id: r.id,
         user_id: userId,
         pattern: r.pattern,
         category: r.category,
-        subcategory: r.subcategory
+        subcategory: r.subcategory,
+        transaction_type: r.transactionType || null
       }));
       const { error: ruleErr } = await supabase.from('auto_rules').upsert(rulesPayload, { onConflict: 'id' });
-      if (ruleErr) console.error('Error syncing auto_rules to cloud:', ruleErr);
+      if (ruleErr) {
+        // Fallback without transaction_type if column is not yet provisioned in Supabase
+        const fallbackPayload = localState.autoRules.map((r) => ({
+          id: r.id,
+          user_id: userId,
+          pattern: r.pattern,
+          category: r.category,
+          subcategory: r.subcategory
+        }));
+        const { error: fallbackErr } = await supabase.from('auto_rules').upsert(fallbackPayload, { onConflict: 'id' });
+        if (fallbackErr) console.error('Error syncing auto_rules to cloud:', fallbackErr);
+      }
     }
 
     // 4. Upsert Budgets

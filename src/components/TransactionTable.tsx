@@ -135,9 +135,36 @@ export const TransactionTable: React.FC<TransactionTableProps> = ({
     if (!newDesc.trim() || !newAmount) return;
 
     const numAmount = parseFloat(newAmount);
-    const parentCategory = getParentCategory(newSubcategory, categoryMappings);
     const targetAcc = accounts.find((a) => a.id === newAccountId);
     const finalPeriod = newPeriod || calculateTransactionPeriod(newDate, targetAcc?.closingDay);
+
+    let finalType = newType;
+    let finalSub = newSubcategory;
+
+    // Respect negative amounts: if negative on a credit card or with payment intent, ensure pago_tc
+    if (numAmount < 0) {
+      if (targetAcc?.type === 'credit_card' || finalType === 'compra') {
+        finalType = targetAcc?.type === 'credit_card' ? 'pago_tc' : 'ingreso_venta';
+      }
+    }
+
+    // If type is pago_tc, ensure category is Abonos y Pagos
+    let parentCategory = getParentCategory(finalSub, categoryMappings);
+    if (finalType === 'pago_tc') {
+      const isAbonoCat = parentCategory.toLowerCase().includes('abono') || parentCategory.toLowerCase().includes('pago');
+      if (!isAbonoCat) {
+        const abonoGroup = categoryMappings.find(
+          (c) => c.name.toLowerCase().includes('abono') || c.name.toLowerCase().includes('pago')
+        );
+        if (abonoGroup && abonoGroup.subcategories.length > 0) {
+          finalSub = abonoGroup.subcategories[0];
+          parentCategory = abonoGroup.name;
+        } else {
+          parentCategory = 'Abonos y Pagos';
+          finalSub = 'Pagos de Tarjeta';
+        }
+      }
+    }
 
     onAddTransaction({
       id: `tx-man-${Date.now()}`,
@@ -147,14 +174,15 @@ export const TransactionTable: React.FC<TransactionTableProps> = ({
       description: newDesc.trim(),
       rawDescription: newDesc.trim(),
       amount: Math.abs(numAmount),
-      transactionType: newType,
+      transactionType: finalType,
       category: parentCategory,
-      subcategory: newSubcategory,
+      subcategory: finalSub,
       allocations: []
     });
 
     setNewDesc('');
     setNewAmount('');
+    setNewType('compra');
     setShowAddForm(false);
   };
 
@@ -219,9 +247,9 @@ export const TransactionTable: React.FC<TransactionTableProps> = ({
 
       {/* Manual Add Form Drawer */}
       {showAddForm && (
-        <form onSubmit={handleAddSubmit} className="p-4 bg-slate-950/90 border-b border-slate-800 grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-7 gap-3">
+        <form onSubmit={handleAddSubmit} className="p-4 bg-slate-950/90 border-b border-slate-800 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
           <div>
-            <label className="block text-[11px] font-semibold text-slate-400 mb-1">Fecha Compra</label>
+            <label className="block text-[11px] font-semibold text-slate-400 mb-1">Fecha Movimiento</label>
             <input
               type="date"
               required
@@ -268,26 +296,80 @@ export const TransactionTable: React.FC<TransactionTableProps> = ({
           </div>
 
           <div>
+            <label className="block text-[11px] font-semibold text-slate-400 mb-1">Tipo de Movimiento</label>
+            <select
+              value={newType}
+              onChange={(e) => {
+                const selected = e.target.value as TransactionType;
+                setNewType(selected);
+                if (selected === 'pago_tc') {
+                  const abonoSub = categoryMappings
+                    .flatMap((c) => c.subcategories)
+                    .find((s) => s.toLowerCase().includes('pago') || s.toLowerCase().includes('abono'));
+                  if (abonoSub) setNewSubcategory(abonoSub);
+                } else if (selected === 'ingreso_venta') {
+                  const incomeSub = categoryMappings
+                    .flatMap((c) => c.subcategories)
+                    .find((s) => s.toLowerCase().includes('sueldo') || s.toLowerCase().includes('venta') || s.toLowerCase().includes('ingreso'));
+                  if (incomeSub) setNewSubcategory(incomeSub);
+                }
+              }}
+              className="w-full text-xs py-1.5 px-2 bg-slate-900 border border-slate-700 text-slate-100 rounded-lg focus:outline-none focus:border-sky-500 font-medium"
+            >
+              <option value="compra">🛍️ Compra / Gasto (compra)</option>
+              <option value="pago_tc">💳 Pago de Tarjeta / Abono (pago_tc)</option>
+              <option value="ingreso_venta">💰 Ingreso / Sueldo (ingreso_venta)</option>
+              <option value="transferencia_enviada">↗️ Transferencia Enviada</option>
+              <option value="transferencia_recibida">↙️ Transferencia Recibida</option>
+            </select>
+          </div>
+
+          <div>
             <label className="block text-[11px] font-semibold text-slate-400 mb-1">Descripción</label>
             <input
               type="text"
               required
-              placeholder="Ej: Almuerzo Restaurante"
+              placeholder="Ej: Pago Tarjeta, Almuerzo, etc."
               value={newDesc}
-              onChange={(e) => setNewDesc(e.target.value)}
+              onChange={(e) => {
+                const val = e.target.value;
+                setNewDesc(val);
+                const upper = val.toUpperCase();
+                if ((upper.includes('PAGO') || upper.includes('ABONO')) && newType === 'compra') {
+                  setNewType('pago_tc');
+                  const abonoSub = categoryMappings
+                    .flatMap((c) => c.subcategories)
+                    .find((s) => s.toLowerCase().includes('pago') || s.toLowerCase().includes('abono'));
+                  if (abonoSub) setNewSubcategory(abonoSub);
+                }
+              }}
               className="w-full text-xs py-1.5 px-2 bg-slate-900 border border-slate-700 text-slate-100 rounded-lg focus:outline-none focus:border-sky-500 placeholder-slate-600"
             />
           </div>
 
           <div>
-            <label className="block text-[11px] font-semibold text-slate-400 mb-1">Monto (CLP)</label>
+            <label className="block text-[11px] font-semibold text-slate-400 mb-1">
+              Monto (CLP) <span className="text-slate-500 font-normal">(- para abonos)</span>
+            </label>
             <input
               type="number"
+              step="any"
               required
-              placeholder="100000"
+              placeholder="Ej: 100000 o -26000"
               value={newAmount}
-              onChange={(e) => setNewAmount(e.target.value)}
-              className="w-full text-xs py-1.5 px-2 bg-slate-900 border border-slate-700 text-slate-100 rounded-lg focus:outline-none focus:border-sky-500 placeholder-slate-600"
+              onChange={(e) => {
+                const val = e.target.value;
+                setNewAmount(val);
+                const num = parseFloat(val);
+                if (!isNaN(num) && num < 0 && newType === 'compra') {
+                  setNewType('pago_tc');
+                  const abonoSub = categoryMappings
+                    .flatMap((c) => c.subcategories)
+                    .find((s) => s.toLowerCase().includes('pago') || s.toLowerCase().includes('abono'));
+                  if (abonoSub) setNewSubcategory(abonoSub);
+                }
+              }}
+              className="w-full text-xs py-1.5 px-2 bg-slate-900 border border-slate-700 text-slate-100 rounded-lg focus:outline-none focus:border-sky-500 placeholder-slate-600 font-mono"
             />
           </div>
 
@@ -313,7 +395,7 @@ export const TransactionTable: React.FC<TransactionTableProps> = ({
               type="submit"
               className="w-full bg-gradient-to-r from-sky-500 to-indigo-600 hover:from-sky-400 hover:to-indigo-500 text-white font-bold py-1.5 px-3 rounded-lg text-xs transition shadow-md"
             >
-              Guardar
+              Guardar Movimiento
             </button>
           </div>
         </form>

@@ -1282,9 +1282,10 @@ export function App() {
       {/* Payment Association Modal */}
       {selectedPurchaseForPayment && (
         <PaymentModal
-          purchase={selectedPurchaseForPayment}
+          purchase={computedTransactions.find((t) => t.id === selectedPurchaseForPayment.id) || selectedPurchaseForPayment}
           allTransactions={computedTransactions}
           account={accounts.find((a) => a.id === selectedPurchaseForPayment.accountId)}
+          accounts={accounts}
           onClose={() => setSelectedPurchaseForPayment(null)}
           onAddAllocation={handleAddAllocation}
           onRemoveAllocation={handleRemoveAllocation}
