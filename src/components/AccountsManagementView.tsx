@@ -19,6 +19,7 @@ import {
   Layers
 } from 'lucide-react';
 import { Account, AccountType, Transaction } from '../types';
+import { isPaymentOrIncomeTransaction } from '../utils/paymentAllocation';
 
 interface AccountsManagementViewProps {
   accounts: Account[];
@@ -240,14 +241,31 @@ export const AccountsManagementView: React.FC<AccountsManagementViewProps> = ({
 
   // Stats for the currently selected account
   const accountStats = useMemo(() => {
-    if (!selectedAccount) return { txCount: 0, currentMonthSpent: 0 };
+    if (!selectedAccount) {
+      return { txCount: 0, totalSpent: 0, totalIncome: 0, estimatedBalance: 0 };
+    }
     const accTxs = transactions.filter((t) => t.accountId === selectedAccount.id);
-    const spent = accTxs
-      .filter((t) => t.amount > 0 && t.transactionType !== 'pago_tc')
-      .reduce((sum, t) => sum + t.amount, 0);
+
+    let totalSpent = 0;
+    let totalIncome = 0;
+
+    for (const t of accTxs) {
+      const absAmount = Math.abs(t.amount);
+      if (isPaymentOrIncomeTransaction(t)) {
+        totalIncome += absAmount;
+      } else {
+        totalSpent += absAmount;
+      }
+    }
+
+    const initBal = selectedAccount.initialBalance || 0;
+    const estimatedBalance = initBal + totalIncome - totalSpent;
+
     return {
       txCount: accTxs.length,
-      currentMonthSpent: spent
+      totalSpent,
+      totalIncome,
+      estimatedBalance
     };
   }, [transactions, selectedAccount]);
 
@@ -640,23 +658,54 @@ export const AccountsManagementView: React.FC<AccountsManagementViewProps> = ({
 
               {/* Resumen Estadístico de la Cuenta (Si está en modo edición) */}
               {!isCreatingNew && selectedAccount && (
-                <div className="bg-slate-950/50 border border-slate-800 rounded-2xl p-4 grid grid-cols-2 gap-3 text-center">
-                  <div>
-                    <span className="block text-[10px] uppercase font-bold text-slate-500">
-                      Movimientos Registrados
+                <div
+                  className={`bg-slate-950/60 border border-slate-800 rounded-2xl p-4 grid gap-3 text-center ${
+                    selectedAccount.type !== 'credit_card'
+                      ? 'grid-cols-2 sm:grid-cols-4'
+                      : 'grid-cols-1 sm:grid-cols-3'
+                  }`}
+                >
+                  <div className="bg-slate-900/50 p-2.5 rounded-xl border border-slate-800/60 flex flex-col justify-center">
+                    <span className="block text-[10px] uppercase font-bold text-slate-500 mb-0.5">
+                      Movimientos
                     </span>
-                    <span className="text-base sm:text-lg font-black text-white">
+                    <span className="text-sm sm:text-base font-black text-white">
                       {accountStats.txCount} transacciones
                     </span>
                   </div>
-                  <div>
-                    <span className="block text-[10px] uppercase font-bold text-slate-500">
-                      Gasto Acumulado en Esta Cuenta
+
+                  <div className="bg-slate-900/50 p-2.5 rounded-xl border border-slate-800/60 flex flex-col justify-center">
+                    <span className="block text-[10px] uppercase font-bold text-slate-500 mb-0.5">
+                      Gastos Acumulados
                     </span>
-                    <span className="text-base sm:text-lg font-black text-sky-400">
-                      {formatCLP(accountStats.currentMonthSpent)}
+                    <span className="text-sm sm:text-base font-black text-rose-400">
+                      {formatCLP(accountStats.totalSpent)}
                     </span>
                   </div>
+
+                  <div className="bg-slate-900/50 p-2.5 rounded-xl border border-slate-800/60 flex flex-col justify-center">
+                    <span className="block text-[10px] uppercase font-bold text-slate-500 mb-0.5">
+                      Ingresos / Abonos
+                    </span>
+                    <span className="text-sm sm:text-base font-black text-emerald-400">
+                      {formatCLP(accountStats.totalIncome)}
+                    </span>
+                  </div>
+
+                  {selectedAccount.type !== 'credit_card' && (
+                    <div className="bg-slate-900/50 p-2.5 rounded-xl border border-slate-800/60 flex flex-col justify-center">
+                      <span className="block text-[10px] uppercase font-bold text-slate-500 mb-0.5">
+                        Saldo Estimado Actual
+                      </span>
+                      <span
+                        className={`text-sm sm:text-base font-black ${
+                          accountStats.estimatedBalance >= 0 ? 'text-sky-400' : 'text-rose-400'
+                        }`}
+                      >
+                        {formatCLP(accountStats.estimatedBalance)}
+                      </span>
+                    </div>
+                  )}
                 </div>
               )}
 
