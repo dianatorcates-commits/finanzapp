@@ -77,6 +77,7 @@ export const AccountsManagementView: React.FC<AccountsManagementViewProps> = ({
   const [closingDay, setClosingDay] = useState<string>('');
   const [dueDay, setDueDay] = useState<string>('');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [saveSuccess, setSaveSuccess] = useState<boolean>(false);
 
   // Delete Confirmation state
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
@@ -99,8 +100,16 @@ export const AccountsManagementView: React.FC<AccountsManagementViewProps> = ({
       }
       setType(selectedAccount.type);
       setAccountNumber(selectedAccount.accountNumber || '');
-      setCreditLimit(selectedAccount.creditLimit ? selectedAccount.creditLimit.toString() : '');
-      setInitialBalance(selectedAccount.initialBalance ? selectedAccount.initialBalance.toString() : '');
+      setCreditLimit(
+        selectedAccount.creditLimit !== undefined && selectedAccount.creditLimit !== null
+          ? selectedAccount.creditLimit.toString()
+          : ''
+      );
+      setInitialBalance(
+        selectedAccount.initialBalance !== undefined && selectedAccount.initialBalance !== null
+          ? selectedAccount.initialBalance.toString()
+          : ''
+      );
       setClosingDay(selectedAccount.closingDay ? selectedAccount.closingDay.toString() : '');
       setDueDay(selectedAccount.dueDay ? selectedAccount.dueDay.toString() : '');
       setErrorMessage(null);
@@ -158,8 +167,17 @@ export const AccountsManagementView: React.FC<AccountsManagementViewProps> = ({
       parsedDueDay = parsed;
     }
 
-    const parsedCreditLimit = creditLimit.trim() ? parseFloat(creditLimit.replace(/\D/g, '')) : undefined;
-    const parsedInitialBalance = initialBalance.trim() ? parseFloat(initialBalance.replace(/\D/g, '')) : undefined;
+    let parsedCreditLimit: number | undefined = undefined;
+    if (creditLimit.trim() !== '') {
+      const parsed = parseFloat(creditLimit.trim());
+      if (!isNaN(parsed)) parsedCreditLimit = parsed;
+    }
+
+    let parsedInitialBalance: number | undefined = undefined;
+    if (initialBalance.trim() !== '') {
+      const parsed = parseFloat(initialBalance.trim());
+      if (!isNaN(parsed)) parsedInitialBalance = parsed;
+    }
 
     if (isCreatingNew) {
       const newAcc: Account = {
@@ -179,6 +197,8 @@ export const AccountsManagementView: React.FC<AccountsManagementViewProps> = ({
       await onAddAccount(newAcc);
       setIsCreatingNew(false);
       setSelectedAccountId(newAcc.id);
+      setSaveSuccess(true);
+      setTimeout(() => setSaveSuccess(false), 3000);
     } else if (selectedAccount && onUpdateAccount) {
       const updatedAcc: Account = {
         ...selectedAccount,
@@ -193,6 +213,8 @@ export const AccountsManagementView: React.FC<AccountsManagementViewProps> = ({
       };
 
       await onUpdateAccount(updatedAcc);
+      setSaveSuccess(true);
+      setTimeout(() => setSaveSuccess(false), 3000);
     }
   };
 
@@ -387,18 +409,26 @@ export const AccountsManagementView: React.FC<AccountsManagementViewProps> = ({
                       {getTypeLabel(acc.type)}
                     </span>
 
-                    {/* Ciclo de Facturación */}
-                    {hasCycle ? (
-                      <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-md bg-sky-500/10 text-sky-300 border border-sky-500/30">
-                        <Calendar className="w-3 h-3 text-sky-400" />
-                        <span>Corte: día {acc.closingDay}</span>
-                        {acc.dueDay && <span>• Vence: día {acc.dueDay}</span>}
-                      </span>
-                    ) : acc.creditLimit ? (
-                      <span className="text-[10px] text-slate-400 font-medium">
-                        Cupo: {formatCLP(acc.creditLimit)}
-                      </span>
-                    ) : null}
+                    {/* Ciclo de Facturación / Cupo / Saldo Inicial */}
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      {hasCycle && (
+                        <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-md bg-sky-500/10 text-sky-300 border border-sky-500/30">
+                          <Calendar className="w-3 h-3 text-sky-400" />
+                          <span>Corte: día {acc.closingDay}</span>
+                          {acc.dueDay && <span>• Vence: día {acc.dueDay}</span>}
+                        </span>
+                      )}
+                      {acc.type === 'credit_card' && acc.creditLimit !== undefined && acc.creditLimit !== null && (
+                        <span className="text-[10px] text-slate-400 font-medium">
+                          Cupo: {formatCLP(acc.creditLimit)}
+                        </span>
+                      )}
+                      {acc.type !== 'credit_card' && acc.initialBalance !== undefined && acc.initialBalance !== null && (
+                        <span className="text-[10px] text-emerald-400 font-medium">
+                          Saldo Inicial: {formatCLP(acc.initialBalance)}
+                        </span>
+                      )}
+                    </div>
                   </div>
                 </div>
               );
@@ -632,7 +662,7 @@ export const AccountsManagementView: React.FC<AccountsManagementViewProps> = ({
 
               {/* Botones de Acción */}
               <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-3 border-t border-slate-800">
-                <div className="flex items-center gap-2 w-full sm:w-auto">
+                <div className="flex items-center gap-2 w-full sm:w-auto flex-wrap">
                   <button
                     type="submit"
                     className="w-full sm:w-auto bg-gradient-to-r from-sky-500 via-blue-600 to-indigo-600 hover:from-sky-400 hover:to-indigo-500 text-white font-bold text-xs py-2.5 px-6 rounded-xl shadow-lg shadow-sky-500/25 transition transform hover:scale-[1.02] flex items-center justify-center gap-2"
@@ -640,6 +670,13 @@ export const AccountsManagementView: React.FC<AccountsManagementViewProps> = ({
                     <Check className="w-4 h-4" />
                     <span>{isCreatingNew ? 'Crear Nueva Cuenta' : 'Guardar Cambios'}</span>
                   </button>
+
+                  {saveSuccess && (
+                    <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-emerald-400 bg-emerald-500/10 border border-emerald-500/30 px-3 py-1.5 rounded-xl animate-fadeIn">
+                      <Check className="w-4 h-4 text-emerald-400" />
+                      <span>¡Cambios guardados correctamente!</span>
+                    </span>
+                  )}
 
                   {isCreatingNew && accounts.length > 0 && (
                     <button

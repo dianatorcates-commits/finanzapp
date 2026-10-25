@@ -102,7 +102,11 @@ export async function fetchUserData(userId: string) {
       type: a.type,
       bank: a.bank,
       currency: a.currency || 'CLP',
-      creditLimit: a.credit_limit,
+      creditLimit: a.type === 'credit_card' ? (a.credit_limit !== null && a.credit_limit !== undefined ? Number(a.credit_limit) : undefined) : undefined,
+      initialBalance: a.initial_balance !== null && a.initial_balance !== undefined
+        ? Number(a.initial_balance)
+        : (a.type !== 'credit_card' && a.credit_limit !== null && a.credit_limit !== undefined ? Number(a.credit_limit) : undefined),
+      accountNumber: a.account_number || undefined,
       color: a.color,
       closingDay: a.closing_day ? parseInt(a.closing_day, 10) : undefined,
       dueDay: a.due_day ? parseInt(a.due_day, 10) : undefined
@@ -226,12 +230,29 @@ export async function syncLocalDataToCloud(
         type: a.type,
         bank: a.bank,
         currency: a.currency || 'CLP',
-        credit_limit: a.creditLimit,
+        credit_limit: a.type === 'credit_card' ? (a.creditLimit ?? null) : (a.initialBalance ?? null),
+        initial_balance: a.initialBalance ?? null,
+        account_number: a.accountNumber ?? null,
         closing_day: a.closingDay || null,
         due_day: a.dueDay || null
       }));
       const { error: accErr } = await supabase.from('accounts').upsert(accountsPayload, { onConflict: 'id' });
-      if (accErr) console.error('Error syncing accounts to cloud:', accErr);
+      if (accErr) {
+        console.warn('Initial upsert for accounts failed, retrying with fallback columns:', accErr);
+        const fallbackPayload = localState.accounts.map((a) => ({
+          id: a.id,
+          user_id: userId,
+          name: a.name,
+          type: a.type,
+          bank: a.bank,
+          currency: a.currency || 'CLP',
+          credit_limit: a.type === 'credit_card' ? (a.creditLimit ?? null) : (a.initialBalance ?? null),
+          closing_day: a.closingDay || null,
+          due_day: a.dueDay || null
+        }));
+        const { error: fallbackErr } = await supabase.from('accounts').upsert(fallbackPayload, { onConflict: 'id' });
+        if (fallbackErr) console.error('Error syncing accounts to cloud (fallback):', fallbackErr);
+      }
     }
 
     // 2. Upsert Categories
@@ -359,20 +380,28 @@ export async function syncLocalDataToCloud(
 
 export async function saveCloudAccount(userId: string, account: Account) {
   try {
-    const payload = {
+    const payload: any = {
       id: account.id,
       user_id: userId,
       name: account.name,
       type: account.type,
       bank: account.bank,
       currency: account.currency || 'CLP',
-      credit_limit: account.creditLimit,
+      credit_limit: account.type === 'credit_card' ? (account.creditLimit ?? null) : (account.initialBalance ?? null),
+      initial_balance: account.initialBalance ?? null,
+      account_number: account.accountNumber ?? null,
       color: account.color,
       closing_day: account.closingDay || null,
       due_day: account.dueDay || null
     };
     const { error } = await supabase.from('accounts').upsert(payload, { onConflict: 'id' });
-    if (error) console.error('Error saving account to cloud:', error);
+    if (error) {
+      console.warn('Initial saveCloudAccount failed, retrying fallback without extra columns:', error);
+      delete payload.initial_balance;
+      delete payload.account_number;
+      const { error: fallbackError } = await supabase.from('accounts').upsert(payload, { onConflict: 'id' });
+      if (fallbackError) console.error('Error saving account to cloud (fallback):', fallbackError);
+    }
   } catch (err) {
     console.error('Unexpected error saving account to cloud:', err);
   }
