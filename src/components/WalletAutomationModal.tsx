@@ -44,6 +44,7 @@ export const WalletAutomationModal: React.FC<WalletAutomationModalProps> = ({
     'Compra aprobada por $14.500 en Jumbo con tu tarjeta terminada en 4892'
   );
   const [testNotificationTitle, setTestNotificationTitle] = useState<string>('Google Wallet');
+  const [testNotificationApp, setTestNotificationApp] = useState<string>('Google Wallet');
   const [isTesting, setIsTesting] = useState<boolean>(false);
   const [testResponse, setTestResponse] = useState<any>(null);
 
@@ -80,6 +81,7 @@ export const WalletAutomationModal: React.FC<WalletAutomationModalProps> = ({
       {
         title: '[not_title]',
         text: '[notification]',
+        app: '[not_app_name]'
       },
       null,
       2
@@ -94,7 +96,7 @@ export const WalletAutomationModal: React.FC<WalletAutomationModalProps> = ({
   const handleCopyCurl = async () => {
     const curlCommand = `curl -X POST "${webhookUrl}" \\
   -H "Content-Type: application/json" \\
-  -d '{"title": "Google Wallet", "text": "Compra aprobada por $14.500 en Jumbo con tu tarjeta terminada en 4892"}'`;
+  -d '{"title": "Google Wallet", "text": "Compra aprobada por $14.500 en Jumbo con tu tarjeta terminada en 4892", "app": "Google Wallet"}'`;
     try {
       await navigator.clipboard.writeText(curlCommand);
       setCopiedCurl(true);
@@ -131,6 +133,7 @@ export const WalletAutomationModal: React.FC<WalletAutomationModalProps> = ({
         body: JSON.stringify({
           title: testNotificationTitle,
           text: testNotificationText,
+          app: testNotificationApp,
         }),
       });
 
@@ -156,7 +159,7 @@ export const WalletAutomationModal: React.FC<WalletAutomationModalProps> = ({
 GUÍA DE CONFIGURACIÓN MACRODROID - FINANZAPP WEBHOOK
 =====================================================
 
-Objetivo: Capturar automáticamente compras de Google Wallet o notificaciones bancarias en Chile y registrarlas al instante en FinanzApp.
+Objetivo: Capturar automáticamente compras de Google Wallet, transferencias o notificaciones bancarias en Chile y registrarlas al instante en FinanzApp.
 
 1. DISPARADOR (TRIGGER):
    • Tipo: Notificación -> Notificación recibida
@@ -168,6 +171,7 @@ Objetivo: Capturar automáticamente compras de Google Wallet o notificaciones ba
      - BCI
      - BancoEstado
      - Mercado Pago
+     - Scotiabank
      - Tenpo / Mach
    • Contenido de texto: Dejar en blanco o "Cualquiera"
 
@@ -180,7 +184,8 @@ Objetivo: Capturar automáticamente compras de Google Wallet o notificaciones ba
    • Cuerpo del contenido (Body):
      {
        "title": "[not_title]",
-       "text": "[not_body]"
+       "text": "[notification]",
+       "app": "[not_app_name]"
      }
 
 3. RESTRICCIONES (OPCIONAL):
@@ -471,7 +476,8 @@ ${webhookUrl}
                   <pre className="p-3 rounded-xl bg-slate-900 border border-slate-800 text-[11px] font-mono text-emerald-300 overflow-x-auto">
 {`{
   "title": "[not_title]",
-  "text": "[notification]"
+  "text": "[notification]",
+  "app": "[not_app_name]"
 }`}
                   </pre>
                   <button
@@ -493,7 +499,7 @@ ${webhookUrl}
                   Guardar y Activar
                 </span>
                 <p className="text-xs text-slate-300 pl-6">
-                  Guarda la macro con el nombre <strong className="text-white">"FinanzApp Webhook"</strong> y asegúrate de que MacroDroid tenga permisos de acceso a notificaciones en tu Android. ¡Listo! Cada compra que hagas se registrará automáticamente.
+                  Guarda la macro con el nombre <strong className="text-white">"FinanzApp Webhook"</strong> y asegúrate de que MacroDroid tenga permisos de acceso a notificaciones en tu Android. ¡Listo! Cada compra, transferencia o abono que hagas se registrará automáticamente.
                 </p>
               </div>
             </div>
@@ -506,7 +512,7 @@ ${webhookUrl}
                 <div>
                   <h3 className="text-sm font-bold text-white">Simulador de Notificaciones</h3>
                   <p className="text-xs text-slate-400">
-                    Prueba el webhook en vivo enviando una notificación simulada para verificar el parseador y la inserción.
+                    Prueba el webhook en vivo enviando una notificación simulada para verificar el parseador inteligente y la asignación de cuenta.
                   </p>
                 </div>
 
@@ -520,23 +526,38 @@ ${webhookUrl}
               </div>
 
               <form onSubmit={handleRunTester} className="space-y-4">
-                <div>
-                  <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-1.5">
-                    Título de la Notificación (App / Emisor)
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    value={testNotificationTitle}
-                    onChange={(e) => setTestNotificationTitle(e.target.value)}
-                    placeholder="Ej. Google Wallet, Santander, BCI..."
-                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-sky-500"
-                  />
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-1.5">
+                      Título Notificación (`title`)
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={testNotificationTitle}
+                      onChange={(e) => setTestNotificationTitle(e.target.value)}
+                      placeholder="Ej. Google Wallet, Santander, BCI..."
+                      className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-sky-500"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-1.5">
+                      App Emisora (`app` / [not_app_name])
+                    </label>
+                    <input
+                      type="text"
+                      value={testNotificationApp}
+                      onChange={(e) => setTestNotificationApp(e.target.value)}
+                      placeholder="Ej. Google Wallet, Mercado Pago, Scotia, Santander..."
+                      className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-sky-500"
+                    />
+                  </div>
                 </div>
 
                 <div>
                   <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-1.5">
-                    Texto o Cuerpo de la Notificación *
+                    Texto o Cuerpo de la Notificación (`text` / [notification]) *
                   </label>
                   <textarea
                     rows={3}
@@ -548,32 +569,58 @@ ${webhookUrl}
                   />
                 </div>
 
-                <div className="flex items-center justify-between pt-2">
-                  <div className="flex items-center gap-2">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-2">
+                  <div className="flex items-center gap-1.5 flex-wrap">
                     <button
                       type="button"
-                      onClick={() =>
-                        setTestNotificationText('Compra aprobada por $4.500 en Starbucks con tu tarjeta terminada en 4892')
-                      }
+                      onClick={() => {
+                        setTestNotificationTitle('Google Wallet');
+                        setTestNotificationApp('Google Wallet');
+                        setTestNotificationText('Compra aprobada por $4.500 en Starbucks con tu tarjeta terminada en 4892');
+                      }}
                       className="text-[11px] px-2.5 py-1 rounded-lg bg-slate-800 text-slate-300 hover:bg-slate-700 transition"
                     >
-                      Ejemplo Starbucks
+                      ☕ Starbucks (TC)
                     </button>
                     <button
                       type="button"
-                      onClick={() =>
-                        setTestNotificationText('Santander Informa: Compra aprobada por $28.990 en COPEC con tu TC Santander')
-                      }
+                      onClick={() => {
+                        setTestNotificationTitle('Mercado Pago');
+                        setTestNotificationApp('Mercado Pago');
+                        setTestNotificationText('Transferiste $12.000 a Juan Pérez');
+                      }}
                       className="text-[11px] px-2.5 py-1 rounded-lg bg-slate-800 text-slate-300 hover:bg-slate-700 transition"
                     >
-                      Ejemplo Santander
+                      📲 Mercado Pago (Transferencia)
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setTestNotificationTitle('Santander');
+                        setTestNotificationApp('Santander');
+                        setTestNotificationText('Recibiste $50.000 de Pedro Soto en tu cuenta');
+                      }}
+                      className="text-[11px] px-2.5 py-1 rounded-lg bg-slate-800 text-slate-300 hover:bg-slate-700 transition"
+                    >
+                      💰 Santander (Abono)
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setTestNotificationTitle('Scotiabank');
+                        setTestNotificationApp('Scotia');
+                        setTestNotificationText('Compra aprobada por $28.990 en COPEC desde tu cuenta Scotiabank');
+                      }}
+                      className="text-[11px] px-2.5 py-1 rounded-lg bg-slate-800 text-slate-300 hover:bg-slate-700 transition"
+                    >
+                      🏦 Scotia (Desde cuenta)
                     </button>
                   </div>
 
                   <button
                     type="submit"
                     disabled={isTesting || !token}
-                    className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-sky-500 to-indigo-600 hover:from-sky-400 hover:to-indigo-500 text-white font-semibold text-xs shadow-lg shadow-sky-500/25 transition disabled:opacity-50"
+                    className="flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-sky-500 to-indigo-600 hover:from-sky-400 hover:to-indigo-500 text-white font-semibold text-xs shadow-lg shadow-sky-500/25 transition disabled:opacity-50"
                   >
                     <Send className="w-3.5 h-3.5" />
                     <span>{isTesting ? 'Enviando...' : 'Enviar Prueba al Webhook'}</span>

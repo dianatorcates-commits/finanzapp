@@ -170,52 +170,47 @@ function extractAmount(text: string): number | null {
   return null;
 }
 
-/**
- * Extract merchant or store name from notification text and title.
- */
-function extractMerchant(text: string, title?: string): string {
-  if (!text) return title && !normalizeText(title).includes('wallet') ? title.trim() : 'Compra con Wallet';
+// ============================================================
+// GENERIC PHRASES BLACKLIST
+// ============================================================
+const GENERIC_BLACKLIST = [
+  'tu dinero ya esta disponible',
+  'tu dinero esta disponible',
+  'tu saldo esta listo',
+  'tu saldo ya esta listo',
+  'saldo disponible',
+  'aviso de compra',
+  'alerta de seguridad',
+  'alerta de compra',
+  'comprobante',
+  'comprobante de pago',
+  'comprobante de transferencia',
+  'operacion exitosa',
+  'notificacion',
+  'notificaciones',
+  'pago exitoso',
+  'pago realizado',
+  'compra aprobada',
+  'compra exitosa',
+  'compra realizada',
+  'transferencia realizada',
+  'transferencia exitosa',
+  'transferencia enviada',
+  'transferencia recibida',
+  'pago aprobado',
+  'movimiento aprobado',
+  'billetera de google',
+  'google wallet',
+  'billetera',
+  'wallet',
+  'google pay',
+];
 
-  // Pattern 1: "... en <Comercio> con/por/tu/el..."
-  // Ex: "Compra aprobada por $14.500 en Jumbo con tu tarjeta..."
-  // Ex: "Pagaste $14.500 en Starbucks con Google Pay"
-  const matchEn = text.match(/\ben\s+([A-Za-z0-9\sáéíóúÁÉÍÓÚñÑ\.\-_&'"]+?)(?:\s+(?:con|por|el|la|tu|fecha|usando|mediante|para)|\.|\,|$|\n)/i);
-  if (matchEn && matchEn[1]) {
-    const candidate = cleanMerchantString(matchEn[1]);
-    if (candidate && candidate.length >= 2 && candidate.length <= 60) {
-      return candidate;
-    }
-  }
-
-  // Pattern 2: "Compra en <Comercio> aprobada..."
-  const matchCompraEn = text.match(/\bcompra en\s+([A-Za-z0-9\sáéíóúÁÉÍÓÚñÑ\.\-_&'"]+?)(?:\s+(?:aprobada|por|con)|\.|\,|$|\n)/i);
-  if (matchCompraEn && matchCompraEn[1]) {
-    const candidate = cleanMerchantString(matchCompraEn[1]);
-    if (candidate && candidate.length >= 2 && candidate.length <= 60) {
-      return candidate;
-    }
-  }
-
-  // Pattern 3: If title has a store name (e.g. "Jumbo", "Starbucks", "Uber")
-  if (title) {
-    const cleanTitle = cleanMerchantString(title);
-    const norm = normalizeText(cleanTitle);
-    if (
-      norm &&
-      !norm.includes('google') &&
-      !norm.includes('wallet') &&
-      !norm.includes('pay') &&
-      !norm.includes('banco') &&
-      !norm.includes('santander') &&
-      !norm.includes('bci') &&
-      !norm.includes('falabella') &&
-      !norm.includes('notificacion')
-    ) {
-      return cleanTitle;
-    }
-  }
-
-  return 'Compra con Wallet';
+function isGenericPhrase(str: string): boolean {
+  if (!str) return true;
+  const norm = normalizeText(str);
+  if (norm.length <= 2) return true;
+  return GENERIC_BLACKLIST.some((phrase) => norm === phrase || norm.startsWith(phrase) || phrase.startsWith(norm));
 }
 
 function cleanMerchantString(str: string): string {
@@ -227,14 +222,156 @@ function cleanMerchantString(str: string): string {
   return cleaned;
 }
 
-/**
- * Find matching user account based on card numbers (last 4 digits), bank name, or account name.
- */
-function findMatchingAccount(accounts: any[], text: string, title?: string) {
-  if (!accounts || accounts.length === 0) return null;
-  const combined = `${title || ''} ${text || ''}`.toLowerCase();
+export interface ExtractedDetails {
+  concept: string;
+  transactionType: 'compra' | 'transferencia_enviada' | 'transferencia_recibida';
+}
 
-  // 1. Match by last 4 digits of card (e.g. "terminada en 4892", "*4892", "4892")
+/**
+ * Extract clean concept/merchant and classify transaction type (compra, transferencia_enviada, transferencia_recibida).
+ */
+export function extractConceptAndType(text: string, title?: string, app?: string): ExtractedDetails {
+  const normText = normalizeText(text);
+  const normTitle = normalizeText(title || '');
+  const cleanApp = cleanMerchantString(app || '');
+
+  // 1. TRANSFERENCIA RECIBIDA / DINERO RECIBIDO / ABONO
+  // Ex: "Recibiste $15.000 de Carlos Muñoz"
+  // Ex: "Te transfirieron $20.000 de Andrea Silva"
+  const matchRecibisteDe = text.match(/(?:recibiste|te\s+transfirieron|te\s+enviaron|abono\s+recibido|transferencia\s+recibida)(?:\s+(?:por\s+)?\$?[0-9\.]+)?(?:\s+(?:de|desde)\s+)([A-Za-z0-9\sáéíóúÁÉÍÓÚñÑ\.\-_'"]+?)(?:\s+(?:a|en|por|con|para)|\.|\,|$|\n)/i);
+  if (matchRecibisteDe && matchRecibisteDe[1]) {
+    const sender = cleanMerchantString(matchRecibisteDe[1]);
+    if (sender && !isGenericPhrase(sender)) {
+      return {
+        concept: `Transferencia de ${sender}`,
+        transactionType: 'transferencia_recibida',
+      };
+    }
+  }
+
+  // Generic transfer received indicators
+  if (
+    /recibiste|te\s+transfirieron|dinero\s+recibido|abono\s+recibido|transferencia\s+recibida/i.test(normText) ||
+    /recibiste|transferencia\s+recibida/i.test(normTitle)
+  ) {
+    return {
+      concept: 'Transferencia Recibida',
+      transactionType: 'transferencia_recibida',
+    };
+  }
+
+  // 2. TRANSFERENCIA ENVIADA / CARGA DE FONDOS / ENVÍO DE DINERO
+  // Ex: "Transferiste $50.000 desde tu cuenta Scotiabank" -> Carga de fondos Scotiabank
+  const matchCargaFondos = text.match(/transferiste\s+(?:por\s+)?\$?[0-9\.]+\s+desde\s+tu\s+cuenta\s+([A-Za-z0-9\sáéíóúÁÉÍÓÚñÑ\.\-_'"]+?)(?:\s+(?:a|por|para)|\.|\,|$|\n)/i);
+  if (matchCargaFondos && matchCargaFondos[1]) {
+    const bankName = cleanMerchantString(matchCargaFondos[1]);
+    if (bankName && !isGenericPhrase(bankName)) {
+      return {
+        concept: `Carga de fondos ${bankName}`,
+        transactionType: 'transferencia_enviada',
+      };
+    }
+  }
+
+  // Ex: "Transferiste $12.000 a Juan Pérez" or "Enviaste $12.000 a Juan Pérez"
+  const matchTransfA = text.match(/(?:transferiste|enviaste|transferencia\s+a)\s+(?:por\s+)?\$?[0-9\.]*\s*(?:a\s+)([A-Za-z0-9\sáéíóúÁÉÍÓÚñÑ\.\-_'"]+?)(?:\s+(?:desde|con|por|el|la|cuenta)|\.|\,|$|\n)/i);
+  if (matchTransfA && matchTransfA[1]) {
+    const recipient = cleanMerchantString(matchTransfA[1]);
+    if (recipient && !isGenericPhrase(recipient)) {
+      return {
+        concept: `Transferencia a ${recipient}`,
+        transactionType: 'transferencia_enviada',
+      };
+    }
+  }
+
+  // Generic transfer sent indicators
+  if (
+    /transferiste|enviaste\s+dinero|transferencia\s+enviada|transferencia\s+exitosa/i.test(normText) ||
+    /transferencia\s+exitosa|transferencia\s+enviada/i.test(normTitle)
+  ) {
+    return {
+      concept: 'Transferencia Enviada',
+      transactionType: 'transferencia_enviada',
+    };
+  }
+
+  // 3. COMPRAS TRADICIONALES
+  // Pattern 1: "... en <Comercio> con/por/tu/el..."
+  // Ex: "Compra aprobada por $14.500 en Jumbo con tu tarjeta..."
+  // Ex: "Pagaste $14.500 en Starbucks con Google Pay"
+  const matchEn = text.match(/\ben\s+([A-Za-z0-9\sáéíóúÁÉÍÓÚñÑ\.\-_&'"]+?)(?:\s+(?:con|por|el|la|tu|fecha|usando|mediante|para|desde)|\.|\,|$|\n)/i);
+  if (matchEn && matchEn[1]) {
+    const candidate = cleanMerchantString(matchEn[1]);
+    if (candidate && candidate.length >= 2 && candidate.length <= 60 && !isGenericPhrase(candidate)) {
+      return {
+        concept: candidate,
+        transactionType: 'compra',
+      };
+    }
+  }
+
+  // Pattern 2: "Compra en <Comercio> aprobada..."
+  const matchCompraEn = text.match(/\bcompra en\s+([A-Za-z0-9\sáéíóúÁÉÍÓÚñÑ\.\-_&'"]+?)(?:\s+(?:aprobada|por|con|desde)|\.|\,|$|\n)/i);
+  if (matchCompraEn && matchCompraEn[1]) {
+    const candidate = cleanMerchantString(matchCompraEn[1]);
+    if (candidate && candidate.length >= 2 && candidate.length <= 60 && !isGenericPhrase(candidate)) {
+      return {
+        concept: candidate,
+        transactionType: 'compra',
+      };
+    }
+  }
+
+  // Pattern 3: Store/Merchant name in title if not generic
+  if (title) {
+    const cleanTitle = cleanMerchantString(title);
+    if (cleanTitle && cleanTitle.length >= 2 && !isGenericPhrase(cleanTitle)) {
+      return {
+        concept: cleanTitle,
+        transactionType: 'compra',
+      };
+    }
+  }
+
+  // 4. CLEAN FALLBACK:
+  // Use app name if not generic, rather than generic alert title
+  if (cleanApp && !isGenericPhrase(cleanApp)) {
+    return {
+      concept: cleanApp,
+      transactionType: 'compra',
+    };
+  }
+
+  return {
+    concept: 'Compra con Wallet',
+    transactionType: 'compra',
+  };
+}
+
+/**
+ * Backward compatibility alias for extractMerchant
+ */
+export function extractMerchant(text: string, title?: string, app?: string): string {
+  return extractConceptAndType(text, title, app).concept;
+}
+
+/**
+ * Find matching user account based on card numbers (last 4 digits), contextual bank phrases, app name, or account name.
+ */
+export function findMatchingAccount(
+  accounts: any[],
+  text: string,
+  title?: string,
+  app?: string,
+  transactionType?: string
+) {
+  if (!accounts || accounts.length === 0) return null;
+  const combined = `${title || ''} ${text || ''} ${app || ''}`.toLowerCase();
+  const cleanApp = cleanMerchantString(app || '');
+  const normApp = normalizeText(cleanApp);
+
+  // 1. MATCH BY LAST 4 DIGITS OF CARD OR ACCOUNT (Highest Precision)
   const cardDigitsMatch = combined.match(/(?:terminad[ao] en|tarjeta|tc|\*)\s*(\d{4})/i);
   if (cardDigitsMatch && cardDigitsMatch[1]) {
     const last4 = cardDigitsMatch[1];
@@ -246,46 +383,124 @@ function findMatchingAccount(accounts: any[], text: string, title?: string) {
     if (matchedByDigits) return matchedByDigits;
   }
 
-  // 2. Match by bank name
-  const matchedByBank = accounts.find((a) => {
+  // 2. CONTEXTUAL PHRASES IN TEXT:
+  // "desde tu cuenta [Banco]" ➔ Match account of that Bank (prefer checking / debit)
+  const matchDesdeCuenta = text.match(/desde\s+tu\s+cuenta\s+([A-Za-z0-9\sáéíóúÁÉÍÓÚñÑ]+?)(?:\s+(?:a|por|para|con)|\.|\,|$|\n)/i);
+  if (matchDesdeCuenta && matchDesdeCuenta[1]) {
+    const candidateBank = normalizeText(cleanMerchantString(matchDesdeCuenta[1]));
+    if (candidateBank.length >= 3 && !isGenericPhrase(candidateBank)) {
+      const matched = accounts.find((a) => {
+        const b = normalizeText(a.bank || '');
+        const n = normalizeText(a.name || '');
+        return (b && (b.includes(candidateBank) || candidateBank.includes(b))) ||
+               (n && (n.includes(candidateBank) || candidateBank.includes(n)));
+      });
+      if (matched) return matched;
+    }
+  }
+
+  // "con tu tarjeta [Banco]" ➔ Match card of that Bank (prefer credit card)
+  const matchConTarjeta = text.match(/con\s+tu\s+tarjeta\s+([A-Za-z0-9\sáéíóúÁÉÍÓÚñÑ]+?)(?:\s+(?:a|por|para|en|de)|\.|\,|$|\n)/i);
+  if (matchConTarjeta && matchConTarjeta[1]) {
+    const candidateBank = normalizeText(cleanMerchantString(matchConTarjeta[1]));
+    if (candidateBank.length >= 3 && !isGenericPhrase(candidateBank)) {
+      const matchedCard = accounts.find((a) => {
+        const b = normalizeText(a.bank || '');
+        const n = normalizeText(a.name || '');
+        const matches = (b && (b.includes(candidateBank) || candidateBank.includes(b))) ||
+                        (n && (n.includes(candidateBank) || candidateBank.includes(n)));
+        return matches && a.type === 'credit_card';
+      }) || accounts.find((a) => {
+        const b = normalizeText(a.bank || '');
+        const n = normalizeText(a.name || '');
+        return (b && (b.includes(candidateBank) || candidateBank.includes(b))) ||
+               (n && (n.includes(candidateBank) || candidateBank.includes(n)));
+      });
+      if (matchedCard) return matchedCard;
+    }
+  }
+
+  // "a tu cuenta [Banco]" ➔ Match destination account
+  const matchATuCuenta = text.match(/a\s+tu\s+cuenta\s+([A-Za-z0-9\sáéíóúÁÉÍÓÚñÑ]+?)(?:\s+(?:desde|de|por|para|con)|\.|\,|$|\n)/i);
+  if (matchATuCuenta && matchATuCuenta[1]) {
+    const candidateBank = normalizeText(cleanMerchantString(matchATuCuenta[1]));
+    if (candidateBank.length >= 3 && !isGenericPhrase(candidateBank)) {
+      const matched = accounts.find((a) => {
+        const b = normalizeText(a.bank || '');
+        const n = normalizeText(a.name || '');
+        return (b && (b.includes(candidateBank) || candidateBank.includes(b))) ||
+               (n && (n.includes(candidateBank) || candidateBank.includes(n)));
+      });
+      if (matched) return matched;
+    }
+  }
+
+  // 3. MATCH BY APP OF ORIGIN (`app`):
+  // If app is a banking / fintech app (e.g. Mercado Pago, Scotia, Santander, Falabella, BCI, etc.)
+  if (normApp && !normApp.includes('google') && !normApp.includes('wallet') && !normApp.includes('pay') && normApp.length >= 3) {
+    const matchedByApp = accounts.find((a) => {
+      const b = normalizeText(a.bank || '');
+      const n = normalizeText(a.name || '');
+      return (b && (b.includes(normApp) || normApp.includes(b))) ||
+             (n && (n.includes(normApp) || normApp.includes(n)));
+    });
+    if (matchedByApp) return matchedByApp;
+  }
+
+  // 4. MATCH BY BANK NAME MENTIONED IN TEXT OR TITLE
+  const matchedByBankInText = accounts.find((a) => {
     if (!a.bank) return false;
     const bNorm = normalizeText(a.bank);
     return bNorm.length >= 3 && normalizeText(combined).includes(bNorm);
   });
-  if (matchedByBank) return matchedByBank;
+  if (matchedByBankInText) return matchedByBankInText;
 
-  // 3. Match by account name inclusion
-  const matchedByName = accounts.find((a) => {
+  // 5. MATCH BY ACCOUNT NAME IN TEXT OR TITLE
+  const matchedByNameInText = accounts.find((a) => {
     if (!a.name) return false;
     const nNorm = normalizeText(a.name);
     return nNorm.length >= 3 && normalizeText(combined).includes(nNorm);
   });
-  if (matchedByName) return matchedByName;
+  if (matchedByNameInText) return matchedByNameInText;
 
-  // 4. Fallback: First credit card account, or first account
+  // 6. FALLBACK BASED ON TRANSACTION TYPE
+  if (transactionType === 'transferencia_enviada' || transactionType === 'transferencia_recibida') {
+    const checkingAcc = accounts.find((a) => a.type === 'checking' || a.type === 'savings' || a.type === 'other');
+    if (checkingAcc) return checkingAcc;
+  }
+
   const creditCardAcc = accounts.find((a) => a.type === 'credit_card');
   return creditCardAcc || accounts[0];
 }
 
 /**
- * Intelligent categorization based on user rules or default Chilean commerce keywords.
+ * Intelligent categorization based on user rules, transaction type, or default Chilean commerce keywords.
  */
-function autoCategorizePurchase(
-  merchant: string,
+export function autoCategorizePurchase(
+  concept: string,
   fullText: string,
-  userRules: any[]
+  userRules: any[],
+  transactionType: 'compra' | 'transferencia_enviada' | 'transferencia_recibida' = 'compra'
 ): { category: string; subcategory: string } {
-  const normMerchant = normalizeText(merchant);
+  // If transactionType is transfer, assign appropriate category
+  if (transactionType === 'transferencia_recibida') {
+    return { category: 'Ingresos y Transferencias', subcategory: 'Transferencias' };
+  }
+  if (transactionType === 'transferencia_enviada') {
+    return { category: 'Ingresos y Transferencias', subcategory: 'Transferencias' };
+  }
+
+  const normConcept = normalizeText(concept);
   const normText = normalizeText(fullText);
 
   // 1. Check user defined auto rules
   if (userRules && userRules.length > 0) {
     for (const rule of userRules) {
-      const keyword = normalizeText(rule.keyword || '');
-      if (keyword && (normMerchant.includes(keyword) || normText.includes(keyword))) {
+      const keyword = normalizeText(rule.pattern || rule.keyword || '');
+      if (keyword && (normConcept.includes(keyword) || normText.includes(keyword))) {
         return {
-          category: rule.category_name || rule.categoryName || 'Compras y Estilo de Vida',
-          subcategory: rule.subcategory_name || rule.subcategoryName || 'Varios',
+          category: rule.category || rule.category_name || rule.categoryName || 'Compras y Estilo de Vida',
+          subcategory: rule.subcategory || rule.subcategory_name || rule.subcategoryName || 'Compras Generales',
         };
       }
     }
@@ -293,32 +508,32 @@ function autoCategorizePurchase(
 
   // 2. Default Chilean Commerce Taxonomies
   // Supermercados & Almacenes
-  if (/jumbo|lider|tottus|santa isabel|unimarc|alvi|erbi|mayorista|acuenta|oxxo|spacio 1|pronto|liquimax/i.test(normMerchant)) {
+  if (/jumbo|lider|tottus|santa isabel|unimarc|alvi|erbi|mayorista|acuenta|oxxo|spacio 1|pronto|liquimax/i.test(normConcept)) {
     return { category: 'Alimentación y Gastronomía', subcategory: 'Supermercados' };
   }
 
   // Restaurantes & Delivery
-  if (/uber eats|pedidosya|rappi|starbucks|mcdonald|burger|dunkin|kfc|pizza|sushi|restaurant|cafe|bar|bavaria|wendy|papa john/i.test(normMerchant)) {
+  if (/uber eats|pedidosya|rappi|starbucks|mcdonald|burger|dunkin|kfc|pizza|sushi|restaurant|cafe|bar|bavaria|wendy|papa john/i.test(normConcept)) {
     return { category: 'Alimentación y Gastronomía', subcategory: 'Restaurantes y Bares' };
   }
 
   // Combustible & Transporte
-  if (/copec|shell|petrobras|enex|uber|cabify|didi|metro|bip|autopista|costanera|vespucio|estacionamiento/i.test(normMerchant)) {
+  if (/copec|shell|petrobras|enex|uber|cabify|didi|metro|bip|autopista|costanera|vespucio|estacionamiento/i.test(normConcept)) {
     return { category: 'Transporte y Movilidad', subcategory: 'Combustible y Peajes' };
   }
 
   // Farmacias & Salud
-  if (/cruz verde|salcobrand|ahumada|farmacia|redsalud|integramedica|banmedica|clinica|dental|optica/i.test(normMerchant)) {
+  if (/cruz verde|salcobrand|ahumada|farmacia|redsalud|integramedica|banmedica|clinica|dental|optica/i.test(normConcept)) {
     return { category: 'Salud y Bienestar', subcategory: 'Farmacia y Medicamentos' };
   }
 
   // Streaming & Apps
-  if (/spotify|netflix|disney|apple|google|prime|youtube|steam|playstation|crunchyroll|openai|chatgpt/i.test(normMerchant)) {
+  if (/spotify|netflix|disney|apple|google|prime|youtube|steam|playstation|crunchyroll|openai|chatgpt/i.test(normConcept)) {
     return { category: 'Suscripciones y Servicios', subcategory: 'Streaming y Apps' };
   }
 
   // Retail & Tiendas
-  if (/falabella|ripley|paris|zara|h&m|decathlon|sodimac|easy|ikea|mercadolibre|amazon|aliexpress|shein/i.test(normMerchant)) {
+  if (/falabella|ripley|paris|zara|h&m|decathlon|sodimac|easy|ikea|mercadolibre|amazon|aliexpress|shein/i.test(normConcept)) {
     return { category: 'Compras y Estilo de Vida', subcategory: 'Tiendas y Comercio' };
   }
 
@@ -425,29 +640,32 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     // ------------------------------------------------------------
     let rawText = '';
     let rawTitle = '';
+    let rawApp = '';
 
     if (typeof req.body === 'string') {
       try {
         const parsed = JSON.parse(req.body);
         rawText = parsed.text || parsed.message || parsed.body || parsed.content || '';
-        rawTitle = parsed.title || parsed.app || parsed.sender || '';
+        rawTitle = parsed.title || parsed.sender || '';
+        rawApp = parsed.app || parsed.appName || parsed.app_name || '';
       } catch {
         rawText = req.body;
       }
     } else if (req.body && typeof req.body === 'object') {
       rawText = req.body.text || req.body.message || req.body.body || req.body.content || '';
-      rawTitle = req.body.title || req.body.app || req.body.sender || '';
+      rawTitle = req.body.title || req.body.sender || '';
+      rawApp = req.body.app || req.body.appName || req.body.app_name || '';
     }
 
-    if (!rawText && !rawTitle) {
+    if (!rawText && !rawTitle && !rawApp) {
       return res.status(400).json({
         success: false,
-        error: 'Cuerpo de notificación vacío. Se requiere el campo "text" con el contenido de la compra.',
+        error: 'Cuerpo de notificación vacío. Se requiere el campo "text" con el contenido de la compra o movimiento.',
       });
     }
 
     // ------------------------------------------------------------
-    // 4. EXTRACT AMOUNT & MERCHANT
+    // 4. EXTRACT AMOUNT, CONCEPT & TRANSACTION TYPE
     // ------------------------------------------------------------
     const fullContent = `${rawTitle ? rawTitle + ': ' : ''}${rawText}`;
     const parsedAmount = extractAmount(fullContent);
@@ -455,12 +673,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (!parsedAmount || isNaN(parsedAmount) || parsedAmount <= 0) {
       return res.status(400).json({
         success: false,
-        error: 'No se pudo identificar el monto de la compra en la notificación. Verifica el formato del texto.',
+        error: 'No se pudo identificar el monto en la notificación. Verifica el formato del texto.',
         receivedText: fullContent,
       });
     }
 
-    const merchant = extractMerchant(rawText, rawTitle);
+    const { concept, transactionType } = extractConceptAndType(rawText, rawTitle, rawApp);
 
     // ------------------------------------------------------------
     // 5. IDENTIFY ACCOUNT / CARD
@@ -487,11 +705,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       });
     }
 
-    const matchedAccount = findMatchingAccount(userAccounts, rawText, rawTitle);
+    const matchedAccount = findMatchingAccount(userAccounts, rawText, rawTitle, rawApp, transactionType);
     if (!matchedAccount) {
       return res.status(400).json({
         success: false,
-        error: 'No se pudo asociar la compra a ninguna cuenta bancaria del usuario.',
+        error: 'No se pudo asociar la transacción a ninguna cuenta bancaria del usuario.',
       });
     }
 
@@ -504,9 +722,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       .eq('user_id', userId);
 
     const { category, subcategory } = autoCategorizePurchase(
-      merchant,
+      concept,
       fullContent,
-      userRules || []
+      userRules || [],
+      transactionType
     );
 
     const todayDate = getChileCurrentDate();
@@ -523,7 +742,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       .eq('account_id', matchedAccount.id)
       .eq('date', todayDate)
       .eq('amount', parsedAmount)
-      .eq('description', merchant)
+      .eq('description', concept)
       .gte('created_at', thirtyMinutesAgo)
       .limit(1);
 
@@ -532,7 +751,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(200).json({
         success: true,
         duplicated: true,
-        message: `Transacción ya registrada previamente: ${merchant} por ${formatCLP(parsedAmount)}`,
+        message: `Transacción ya registrada previamente: ${concept} por ${formatCLP(parsedAmount)}`,
         transaction: existingDuplicate[0],
       });
     }
@@ -547,10 +766,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       account_id: matchedAccount.id,
       date: todayDate,
       period: period,
-      description: merchant,
+      description: concept,
       raw_description: rawText.substring(0, 255),
       amount: parsedAmount,
-      transaction_type: 'compra',
+      transaction_type: transactionType,
       category: category,
       subcategory: subcategory,
       allocations: [],
@@ -582,11 +801,21 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     // ------------------------------------------------------------
     if (telegramChatId) {
       const formattedAmount = formatCLP(parsedAmount);
+      let emoji = '🛍️';
+      let typeLabel = 'Compra';
+      if (transactionType === 'transferencia_enviada') {
+        emoji = '↗️';
+        typeLabel = 'Transferencia Enviada';
+      } else if (transactionType === 'transferencia_recibida') {
+        emoji = '↙️';
+        typeLabel = 'Transferencia Recibida';
+      }
+
       const telegramMessage =
-        `📲 *Compra con Wallet Detectada*\n` +
+        `${emoji} *${typeLabel} Detectada*\n` +
         `━━━━━━━━━━━━━━━━━━\n` +
         `💵 *Monto:* ${formattedAmount}\n` +
-        `🏪 *Comercio:* ${merchant}\n` +
+        `📝 *Concepto:* ${concept}\n` +
         `💳 *Cuenta:* ${matchedAccount.name}\n` +
         `📁 *Categoría:* ${category} (${subcategory})`;
 
@@ -602,7 +831,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       transaction: {
         id: transactionId,
         amount: parsedAmount,
-        merchant: merchant,
+        concept: concept,
+        merchant: concept,
+        transactionType: transactionType,
         account: matchedAccount.name,
         category: category,
         subcategory: subcategory,
