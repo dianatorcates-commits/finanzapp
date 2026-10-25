@@ -79,7 +79,7 @@ export const WalletAutomationModal: React.FC<WalletAutomationModalProps> = ({
     const jsonBody = JSON.stringify(
       {
         title: '[not_title]',
-        text: '[not_body]',
+        text: '[notification]',
       },
       null,
       2
@@ -471,7 +471,7 @@ ${webhookUrl}
                   <pre className="p-3 rounded-xl bg-slate-900 border border-slate-800 text-[11px] font-mono text-emerald-300 overflow-x-auto">
 {`{
   "title": "[not_title]",
-  "text": "[not_body]"
+  "text": "[notification]"
 }`}
                   </pre>
                   <button
