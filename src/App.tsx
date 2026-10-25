@@ -24,6 +24,7 @@ import {
   syncLocalDataToCloud,
   signOutUser,
   deleteCloudAccount,
+  saveCloudTransaction,
   deleteCloudTransaction,
   deleteCloudTransactionsBatch,
   saveCloudCategory,
@@ -997,10 +998,21 @@ export function App() {
     }
   };
 
-  const handleUpdateTransaction = (id: string, updates: Partial<Transaction>) => {
+  const handleUpdateTransaction = async (id: string, updates: Partial<Transaction>) => {
+    let updatedTx: Transaction | undefined;
     setTransactions((prev) =>
-      prev.map((tx) => (tx.id === id ? { ...tx, ...updates } : tx))
+      prev.map((tx) => {
+        if (tx.id === id) {
+          updatedTx = { ...tx, ...updates };
+          return updatedTx;
+        }
+        return tx;
+      })
     );
+
+    if (currentUser && updatedTx) {
+      await saveCloudTransaction(currentUser.id, updatedTx);
+    }
   };
 
   const handleDeleteTransaction = async (id: string) => {
@@ -1018,8 +1030,11 @@ export function App() {
     setTransactions((prev) => prev.filter((tx) => !ids.includes(tx.id)));
   };
 
-  const handleAddManualTransaction = (newTx: Transaction) => {
+  const handleAddManualTransaction = async (newTx: Transaction) => {
     setTransactions((prev) => [newTx, ...prev]);
+    if (currentUser) {
+      await saveCloudTransaction(currentUser.id, newTx);
+    }
   };
 
   const handleAddAllocation = (purchaseId: string, paymentId: string, amount: number) => {

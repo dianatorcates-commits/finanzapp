@@ -434,6 +434,37 @@ export async function deleteCloudAccount(userId: string, accountId: string) {
   if (error) console.error('Error deleting account from cloud:', error);
 }
 
+export async function saveCloudTransaction(userId: string, tx: Transaction) {
+  try {
+    const payload: any = {
+      id: tx.id,
+      user_id: userId,
+      account_id: tx.accountId,
+      date: tx.date,
+      period: tx.period,
+      description: tx.description,
+      raw_description: tx.rawDescription || tx.description || null,
+      amount: tx.amount,
+      original_total_amount: tx.originalTotalAmount || null,
+      transaction_type: tx.transactionType || null,
+      category: tx.category || null,
+      subcategory: tx.subcategory || null,
+      installment_current: tx.installments?.current || null,
+      installment_total: tx.installments?.total || null,
+      allocations: tx.allocations || []
+    };
+    const { error } = await supabase.from('transactions').upsert(payload, { onConflict: 'id' });
+    if (error) {
+      console.warn('Initial saveCloudTransaction failed, retrying without allocations:', error);
+      delete payload.allocations;
+      const { error: fallbackErr } = await supabase.from('transactions').upsert(payload, { onConflict: 'id' });
+      if (fallbackErr) console.error('Fallback saveCloudTransaction error:', fallbackErr);
+    }
+  } catch (err) {
+    console.error('Unexpected error saving transaction to cloud:', err);
+  }
+}
+
 export async function deleteCloudTransaction(userId: string, txId: string) {
   const { error } = await supabase.from('transactions').delete().eq('id', txId).eq('user_id', userId);
   if (error) console.error('Error deleting transaction from cloud:', error);

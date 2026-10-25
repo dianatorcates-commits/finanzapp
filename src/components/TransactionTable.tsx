@@ -8,7 +8,10 @@ import {
   CreditCard,
   Building2,
   AlertTriangle,
-  RotateCcw
+  RotateCcw,
+  Pencil,
+  X,
+  Save
 } from 'lucide-react';
 import { ComputedTransaction, Account, CategoryMapping, TransactionType } from '../types';
 import { getParentCategory, TRANSACTION_TYPES } from '../utils/categorizer';
@@ -51,6 +54,18 @@ export const TransactionTable: React.FC<TransactionTableProps> = ({
     categoryMappings[0]?.subcategories[0] || 'Restaurantes y Bares'
   );
   const [newType, setNewType] = useState<TransactionType>('compra');
+
+  // Edit Transaction Modal State
+  const [editingTx, setEditingTx] = useState<ComputedTransaction | null>(null);
+  const [editDesc, setEditDesc] = useState('');
+  const [editAmount, setEditAmount] = useState('');
+  const [editAccountId, setEditAccountId] = useState('');
+  const [editDate, setEditDate] = useState('');
+  const [editPeriod, setEditPeriod] = useState('');
+  const [editType, setEditType] = useState<TransactionType>('compra');
+  const [editSubcategory, setEditSubcategory] = useState('');
+  const [editInstallmentCurrent, setEditInstallmentCurrent] = useState('');
+  const [editInstallmentTotal, setEditInstallmentTotal] = useState('');
 
   // Selection & Bulk Modal State
   const [selectedTxIds, setSelectedTxIds] = useState<string[]>([]);
@@ -192,6 +207,69 @@ export const TransactionTable: React.FC<TransactionTableProps> = ({
       subcategory: newSub,
       category: parentCategory
     });
+  };
+
+  const handleStartEdit = (tx: ComputedTransaction) => {
+    setEditingTx(tx);
+    setEditDesc(tx.description || '');
+    setEditAmount(Math.abs(tx.amount).toString());
+    setEditAccountId(tx.accountId || accounts[0]?.id || '');
+    setEditDate(tx.date || new Date().toISOString().split('T')[0]);
+    setEditPeriod(tx.period || '');
+    setEditType(tx.transactionType || 'compra');
+    setEditSubcategory(tx.subcategory || categoryMappings[0]?.subcategories[0] || '');
+    setEditInstallmentCurrent(tx.installments?.current ? tx.installments.current.toString() : '');
+    setEditInstallmentTotal(tx.installments?.total ? tx.installments.total.toString() : '');
+  };
+
+  const handleEditAccountChange = (newAccId: string) => {
+    setEditAccountId(newAccId);
+    const acc = accounts.find((a) => a.id === newAccId);
+    if (acc && editDate) {
+      setEditPeriod(calculateTransactionPeriod(editDate, acc.closingDay));
+    }
+  };
+
+  const handleEditDateChange = (newDateStr: string) => {
+    setEditDate(newDateStr);
+    const acc = accounts.find((a) => a.id === editAccountId);
+    if (newDateStr) {
+      setEditPeriod(calculateTransactionPeriod(newDateStr, acc?.closingDay));
+    }
+  };
+
+  const handleEditSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingTx || !editDesc.trim() || !editAmount.trim()) return;
+
+    const numAmount = Math.abs(parseFloat(editAmount.replace(/[^\d.-]/g, '')) || 0);
+    const parentCategory = getParentCategory(editSubcategory, categoryMappings);
+
+    let installments: { current: number; total: number } | undefined = undefined;
+    if (editInstallmentCurrent.trim() && editInstallmentTotal.trim()) {
+      const cur = parseInt(editInstallmentCurrent, 10);
+      const tot = parseInt(editInstallmentTotal, 10);
+      if (!isNaN(cur) && !isNaN(tot) && tot > 0) {
+        installments = { current: cur, total: tot };
+      }
+    }
+
+    const targetAcc = accounts.find((a) => a.id === editAccountId);
+    const finalPeriod = editPeriod.trim() || calculateTransactionPeriod(editDate, targetAcc?.closingDay);
+
+    onUpdateTransaction(editingTx.id, {
+      description: editDesc.trim(),
+      amount: numAmount,
+      accountId: editAccountId,
+      date: editDate,
+      period: finalPeriod,
+      transactionType: editType,
+      category: parentCategory,
+      subcategory: editSubcategory,
+      installments
+    });
+
+    setEditingTx(null);
   };
 
   return (
@@ -592,6 +670,13 @@ export const TransactionTable: React.FC<TransactionTableProps> = ({
                           </button>
                         )}
                         <button
+                          onClick={() => handleStartEdit(tx)}
+                          className="text-slate-400 hover:text-sky-400 p-1.5 hover:bg-sky-500/10 rounded-lg transition"
+                          title="Editar movimiento"
+                        >
+                          <Pencil className="w-3.5 h-3.5" />
+                        </button>
+                        <button
                           onClick={() => openSingleDeleteModal(tx)}
                           className="text-slate-400 hover:text-rose-400 p-1.5 hover:bg-rose-500/10 rounded-lg transition"
                           title="Eliminar registro"
@@ -652,6 +737,226 @@ export const TransactionTable: React.FC<TransactionTableProps> = ({
                   <span>{deleteConfirmModal.idsToDelete.length === 1 ? 'Sí, Eliminar' : 'Confirmar Borrado Masivo'}</span>
                 </button>
               </div>
+            </div>
+          </div>,
+          document.body
+        )}
+
+      {/* Edit Transaction Modal */}
+      {editingTx &&
+        createPortal(
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm animate-fadeIn">
+            <div className="bg-slate-900 rounded-2xl shadow-2xl max-w-lg w-full border border-slate-700/80 overflow-hidden flex flex-col max-h-[90vh] text-slate-100">
+              
+              {/* Modal Header */}
+              <div className="p-4 sm:p-5 bg-slate-950/80 border-b border-slate-800 flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="p-2.5 bg-sky-500/10 text-sky-400 rounded-xl border border-sky-500/20">
+                    <Pencil className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-base text-white">Editar Movimiento</h3>
+                    <p className="text-xs text-slate-400">
+                      Modifica los detalles, cuenta, categoría o período del registro
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setEditingTx(null)}
+                  className="p-1.5 text-slate-400 hover:text-white hover:bg-slate-800 rounded-lg transition"
+                  title="Cerrar modal"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              {/* Form Body */}
+              <form onSubmit={handleEditSubmit} className="flex-1 overflow-y-auto p-5 sm:p-6 space-y-4 scrollbar-thin scrollbar-thumb-slate-800">
+                {/* 1. Descripción / Comercio */}
+                <div className="space-y-1.5">
+                  <label className="block text-xs font-bold text-slate-300">
+                    Comercio o Descripción <span className="text-rose-400">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={editDesc}
+                    onChange={(e) => setEditDesc(e.target.value)}
+                    placeholder="Ej: Supermercado Lider, Spotify, Sueldo..."
+                    className="w-full text-xs py-2.5 px-3 bg-slate-950 border border-slate-800 text-white rounded-xl focus:outline-none focus:border-sky-500 font-medium"
+                  />
+                </div>
+
+                {/* 2. Monto y Tipo de Movimiento */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="space-y-1.5">
+                    <label className="block text-xs font-bold text-slate-300">
+                      Monto (CLP) <span className="text-rose-400">*</span>
+                    </label>
+                    <div className="relative">
+                      <span className="absolute left-3 top-2.5 text-xs text-slate-500 font-bold">$</span>
+                      <input
+                        type="number"
+                        min="0"
+                        step="1"
+                        required
+                        value={editAmount}
+                        onChange={(e) => setEditAmount(e.target.value)}
+                        placeholder="Ej: 14500"
+                        className="w-full pl-7 pr-3 py-2 text-xs bg-slate-950 border border-slate-800 text-white rounded-xl focus:outline-none focus:border-sky-500 font-medium"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="block text-xs font-bold text-slate-300">
+                      Tipo de Movimiento <span className="text-rose-400">*</span>
+                    </label>
+                    <select
+                      value={editType}
+                      onChange={(e) => setEditType(e.target.value as TransactionType)}
+                      className="w-full text-xs py-2 px-3 bg-slate-950 border border-slate-800 text-white rounded-xl focus:outline-none focus:border-sky-500"
+                    >
+                      {TRANSACTION_TYPES.map((t) => (
+                        <option key={t.id} value={t.id}>
+                          {t.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                {/* 3. Cuenta / Tarjeta */}
+                <div className="space-y-1.5">
+                  <label className="block text-xs font-bold text-slate-300">
+                    Cuenta / Tarjeta <span className="text-rose-400">*</span>
+                  </label>
+                  <select
+                    value={editAccountId}
+                    onChange={(e) => handleEditAccountChange(e.target.value)}
+                    className="w-full text-xs py-2 px-3 bg-slate-950 border border-slate-800 text-white rounded-xl focus:outline-none focus:border-sky-500"
+                  >
+                    {accounts.map((acc) => (
+                      <option key={acc.id} value={acc.id}>
+                        {acc.name} ({acc.bank}) {acc.type === 'credit_card' ? '💳 TC' : '🏦'}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* 4. Fecha y Período Contable */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="space-y-1.5">
+                    <label className="block text-xs font-bold text-slate-300">
+                      Fecha del Movimiento <span className="text-rose-400">*</span>
+                    </label>
+                    <input
+                      type="date"
+                      required
+                      value={editDate}
+                      onChange={(e) => handleEditDateChange(e.target.value)}
+                      className="w-full text-xs py-2 px-3 bg-slate-950 border border-slate-800 text-white rounded-xl focus:outline-none focus:border-sky-500"
+                    />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="block text-xs font-bold text-slate-300">
+                      Período Contable (Mes Facturación)
+                    </label>
+                    <input
+                      type="month"
+                      value={editPeriod}
+                      onChange={(e) => setEditPeriod(e.target.value)}
+                      className="w-full text-xs py-2 px-3 bg-slate-950 border border-slate-800 text-white rounded-xl focus:outline-none focus:border-sky-500"
+                    />
+                    <span className="text-[10px] text-slate-500 block">
+                      Recalculado con el día de corte de la cuenta.
+                    </span>
+                  </div>
+                </div>
+
+                {/* 5. Subcategoría y Categoría Padre */}
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <label className="block text-xs font-bold text-slate-300">
+                      Subcategoría
+                    </label>
+                    <span className="text-[10px] font-semibold text-sky-400 bg-sky-500/10 border border-sky-500/20 px-2 py-0.5 rounded-full">
+                      Categoría: {getParentCategory(editSubcategory, categoryMappings)}
+                    </span>
+                  </div>
+                  <select
+                    value={editSubcategory}
+                    onChange={(e) => setEditSubcategory(e.target.value)}
+                    className="w-full text-xs py-2 px-3 bg-slate-950 border border-slate-800 text-white rounded-xl focus:outline-none focus:border-sky-500"
+                  >
+                    {categoryMappings.map((cat) => (
+                      <optgroup key={cat.id} label={cat.name} className="bg-slate-900 text-slate-300 font-semibold">
+                        {cat.subcategories.map((sub) => (
+                          <option key={sub} value={sub} className="bg-slate-950 text-white font-normal">
+                            {sub}
+                          </option>
+                        ))}
+                      </optgroup>
+                    ))}
+                  </select>
+                </div>
+
+                {/* 6. Cuotas (Opcional) */}
+                <div className="p-3 bg-slate-950/60 border border-slate-800/80 rounded-xl space-y-2">
+                  <span className="text-xs font-bold text-slate-300 block">
+                    Cuotas (Opcional)
+                  </span>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-[11px] text-slate-400 mb-1">
+                        Cuota Actual
+                      </label>
+                      <input
+                        type="number"
+                        min="1"
+                        placeholder="Ej: 1"
+                        value={editInstallmentCurrent}
+                        onChange={(e) => setEditInstallmentCurrent(e.target.value)}
+                        className="w-full text-xs py-1.5 px-3 bg-slate-900 border border-slate-800 text-white rounded-lg focus:outline-none focus:border-sky-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[11px] text-slate-400 mb-1">
+                        Total de Cuotas
+                      </label>
+                      <input
+                        type="number"
+                        min="1"
+                        placeholder="Ej: 3"
+                        value={editInstallmentTotal}
+                        onChange={(e) => setEditInstallmentTotal(e.target.value)}
+                        className="w-full text-xs py-1.5 px-3 bg-slate-900 border border-slate-800 text-white rounded-lg focus:outline-none focus:border-sky-500"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Actions Footer */}
+                <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-800">
+                  <button
+                    type="button"
+                    onClick={() => setEditingTx(null)}
+                    className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold rounded-xl transition border border-slate-700"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    type="submit"
+                    className="px-5 py-2 bg-gradient-to-r from-sky-500 via-blue-600 to-indigo-600 hover:from-sky-400 hover:to-indigo-500 text-white text-xs font-bold rounded-xl shadow-lg shadow-sky-500/25 transition flex items-center gap-1.5"
+                  >
+                    <Save className="w-4 h-4" />
+                    <span>Guardar Cambios</span>
+                  </button>
+                </div>
+              </form>
+
             </div>
           </div>,
           document.body
