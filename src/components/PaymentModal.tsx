@@ -23,8 +23,8 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
   onAddAllocation,
   onRemoveAllocation
 }) => {
-  // Cross-account filter toggle (defaults to true to allow linking payments from checking accounts)
-  const [showAllAccounts, setShowAllAccounts] = useState<boolean>(true);
+  // Cross-account filter toggle (defaults to false to only show payments on this card by default)
+  const [showAllAccounts, setShowAllAccounts] = useState<boolean>(false);
 
   // Helper to determine if a transaction qualifies as a payment / abono
   const isEligiblePayment = (tx: ComputedTransaction): boolean => {
@@ -34,36 +34,55 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
     // Must have available balance to allocate
     if ((tx.unallocatedPaymentBalance || 0) <= 0) return false;
 
-    // 1. Explicit transaction type
+    // 1. Explicit transaction type from user rules or manual classification
     if (tx.transactionType === 'pago_tc') return true;
 
-    // 2. Negative amount
-    if (tx.amount < 0) return true;
-
-    // 3. Category parent 'Abonos y Pagos' or subcategory with 'pago' / 'abono'
+    // 2. Explicit category or subcategory of credit card debt payment/abono
     const cat = (tx.category || '').toLowerCase();
     const subcat = (tx.subcategory || '').toLowerCase();
     const desc = (tx.description || '').toLowerCase();
+    const rawDesc = (tx.rawDescription || '').toLowerCase();
 
-    if (
-      cat.includes('abonos') ||
-      cat.includes('pagos') ||
-      subcat.includes('pago') ||
-      subcat.includes('abono')
-    ) {
+    const isExplicitPaymentCategory =
+      cat === 'abonos y pagos' ||
+      cat === 'pagos de tarjeta' ||
+      cat === 'pago tarjeta' ||
+      cat === 'abono tarjeta' ||
+      subcat.includes('pago tarjeta') ||
+      subcat.includes('pagos de tarjeta') ||
+      subcat.includes('pago de tarjeta') ||
+      subcat.includes('pago tc') ||
+      subcat.includes('abono de tarjeta') ||
+      subcat.includes('abono tarjeta') ||
+      subcat.includes('abono tc') ||
+      subcat.includes('abono deuda') ||
+      subcat.includes('pago deuda');
+
+    if (isExplicitPaymentCategory) return true;
+
+    // 3. Clear text / merchant / description patterns of credit card payments
+    const isPaymentDescriptionPattern =
+      desc.includes('pago tarjeta') ||
+      desc.includes('abono tarjeta') ||
+      desc.includes('pago tc') ||
+      desc.includes('abono tc') ||
+      desc.includes('pago de tarjeta') ||
+      desc.includes('abono a tarjeta') ||
+      desc.includes('abono deuda') ||
+      desc.includes('pago deuda') ||
+      rawDesc.includes('pago tarjeta') ||
+      rawDesc.includes('abono tarjeta') ||
+      rawDesc.includes('pago tc') ||
+      rawDesc.includes('abono tc');
+
+    if (isPaymentDescriptionPattern) return true;
+
+    // 4. Negative amount directly on the same credit card account (represents a refund / credit note / abono)
+    if (tx.amount < 0 && tx.accountId === purchase.accountId) {
       return true;
     }
 
-    // 4. Transfers or payments from checking account with payment keywords
-    if (
-      tx.transactionType === 'transferencia_enviada' &&
-      (desc.includes('pago') || desc.includes('abono') || desc.includes('tc') || desc.includes('tarjeta'))
-    ) {
-      return true;
-    }
-
-    // 5. Fallback to credit card payment detector
-    return isCreditCardPaymentTransaction(tx);
+    return false;
   };
 
   // Filter available payments based on eligibility and selected account scope

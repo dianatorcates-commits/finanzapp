@@ -48,10 +48,28 @@ export function isCreditCardPaymentTransaction(tx: {
 
   if (
     subcat.includes('pago tarjeta') ||
+    subcat.includes('pagos de tarjeta') ||
+    subcat.includes('pago de tarjeta') ||
     subcat.includes('pago tc') ||
     subcat.includes('abono de tarjeta') ||
     subcat.includes('abono tarjeta') ||
-    subcat.includes('abono tc')
+    subcat.includes('abono tc') ||
+    subcat.includes('abono deuda') ||
+    subcat.includes('pago deuda')
+  ) {
+    return true;
+  }
+
+  const desc = (tx.description || '').toLowerCase();
+  if (
+    desc.includes('pago tarjeta') ||
+    desc.includes('abono tarjeta') ||
+    desc.includes('pago tc') ||
+    desc.includes('abono tc') ||
+    desc.includes('pago de tarjeta') ||
+    desc.includes('abono a tarjeta') ||
+    desc.includes('abono deuda') ||
+    desc.includes('pago deuda')
   ) {
     return true;
   }
