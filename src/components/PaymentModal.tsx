@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, Link2, Trash2, CheckCircle2, AlertCircle, ArrowRight, Building2, CreditCard } from 'lucide-react';
 import { ComputedTransaction, Account } from '../types';
-import { isPaymentOrIncomeTransaction } from '../utils/paymentAllocation';
+import { isCreditCardPaymentTransaction } from '../utils/paymentAllocation';
 import { formatCLP } from './MetricCards';
 
 interface PaymentModalProps {
@@ -62,8 +62,8 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
       return true;
     }
 
-    // 5. Fallback to general payment/income detector
-    return isPaymentOrIncomeTransaction(tx);
+    // 5. Fallback to credit card payment detector
+    return isCreditCardPaymentTransaction(tx);
   };
 
   // Filter available payments based on eligibility and selected account scope

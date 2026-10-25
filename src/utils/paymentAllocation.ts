@@ -1,6 +1,65 @@
 import { Transaction, ComputedTransaction, PaymentAllocation } from '../types';
 
 /**
+ * Determines whether a transaction is specifically a credit card payment or abono
+ * that can be allocated to cover credit card purchases.
+ * 
+ * Transfers (transferencia_recibida / transferencia_enviada), incomes (sueldos, honorarios),
+ * and regular bank movements are NOT credit card abonos.
+ */
+export function isCreditCardPaymentTransaction(tx: {
+  amount: number;
+  transactionType?: string;
+  category?: string;
+  subcategory?: string;
+  description?: string;
+}): boolean {
+  // A transfer sent or received is NOT a credit card payment unless explicitly identified
+  if (
+    tx.transactionType === 'transferencia_enviada' ||
+    tx.transactionType === 'transferencia_recibida'
+  ) {
+    const subcat = (tx.subcategory || '').toLowerCase();
+    const desc = (tx.description || '').toLowerCase();
+    const isExplicitTcPayment =
+      subcat.includes('pago tarjeta') ||
+      subcat.includes('pago tc') ||
+      subcat.includes('abono tc') ||
+      desc.includes('pago tarjeta') ||
+      desc.includes('pago tc');
+    return isExplicitTcPayment;
+  }
+
+  if (tx.transactionType === 'pago_tc') return true;
+
+  // Negative amount on credit card or return/abono
+  if (tx.amount < 0) return true;
+
+  const cat = (tx.category || '').toLowerCase();
+  const subcat = (tx.subcategory || '').toLowerCase();
+
+  // Explicit abonos or pagos category (excluding general income/transfers)
+  if (
+    (cat.includes('abonos') || cat.includes('pagos')) &&
+    !cat.includes('transferencias')
+  ) {
+    return true;
+  }
+
+  if (
+    subcat.includes('pago tarjeta') ||
+    subcat.includes('pago tc') ||
+    subcat.includes('abono de tarjeta') ||
+    subcat.includes('abono tarjeta') ||
+    subcat.includes('abono tc')
+  ) {
+    return true;
+  }
+
+  return false;
+}
+
+/**
  * Determines whether a transaction is a payment, abono, refund, return, or income,
  * which should NOT count towards used credit line or expense quota (netAmount = 0).
  */
@@ -11,9 +70,24 @@ export function isPaymentOrIncomeTransaction(tx: {
   subcategory?: string;
   description?: string;
 }): boolean {
-  if (tx.amount <= 0) return true;
+  if (tx.amount < 0) return true;
 
   const type = tx.transactionType;
+
+  // A transfer sent is an outflow/egreso (expense), NEVER payment/income
+  if (type === 'transferencia_enviada') {
+    const subcat = (tx.subcategory || '').toLowerCase();
+    const desc = (tx.description || '').toLowerCase();
+    const isExplicitTcPayment =
+      subcat.includes('pago tarjeta') ||
+      subcat.includes('pago tc') ||
+      subcat.includes('abono tc') ||
+      desc.includes('pago tarjeta') ||
+      desc.includes('pago tc');
+    return isExplicitTcPayment;
+  }
+
+  // Explicit positive payment or income types
   if (
     type === 'pago_tc' ||
     type === 'ingreso_venta' ||
@@ -23,18 +97,37 @@ export function isPaymentOrIncomeTransaction(tx: {
     return true;
   }
 
+  // If transactionType is compra or comision_interes, it is an expense/charge
+  if (type === 'compra' || type === 'comision_interes') {
+    return false;
+  }
+
   const cat = (tx.category || '').toLowerCase();
   const subcat = (tx.subcategory || '').toLowerCase();
 
+  // If subcategory is 'transferencias' and type wasn't transferencia_recibida, it's an outflow
+  if (subcat === 'transferencias') {
+    return false;
+  }
+
+  // Credit card payment / abono categories
   if (
     cat.includes('abonos') ||
     cat.includes('pagos') ||
-    cat.includes('ingresos') ||
     subcat.includes('pago') ||
-    subcat.includes('abono') ||
+    subcat.includes('abono')
+  ) {
+    return true;
+  }
+
+  // Income categories
+  if (
+    (cat.includes('ingresos') && !cat.includes('transferencias')) ||
     subcat.includes('sueldo') ||
     subcat.includes('remuneraci') ||
-    subcat.includes('devoluci')
+    subcat.includes('honorarios') ||
+    subcat.includes('devoluci') ||
+    subcat.includes('ventas')
   ) {
     return true;
   }
@@ -73,7 +166,9 @@ export function computeTransactions(transactions: Transaction[]): ComputedTransa
     }
 
     let unallocatedPaymentBalance = 0;
-    if (isPaymentOrIncome) {
+    // unallocatedPaymentBalance is ONLY available for genuine credit card payments/abonos
+    const isEligibleCreditCardPayment = isCreditCardPaymentTransaction(tx);
+    if (isEligibleCreditCardPayment) {
       const positivePaymentAmount = Math.abs(tx.amount);
       const usedAmount = paymentUsageMap.get(tx.id) || 0;
       unallocatedPaymentBalance = Math.max(0, positivePaymentAmount - usedAmount);
@@ -119,18 +214,7 @@ export function autoAllocatePayments(
     const payments = updatedTransactions
       .filter((tx) => {
         if (tx.accountId !== accId) return false;
-        if (tx.transactionType === 'pago_tc') return true;
-        const isPayOrIncome = isPaymentOrIncomeTransaction(tx);
-        const cat = (tx.category || '').toLowerCase();
-        const subcat = (tx.subcategory || '').toLowerCase();
-        return (
-          isPayOrIncome &&
-          (cat.includes('abonos') ||
-            cat.includes('pagos') ||
-            subcat.includes('pago') ||
-            subcat.includes('abono') ||
-            tx.amount < 0)
-        );
+        return isCreditCardPaymentTransaction(tx);
       })
       .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 

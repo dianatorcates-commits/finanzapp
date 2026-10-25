@@ -10,7 +10,7 @@ import {
   Landmark
 } from 'lucide-react';
 import { ComputedTransaction, Account, CustomMetricCard, DEFAULT_DASHBOARD_CONFIG } from '../types';
-import { isPaymentOrIncomeTransaction } from '../utils/paymentAllocation';
+import { isPaymentOrIncomeTransaction, isCreditCardPaymentTransaction } from '../utils/paymentAllocation';
 
 interface MetricCardsProps {
   computedTransactions: ComputedTransaction[];
@@ -134,7 +134,7 @@ function calculateMetricValue(card: CustomMetricCard, transactions: ComputedTran
     }
     case 'unallocated_tc': {
       const val = transactions
-        .filter((tx) => tx.transactionType === 'pago_tc' || (tx.category === 'Abonos y Pagos' && isPaymentOrIncomeTransaction(tx)))
+        .filter((tx) => isCreditCardPaymentTransaction(tx))
         .reduce((sum, tx) => sum + (tx.unallocatedPaymentBalance || 0), 0);
       return { value: val, subtitle: 'Pagos a TC disponibles para asociar' };
     }

@@ -13,7 +13,7 @@ import {
 import { ComputedTransaction, Account, CategoryMapping, TransactionType } from '../types';
 import { getParentCategory, TRANSACTION_TYPES } from '../utils/categorizer';
 import { calculateTransactionPeriod } from '../utils/dateUtils';
-import { isPaymentOrIncomeTransaction } from '../utils/paymentAllocation';
+import { isPaymentOrIncomeTransaction, isCreditCardPaymentTransaction } from '../utils/paymentAllocation';
 import { formatCLP } from './MetricCards';
 
 interface TransactionTableProps {
@@ -431,6 +431,7 @@ export const TransactionTable: React.FC<TransactionTableProps> = ({
                 const account = accounts.find((a) => a.id === tx.accountId);
                 const isCreditCard = account?.type === 'credit_card';
                 const isPaymentOrIncome = isPaymentOrIncomeTransaction(tx);
+                const isEligibleCreditCardPayment = isCreditCardPaymentTransaction(tx);
                 const isPurchase = !isPaymentOrIncome && tx.amount > 0;
                 const isSelected = selectedTxIds.includes(tx.id);
 
@@ -550,7 +551,7 @@ export const TransactionTable: React.FC<TransactionTableProps> = ({
                         ) : (
                           <span className="text-slate-500 text-[11px]">$0</span>
                         )
-                      ) : isPaymentOrIncome ? (
+                      ) : isEligibleCreditCardPayment && (tx.unallocatedPaymentBalance || 0) > 0 ? (
                         <span className="text-emerald-400 font-semibold text-[11px]">
                           Abono Disponible ({formatCLP(tx.unallocatedPaymentBalance || 0)})
                         </span>
