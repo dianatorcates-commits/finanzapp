@@ -1032,7 +1032,7 @@ export function App() {
     setCredits((prev) =>
       prev.map((c) => {
         if (c.id === creditId) {
-          const nextPaid = Math.min(c.totalInstallments, c.paidInstallments + 1);
+          const nextPaid = c.type === 'suscripcion' ? c.paidInstallments + 1 : Math.min(c.totalInstallments, c.paidInstallments + 1);
           creditToSave = {
             ...c,
             paidInstallments: nextPaid,

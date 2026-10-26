@@ -115,7 +115,7 @@ export interface SavingsGoal {
   categoryIcon?: string;
 }
 
-export type CreditType = 'hipotecario' | 'consumo' | 'avance_tc' | 'cuotas_tc' | 'automotriz' | 'otro';
+export type CreditType = 'hipotecario' | 'consumo' | 'avance_tc' | 'cuotas_tc' | 'automotriz' | 'otro' | 'suscripcion';
 
 export interface Credit {
   id: string;
