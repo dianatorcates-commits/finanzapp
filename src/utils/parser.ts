@@ -511,3 +511,79 @@ function mapRawRowsToTransactions(rows: Record<string, any>[], accountId: string
     })
     .filter((t): t is Transaction => t !== null);
 }
+
+/**
+ * Calculates absolute difference in days between two YYYY-MM-DD date strings.
+ */
+function getDayDifference(dateStr1: string, dateStr2: string): number {
+  if (!dateStr1 || !dateStr2) return 999;
+  const d1 = new Date(dateStr1 + 'T00:00:00');
+  const d2 = new Date(dateStr2 + 'T00:00:00');
+  if (isNaN(d1.getTime()) || isNaN(d2.getTime())) return 999;
+  const diffTime = Math.abs(d2.getTime() - d1.getTime());
+  return Math.round(diffTime / (1000 * 60 * 60 * 24));
+}
+
+/**
+ * Detects exact and potential duplicates when importing cartolas.
+ * - Exact Duplicates (same account, same amount, same date): Omitted from imported list.
+ * - Potential Duplicates (same account, same amount, date within ±7 days): Kept in list with isPotentialDuplicate = true.
+ */
+export function analyzeCartolaDuplicates(
+  incomingTxs: Transaction[],
+  existingTxs: Transaction[],
+  accountId: string
+): { filteredTxs: Transaction[]; omittedExactCount: number } {
+  const existingAccountTxs = (existingTxs || []).filter((t) => t.accountId === accountId);
+  const usedExistingExactIds = new Set<string>();
+  const usedExistingPotentialIds = new Set<string>();
+
+  const filteredTxs: Transaction[] = [];
+  let omittedExactCount = 0;
+
+  for (const inc of incomingTxs) {
+    const incAmount = Math.abs(inc.amount);
+
+    // 1. Exact Match: Same account, same amount, same date
+    const exactMatch = existingAccountTxs.find((ex) => {
+      if (usedExistingExactIds.has(ex.id)) return false;
+      return ex.date === inc.date && Math.abs(ex.amount) === incAmount;
+    });
+
+    if (exactMatch) {
+      usedExistingExactIds.add(exactMatch.id);
+      omittedExactCount++;
+      continue; // Omit from filteredTxs
+    }
+
+    // 2. Potential Duplicate: Same account, same amount, date difference between 1 and 7 days
+    const potentialMatch = existingAccountTxs.find((ex) => {
+      if (usedExistingExactIds.has(ex.id) || usedExistingPotentialIds.has(ex.id)) return false;
+      if (Math.abs(ex.amount) !== incAmount) return false;
+      const diffDays = getDayDifference(ex.date, inc.date);
+      return diffDays >= 1 && diffDays <= 7;
+    });
+
+    if (potentialMatch) {
+      usedExistingPotentialIds.add(potentialMatch.id);
+      filteredTxs.push({
+        ...inc,
+        accountId,
+        isPotentialDuplicate: true,
+        duplicateOfDescription: `${potentialMatch.description} (${potentialMatch.date})`,
+        duplicateOfId: potentialMatch.id
+      });
+    } else {
+      filteredTxs.push({
+        ...inc,
+        accountId,
+        isPotentialDuplicate: false,
+        duplicateOfDescription: undefined,
+        duplicateOfId: undefined
+      });
+    }
+  }
+
+  return { filteredTxs, omittedExactCount };
+}
+

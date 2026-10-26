@@ -1,13 +1,14 @@
 import React, { useState } from 'react';
-import { X, Upload, FileText, FileSpreadsheet, Check, Sparkles, HelpCircle, Calendar } from 'lucide-react';
+import { X, Upload, FileText, FileSpreadsheet, Check, Sparkles, HelpCircle, Calendar, AlertTriangle, Trash2, CheckCircle } from 'lucide-react';
 import { Account, Transaction } from '../types';
-import { parseCSVFile, parseExcelFile, parseRawText } from '../utils/parser';
+import { parseCSVFile, parseExcelFile, parseRawText, analyzeCartolaDuplicates } from '../utils/parser';
 import { calculateTransactionPeriod } from '../utils/dateUtils';
 import { formatCLP } from './MetricCards';
 
 interface ImportModalProps {
   accounts: Account[];
   initialAccountId?: string;
+  existingTransactions?: Transaction[];
   onClose: () => void;
   onImport: (newTransactions: Transaction[]) => void;
 }
@@ -15,6 +16,7 @@ interface ImportModalProps {
 export const ImportModal: React.FC<ImportModalProps> = ({
   accounts,
   initialAccountId,
+  existingTransactions = [],
   onClose,
   onImport
 }) => {
@@ -26,7 +28,9 @@ export const ImportModal: React.FC<ImportModalProps> = ({
   });
   const [activeTab, setActiveTab] = useState<'file' | 'text'>('file');
   const [rawText, setRawText] = useState<string>('');
+  const [rawImportedTxs, setRawImportedTxs] = useState<Transaction[]>([]);
   const [parsedPreview, setParsedPreview] = useState<Transaction[]>([]);
+  const [omittedExactCount, setOmittedExactCount] = useState<number>(0);
   const [isProcessing, setIsProcessing] = useState<boolean>(false);
   const [fileName, setFileName] = useState<string>('');
   const [showFormatGuide, setShowFormatGuide] = useState<boolean>(false);
@@ -34,23 +38,34 @@ export const ImportModal: React.FC<ImportModalProps> = ({
 
   const targetAccount = accounts.find((a) => a.id === selectedAccountId);
 
+  const processIncomingTransactions = (incoming: Transaction[], accountId: string, closingDay?: number) => {
+    const fixed = incoming.map((t) => ({
+      ...t,
+      accountId,
+      period: t.period || calculateTransactionPeriod(t.date, closingDay)
+    }));
+    setRawImportedTxs(fixed);
+    const analysis = analyzeCartolaDuplicates(fixed, existingTransactions, accountId);
+    setOmittedExactCount(analysis.omittedExactCount);
+    setParsedPreview(analysis.filteredTxs);
+  };
+
   const handleAccountChange = (newAccountId: string) => {
     setSelectedAccountId(newAccountId);
     const newTarget = accounts.find((a) => a.id === newAccountId);
-    if (newTarget) {
-      setParsedPreview((prev) =>
-        prev.map((tx) => ({
-          ...tx,
-          accountId: newAccountId,
-          period: calculateTransactionPeriod(tx.date, newTarget.closingDay),
-          transactionType:
-            tx.transactionType === 'pago_tc' && newTarget.type !== 'credit_card'
-              ? 'ingreso_venta'
-              : tx.transactionType === 'ingreso_venta' && newTarget.type === 'credit_card'
-              ? 'pago_tc'
-              : tx.transactionType
-        }))
-      );
+    if (newTarget && rawImportedTxs.length > 0) {
+      const updatedRaw = rawImportedTxs.map((tx) => ({
+        ...tx,
+        accountId: newAccountId,
+        period: calculateTransactionPeriod(tx.date, newTarget.closingDay),
+        transactionType:
+          tx.transactionType === 'pago_tc' && newTarget.type !== 'credit_card'
+            ? 'ingreso_venta'
+            : tx.transactionType === 'ingreso_venta' && newTarget.type === 'credit_card'
+            ? 'pago_tc'
+            : tx.transactionType
+      }));
+      processIncomingTransactions(updatedRaw, newAccountId, newTarget.closingDay);
     }
   };
 
@@ -72,13 +87,7 @@ export const ImportModal: React.FC<ImportModalProps> = ({
         const text = await file.text();
         txs = parseRawText(text, selectedAccountId, targetAccount.type);
       }
-      // Ensure all transactions have selectedAccountId and billing cycle period
-      const fixedTxs = txs.map((t) => ({
-        ...t,
-        accountId: selectedAccountId,
-        period: t.period || calculateTransactionPeriod(t.date, targetAccount.closingDay)
-      }));
-      setParsedPreview(fixedTxs);
+      processIncomingTransactions(txs, selectedAccountId, targetAccount.closingDay);
     } catch (err) {
       alert('Error al leer el archivo. Revisa el formato e intenta de nuevo.');
       console.error(err);
@@ -90,12 +99,7 @@ export const ImportModal: React.FC<ImportModalProps> = ({
   const handleParseText = () => {
     if (!rawText.trim() || !selectedAccountId || !targetAccount) return;
     const txs = parseRawText(rawText, selectedAccountId, targetAccount.type);
-    const fixedTxs = txs.map((t) => ({
-      ...t,
-      accountId: selectedAccountId,
-      period: t.period || calculateTransactionPeriod(t.date, targetAccount.closingDay)
-    }));
-    setParsedPreview(fixedTxs);
+    processIncomingTransactions(txs, selectedAccountId, targetAccount.closingDay);
   };
 
   const handleApplyBulkPeriod = () => {
@@ -112,6 +116,36 @@ export const ImportModal: React.FC<ImportModalProps> = ({
   const handleUpdatePreviewRow = (id: string, updates: Partial<Transaction>) => {
     setParsedPreview((prev) =>
       prev.map((tx) => (tx.id === id ? { ...tx, ...updates } : tx))
+    );
+  };
+
+  const handleDismissDuplicate = (id: string) => {
+    setParsedPreview((prev) =>
+      prev.map((tx) =>
+        tx.id === id
+          ? {
+              ...tx,
+              isPotentialDuplicate: false,
+              duplicateOfDescription: undefined,
+              duplicateOfId: undefined
+            }
+          : tx
+      )
+    );
+  };
+
+  const handleDeletePreviewRow = (id: string) => {
+    setParsedPreview((prev) => prev.filter((tx) => tx.id !== id));
+  };
+
+  const handleAcceptAllDuplicates = () => {
+    setParsedPreview((prev) =>
+      prev.map((tx) => ({
+        ...tx,
+        isPotentialDuplicate: false,
+        duplicateOfDescription: undefined,
+        duplicateOfId: undefined
+      }))
     );
   };
 
@@ -306,7 +340,7 @@ export const ImportModal: React.FC<ImportModalProps> = ({
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 bg-sky-50/50 p-3 rounded-xl border border-sky-100">
                 <h4 className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
                   <Sparkles className="w-4 h-4 text-sky-500" />
-                  <span>Transacciones Detectadas ({parsedPreview.length})</span>
+                  <span>Transacciones a Importar ({parsedPreview.length})</span>
                 </h4>
 
                 {/* Bulk Period Selector */}
@@ -332,6 +366,35 @@ export const ImportModal: React.FC<ImportModalProps> = ({
                 </div>
               </div>
 
+              {/* Omitted Exact Duplicates Notification */}
+              {omittedExactCount > 0 && (
+                <div className="bg-sky-50 border border-sky-200 text-sky-800 text-xs px-3.5 py-2.5 rounded-xl flex items-center gap-2">
+                  <CheckCircle className="w-4 h-4 text-sky-600 flex-shrink-0" />
+                  <span>
+                    Se omitieron automáticamente <b>{omittedExactCount}</b> transacciones duplicadas exactas (misma fecha y monto ya registrados previamente en esta cuenta).
+                  </span>
+                </div>
+              )}
+
+              {/* Potential Duplicates Warning Banner */}
+              {parsedPreview.some((t) => t.isPotentialDuplicate) && (
+                <div className="bg-amber-50 border border-amber-200 text-amber-900 text-xs px-3.5 py-2.5 rounded-xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
+                  <div className="flex items-center gap-2">
+                    <AlertTriangle className="w-4 h-4 text-amber-600 flex-shrink-0" />
+                    <span>
+                      <b>{parsedPreview.filter((t) => t.isPotentialDuplicate).length}</b> transacciones detectadas con <b>posible duplicidad</b> (coinciden en monto con compras de los últimos 7 días).
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleAcceptAllDuplicates}
+                    className="text-xs bg-amber-600 hover:bg-amber-700 text-white font-bold px-3 py-1 rounded-lg transition whitespace-nowrap"
+                  >
+                    Aceptar todas como válidas
+                  </button>
+                </div>
+              )}
+
               <div className="max-h-56 overflow-y-auto border border-slate-200 rounded-xl">
                 <table className="w-full text-left text-xs text-slate-700">
                   <thead className="bg-slate-100 text-[11px] font-semibold text-slate-500 uppercase sticky top-0 z-10">
@@ -341,11 +404,17 @@ export const ImportModal: React.FC<ImportModalProps> = ({
                       <th className="px-3 py-2">Descripción</th>
                       <th className="px-3 py-2">Categoría</th>
                       <th className="px-3 py-2 text-right">Monto</th>
+                      <th className="px-3 py-2 text-center">Acciones</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
                     {parsedPreview.map((tx) => (
-                      <tr key={tx.id} className="hover:bg-slate-50">
+                      <tr
+                        key={tx.id}
+                        className={`hover:bg-slate-50 transition ${
+                          tx.isPotentialDuplicate ? 'bg-amber-50/70 border-l-4 border-l-amber-500' : ''
+                        }`}
+                      >
                         {/* Editable Date */}
                         <td className="px-3 py-2 whitespace-nowrap">
                           <input
@@ -367,12 +436,26 @@ export const ImportModal: React.FC<ImportModalProps> = ({
                           />
                         </td>
 
-                        <td className="px-3 py-2 font-medium truncate max-w-[160px]" title={tx.description}>
-                          {tx.description}
-                          {tx.installments && (
-                            <span className="ml-1 text-[10px] text-amber-700 bg-amber-50 px-1 py-0.2 rounded border border-amber-200">
-                              C.{tx.installments.current}/{tx.installments.total}
-                            </span>
+                        <td className="px-3 py-2 font-medium max-w-[200px]">
+                          <div className="truncate" title={tx.description}>
+                            {tx.description}
+                            {tx.installments && (
+                              <span className="ml-1 text-[10px] text-amber-700 bg-amber-50 px-1 py-0.2 rounded border border-amber-200">
+                                C.{tx.installments.current}/{tx.installments.total}
+                              </span>
+                            )}
+                          </div>
+                          {tx.isPotentialDuplicate && (
+                            <div className="mt-1 flex items-center gap-1 flex-wrap">
+                              <span className="text-[10px] font-bold text-amber-800 bg-amber-100 px-1.5 py-0.5 rounded border border-amber-300 flex items-center gap-1">
+                                <AlertTriangle className="w-3 h-3 text-amber-600 inline" /> Posible Duplicidad
+                              </span>
+                              {tx.duplicateOfDescription && (
+                                <span className="text-[10px] text-amber-700" title={`Coincide con: ${tx.duplicateOfDescription}`}>
+                                  (Coincide con: {tx.duplicateOfDescription})
+                                </span>
+                              )}
+                            </div>
                           )}
                         </td>
 
@@ -390,6 +473,30 @@ export const ImportModal: React.FC<ImportModalProps> = ({
                           }`}
                         >
                           {tx.transactionType === 'pago_tc' ? `- ${formatCLP(tx.amount)}` : formatCLP(tx.amount)}
+                        </td>
+
+                        {/* Row Actions */}
+                        <td className="px-3 py-2 text-center whitespace-nowrap">
+                          <div className="flex items-center justify-center gap-1">
+                            {tx.isPotentialDuplicate && (
+                              <button
+                                type="button"
+                                onClick={() => handleDismissDuplicate(tx.id)}
+                                className="text-[11px] bg-emerald-100 hover:bg-emerald-200 text-emerald-800 font-semibold px-2 py-0.5 rounded transition flex items-center gap-1"
+                                title="Aceptar esta transacción como válida (no es duplicada)"
+                              >
+                                <Check className="w-3 h-3 text-emerald-600" /> Aceptar
+                              </button>
+                            )}
+                            <button
+                              type="button"
+                              onClick={() => handleDeletePreviewRow(tx.id)}
+                              className="text-slate-400 hover:text-rose-600 p-1 hover:bg-rose-50 rounded transition"
+                              title="Eliminar de la importación"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     ))}

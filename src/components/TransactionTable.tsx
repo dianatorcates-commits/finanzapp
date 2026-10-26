@@ -84,6 +84,21 @@ export const TransactionTable: React.FC<TransactionTableProps> = ({
   const allVisibleIds = React.useMemo(() => transactions.map((t) => t.id), [transactions]);
   const isAllSelected = allVisibleIds.length > 0 && allVisibleIds.every((id) => selectedTxIds.includes(id));
 
+  const potentialDuplicates = React.useMemo(
+    () => transactions.filter((t) => t.isPotentialDuplicate),
+    [transactions]
+  );
+
+  const handleAcceptAllDuplicates = () => {
+    potentialDuplicates.forEach((tx) => {
+      onUpdateTransaction(tx.id, {
+        isPotentialDuplicate: false,
+        duplicateOfDescription: undefined,
+        duplicateOfId: undefined
+      });
+    });
+  };
+
   const toggleSelectAll = () => {
     if (isAllSelected) {
       setSelectedTxIds([]);
@@ -323,6 +338,24 @@ export const TransactionTable: React.FC<TransactionTableProps> = ({
         </div>
       </div>
 
+      {/* Potential Duplicates Warning Banner */}
+      {potentialDuplicates.length > 0 && (
+        <div className="p-3.5 bg-amber-500/10 border-b border-amber-500/30 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-amber-200">
+          <div className="flex items-center gap-2 text-xs">
+            <AlertTriangle className="w-4 h-4 text-amber-400 flex-shrink-0" />
+            <span>
+              <b>{potentialDuplicates.length}</b> {potentialDuplicates.length === 1 ? 'movimiento con posible duplicidad detectado' : 'movimientos con posible duplicidad detectados'}. Revisa si fueron registrados previamente por webhook o compra de fin de semana.
+            </span>
+          </div>
+          <button
+            onClick={handleAcceptAllDuplicates}
+            className="text-xs bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold px-3 py-1.5 rounded-lg transition shadow-sm whitespace-nowrap"
+          >
+            Aceptar todas como válidas
+          </button>
+        </div>
+      )}
+
       {/* Manual Add Form Drawer */}
       {showAddForm && (
         <form onSubmit={handleAddSubmit} className="p-4 bg-slate-950/90 border-b border-slate-800 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
@@ -517,7 +550,13 @@ export const TransactionTable: React.FC<TransactionTableProps> = ({
                   <tr
                     key={tx.id}
                     className={`hover:bg-slate-800/50 transition ${
-                      isSelected ? 'bg-sky-500/15' : tx.isFullyPaid ? 'bg-emerald-500/5' : ''
+                      isSelected
+                        ? 'bg-sky-500/15'
+                        : tx.isPotentialDuplicate
+                        ? 'bg-amber-500/10 border-l-4 border-l-amber-500'
+                        : tx.isFullyPaid
+                        ? 'bg-emerald-500/5'
+                        : ''
                     }`}
                   >
                     {/* Checkbox row selection */}
@@ -570,6 +609,18 @@ export const TransactionTable: React.FC<TransactionTableProps> = ({
                           {tx.originalTotalAmount && (
                             <span className="text-[10px] text-slate-400">
                               (Total compra: {formatCLP(tx.originalTotalAmount)})
+                            </span>
+                          )}
+                        </div>
+                      )}
+                      {tx.isPotentialDuplicate && (
+                        <div className="mt-1 flex items-center gap-1.5 flex-wrap">
+                          <span className="text-[10px] font-bold text-amber-300 bg-amber-500/20 px-1.5 py-0.5 rounded border border-amber-500/40 flex items-center gap-1">
+                            <AlertTriangle className="w-3 h-3 text-amber-400" /> Posible Duplicidad
+                          </span>
+                          {tx.duplicateOfDescription && (
+                            <span className="text-[10px] text-amber-300/80" title={`Coincide con: ${tx.duplicateOfDescription}`}>
+                              Coincide en monto con: {tx.duplicateOfDescription}
                             </span>
                           )}
                         </div>
@@ -659,6 +710,22 @@ export const TransactionTable: React.FC<TransactionTableProps> = ({
                     {/* Actions */}
                     <td className="py-3 px-4 text-center whitespace-nowrap">
                       <div className="flex items-center justify-center gap-1.5">
+                        {tx.isPotentialDuplicate && (
+                          <button
+                            onClick={() =>
+                              onUpdateTransaction(tx.id, {
+                                isPotentialDuplicate: false,
+                                duplicateOfDescription: undefined,
+                                duplicateOfId: undefined
+                              })
+                            }
+                            className="flex items-center gap-1 text-[11px] bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/40 font-semibold px-2 py-1 rounded-lg transition"
+                            title="Aceptar como transacción válida (no es duplicada)"
+                          >
+                            <CheckCircle className="w-3 h-3 text-emerald-400" />
+                            <span>Aceptar</span>
+                          </button>
+                        )}
                         {isCreditCard && isPurchase && (
                           <button
                             onClick={() => onOpenPaymentModal(tx)}

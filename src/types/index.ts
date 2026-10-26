@@ -54,6 +54,9 @@ export interface Transaction {
   };
   allocations: PaymentAllocation[];
   notes?: string;
+  isPotentialDuplicate?: boolean;
+  duplicateOfDescription?: string;
+  duplicateOfId?: string;
 }
 
 export interface ComputedTransaction extends Transaction {

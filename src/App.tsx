@@ -1369,6 +1369,7 @@ export function App() {
         <ImportModal
           accounts={accounts}
           initialAccountId={filters.accountId !== 'ALL' ? filters.accountId : accounts[0]?.id}
+          existingTransactions={transactions}
           onClose={() => setIsImportModalOpen(false)}
           onImport={handleImportTransactions}
         />
