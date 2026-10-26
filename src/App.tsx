@@ -65,6 +65,7 @@ import { TelegramModal } from './components/TelegramModal';
 import { WalletAutomationModal } from './components/WalletAutomationModal';
 import { CustomizeDashboardModal } from './components/CustomizeDashboardModal';
 import { AuthModal } from './components/AuthModal';
+import { CreditCardBillingModal } from './components/CreditCardBillingModal';
 import { LandingPage } from './components/LandingPage';
 
 const STORAGE_KEY_ACCOUNTS = 'finanzapp_accounts_v1';
@@ -202,6 +203,7 @@ export function App() {
   const [isBudgetModalOpen, setIsBudgetModalOpen] = useState(false);
   const [isTelegramModalOpen, setIsTelegramModalOpen] = useState(false);
   const [isWalletModalOpen, setIsWalletModalOpen] = useState(false);
+  const [isBillingModalOpen, setIsBillingModalOpen] = useState(false);
   const [telegramProfile, setTelegramProfile] = useState<TelegramProfile | null>(null);
   const [selectedPurchaseForPayment, setSelectedPurchaseForPayment] = useState<ComputedTransaction | null>(null);
 
@@ -1049,6 +1051,51 @@ export function App() {
     }
   };
 
+  const handleGenerateBillingTransactions = async (
+    newTxs: Transaction[],
+    paidCreditUpdates: { id: string; paidInstallments?: number; lastPaidPeriod: string }[]
+  ) => {
+    if (newTxs.length === 0) return;
+
+    // 1. Add generated transactions to state
+    setTransactions((prev) => [...prev, ...newTxs]);
+
+    // 2. Update credits state
+    if (paidCreditUpdates.length > 0) {
+      const updateMap = new Map(paidCreditUpdates.map((u) => [u.id, u]));
+      const updatedCredits: Credit[] = [];
+      setCredits((prev) =>
+        prev.map((c) => {
+          const u = updateMap.get(c.id);
+          if (u) {
+            const nextCredit: Credit = {
+              ...c,
+              paidInstallments: u.paidInstallments !== undefined ? u.paidInstallments : c.paidInstallments,
+              lastPaidPeriod: u.lastPaidPeriod
+            };
+            updatedCredits.push(nextCredit);
+            return nextCredit;
+          }
+          return c;
+        })
+      );
+
+      // Persist credits to cloud
+      if (currentUser?.id) {
+        for (const c of updatedCredits) {
+          await saveCreditToCloud(currentUser.id, c);
+        }
+      }
+    }
+
+    // 3. Persist new transactions to cloud
+    if (currentUser?.id) {
+      for (const tx of newTxs) {
+        await saveCloudTransaction(currentUser.id, tx);
+      }
+    }
+  };
+
   const handleUpdateTransaction = async (id: string, updates: Partial<Transaction>) => {
     let updatedTx: Transaction | undefined;
     setTransactions((prev) =>
@@ -1293,6 +1340,7 @@ export function App() {
                 onDeleteTransaction={handleDeleteTransaction}
                 onDeleteTransactionsBatch={handleDeleteTransactionsBatch}
                 onAddTransaction={handleAddManualTransaction}
+                onOpenBillingModal={() => setIsBillingModalOpen(true)}
               />
             ) : activeTab === 'categories' ? (
               <CategoryManagementView
@@ -1338,6 +1386,7 @@ export function App() {
                 onSaveCredit={handleSaveCredit}
                 onDeleteCredit={handleDeleteCredit}
                 onPayInstallment={handlePayInstallment}
+                onOpenBillingModal={() => setIsBillingModalOpen(true)}
               />
             )}
 
@@ -1410,6 +1459,19 @@ export function App() {
         <WalletAutomationModal
           currentUser={currentUser}
           onClose={() => setIsWalletModalOpen(false)}
+        />
+      )}
+
+      {/* Credit Card Billing Projection Modal */}
+      {isBillingModalOpen && (
+        <CreditCardBillingModal
+          isOpen={isBillingModalOpen}
+          onClose={() => setIsBillingModalOpen(false)}
+          accounts={accounts}
+          transactions={computedTransactions}
+          credits={credits}
+          currentPeriod={filters.month !== 'ALL' ? filters.month : new Date().toISOString().slice(0, 7)}
+          onGenerateBillingTransactions={handleGenerateBillingTransactions}
         />
       )}
 

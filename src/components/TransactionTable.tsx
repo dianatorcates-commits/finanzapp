@@ -28,6 +28,7 @@ interface TransactionTableProps {
   onDeleteTransaction: (id: string) => void;
   onDeleteTransactionsBatch?: (ids: string[]) => void;
   onAddTransaction: (newTx: any) => void;
+  onOpenBillingModal?: () => void;
 }
 
 export const TransactionTable: React.FC<TransactionTableProps> = ({
@@ -38,7 +39,8 @@ export const TransactionTable: React.FC<TransactionTableProps> = ({
   onUpdateTransaction,
   onDeleteTransaction,
   onDeleteTransactionsBatch,
-  onAddTransaction
+  onAddTransaction,
+  onOpenBillingModal
 }) => {
   const [showAddForm, setShowAddForm] = useState(false);
   const [newDate, setNewDate] = useState(new Date().toISOString().split('T')[0]);
@@ -325,6 +327,18 @@ export const TransactionTable: React.FC<TransactionTableProps> = ({
             >
               <Trash2 className="w-4 h-4 text-rose-400" />
               <span>Vaciar Todo ({transactions.length})</span>
+            </button>
+          )}
+
+          {/* Billing Projection Modal Trigger */}
+          {onOpenBillingModal && (
+            <button
+              onClick={onOpenBillingModal}
+              className="flex items-center gap-1.5 bg-gradient-to-r from-indigo-500/20 to-purple-500/20 hover:from-indigo-500/30 hover:to-purple-500/30 text-indigo-300 hover:text-white border border-indigo-500/40 text-xs font-semibold px-3.5 py-2 rounded-xl transition shadow-sm"
+              title="Proyectar y generar facturación al corte de Tarjetas de Crédito"
+            >
+              <CreditCard className="w-4 h-4 text-indigo-400" />
+              <span>Facturación Estimada TC</span>
             </button>
           )}
 

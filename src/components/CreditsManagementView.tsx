@@ -30,6 +30,7 @@ export interface CreditsManagementViewProps {
   onSaveCredit: (credit: Credit) => void | Promise<void>;
   onDeleteCredit: (creditId: string) => void | Promise<void>;
   onPayInstallment: (creditId: string, period: string) => void | Promise<void>;
+  onOpenBillingModal?: () => void;
 }
 
 export function formatCLP(amount: number): string {
@@ -144,7 +145,8 @@ export const CreditsManagementView: React.FC<CreditsManagementViewProps> = ({
   currentPeriod,
   onSaveCredit,
   onDeleteCredit,
-  onPayInstallment
+  onPayInstallment,
+  onOpenBillingModal
 }) => {
   // Normalize current period
   const activePeriod = currentPeriod || new Date().toISOString().slice(0, 7);
@@ -586,6 +588,18 @@ export const CreditsManagementView: React.FC<CreditsManagementViewProps> = ({
         </div>
 
         <div className="flex items-center gap-2">
+          {onOpenBillingModal && (
+            <button
+              onClick={onOpenBillingModal}
+              className="flex items-center gap-2 px-3.5 py-2.5 rounded-xl bg-slate-900/90 hover:bg-slate-800 text-indigo-300 hover:text-white border border-indigo-500/30 text-xs font-semibold shadow-sm transition"
+              title="Proyectar cuánto facturará cada tarjeta de crédito considerando cuotas y suscripciones"
+            >
+              <CreditCard className="w-4 h-4 text-indigo-400" />
+              <span className="hidden sm:inline">Facturación Estimada TC</span>
+              <span className="sm:hidden">Facturación TC</span>
+            </button>
+          )}
+
           <button
             onClick={handleStartCreateNew}
             className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-semibold text-xs shadow-lg transition transform hover:-translate-y-0.5 text-white ${
