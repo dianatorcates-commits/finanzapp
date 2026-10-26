@@ -12,6 +12,8 @@ import {
   ShoppingBag,
   ChevronDown,
   ChevronUp,
+  ChevronLeft,
+  ChevronRight,
   ArrowRight,
   ShieldCheck,
   Percent,
@@ -50,6 +52,26 @@ function formatPeriodLabel(period: string): string {
   const monthName = date.toLocaleDateString('es-CL', { month: 'long' });
   const capitalized = monthName.charAt(0).toUpperCase() + monthName.slice(1);
   return `${capitalized} ${year}`;
+}
+
+export function getMonthDiff(fromPeriod: string, toPeriod: string): number {
+  if (!fromPeriod || !toPeriod) return 0;
+  const [fromY, fromM] = fromPeriod.slice(0, 7).split('-').map(Number);
+  const [toY, toM] = toPeriod.slice(0, 7).split('-').map(Number);
+  if (isNaN(fromY) || isNaN(fromM) || isNaN(toY) || isNaN(toM)) return 0;
+  return (toY - fromY) * 12 + (toM - fromM);
+}
+
+export function addMonths(period: string, count: number): string {
+  if (!period || !/^\d{4}-\d{2}$/.test(period)) {
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+  }
+  const [y, m] = period.split('-').map(Number);
+  const date = new Date(y, m - 1 + count, 1);
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  return `${year}-${month}`;
 }
 
 export const CreditCardBillingModal: React.FC<CreditCardBillingModalProps> = ({
@@ -171,22 +193,93 @@ export const CreditCardBillingModal: React.FC<CreditCardBillingModalProps> = ({
     return found;
   };
 
-  // Detailed Analysis of Installments
+  // Available Periods for Dropdown Selector (Past 4 months to next 18 months)
+  const availablePeriods = useMemo(() => {
+    const base = currentPeriod || new Date().toISOString().slice(0, 7);
+    const periodsSet = new Set<string>();
+
+    for (let i = -4; i <= 0; i++) {
+      periodsSet.add(addMonths(base, i));
+    }
+    for (let i = 1; i <= 18; i++) {
+      periodsSet.add(addMonths(base, i));
+    }
+    if (selectedPeriod) {
+      periodsSet.add(selectedPeriod);
+    }
+
+    return Array.from(periodsSet).sort();
+  }, [currentPeriod, selectedPeriod]);
+
+  const getPeriodOptionLabel = (p: string) => {
+    const base = currentPeriod || new Date().toISOString().slice(0, 7);
+    const label = formatPeriodLabel(p);
+    if (p === base) {
+      return `${label} • Actual`;
+    }
+    const diff = getMonthDiff(base, p);
+    if (diff === 1) {
+      return `${label} • Próximo Mes`;
+    }
+    return label;
+  };
+
+  // Detailed Analysis of Installments with Dynamic Projection for Future Months
   const installmentItems = useMemo(() => {
-    return cardInstallments.map((c) => {
-      const isAlreadyLoaded = checkIsAlreadyLoaded(c);
-      const isFinished = c.totalInstallments > 0 && c.paidInstallments >= c.totalInstallments;
-      const nextInstallmentNum = c.paidInstallments + 1;
-      return {
-        credit: c,
-        isAlreadyLoaded,
-        isFinished,
-        nextInstallmentNum,
-        amount: c.installmentAmount,
-        userShare: c.myShareAmount || c.installmentAmount
-      };
-    });
-  }, [cardInstallments, cardTransactions, selectedPeriod]);
+    const base = currentPeriod || new Date().toISOString().slice(0, 7);
+
+    return cardInstallments
+      .map((c) => {
+        const isAlreadyLoaded = checkIsAlreadyLoaded(c);
+        const total = c.totalInstallments || 0;
+        let projectedNum = 1;
+        let isStarted = true;
+
+        if (c.startDate && /^\d{4}-\d{2}/.test(c.startDate)) {
+          const startPeriod = c.startDate.slice(0, 7);
+          const diff = getMonthDiff(startPeriod, selectedPeriod);
+          if (diff < 0) {
+            isStarted = false;
+            projectedNum = 0;
+          } else {
+            projectedNum = diff + 1;
+          }
+        } else if (c.lastPaidPeriod && /^\d{4}-\d{2}/.test(c.lastPaidPeriod)) {
+          const lastPeriod = c.lastPaidPeriod.slice(0, 7);
+          const diff = getMonthDiff(lastPeriod, selectedPeriod);
+          projectedNum = c.paidInstallments + diff;
+          if (projectedNum < 1) {
+            isStarted = false;
+          }
+        } else {
+          const diff = getMonthDiff(base, selectedPeriod);
+          const isBaseLoaded = c.lastPaidPeriod === base;
+          const baseNum = isBaseLoaded ? c.paidInstallments : c.paidInstallments + 1;
+          projectedNum = baseNum + diff;
+          if (projectedNum < 1) {
+            isStarted = false;
+          }
+        }
+
+        // Check if finished prior to or in this period
+        const isFinished = total > 0 && projectedNum > total;
+
+        // Active in period if already loaded OR (started and not yet finished)
+        const isActiveInThisPeriod = isAlreadyLoaded || (isStarted && !isFinished);
+
+        return {
+          credit: c,
+          isAlreadyLoaded,
+          isFinished,
+          isStarted,
+          isActiveInThisPeriod,
+          nextInstallmentNum: projectedNum,
+          amount: c.installmentAmount,
+          userShare: c.myShareAmount || c.installmentAmount
+        };
+      })
+      .filter((item) => item.isActiveInThisPeriod);
+  }, [cardInstallments, cardTransactions, selectedPeriod, currentPeriod]);
 
   // Detailed Analysis of Subscriptions
   const subscriptionItems = useMemo(() => {
@@ -361,8 +454,10 @@ export const CreditCardBillingModal: React.FC<CreditCardBillingModalProps> = ({
       const isSub = c.type === 'suscripcion';
       const isCuotas = c.type === 'cuotas_tc';
 
+      const installmentNum = item.nextInstallmentNum || (c.paidInstallments + 1);
+
       const desc = isCuotas
-        ? `${c.name} (Cuota ${c.paidInstallments + 1}/${c.totalInstallments})`
+        ? `${c.name} (Cuota ${installmentNum}/${c.totalInstallments})`
         : c.name;
 
       const newTx: Transaction = {
@@ -379,7 +474,7 @@ export const CreditCardBillingModal: React.FC<CreditCardBillingModalProps> = ({
         subcategory: isSub ? 'Suscripciones' : 'Cuotas TC',
         installments: isCuotas
           ? {
-              current: c.paidInstallments + 1,
+              current: installmentNum,
               total: c.totalInstallments
             }
           : undefined,
@@ -390,7 +485,7 @@ export const CreditCardBillingModal: React.FC<CreditCardBillingModalProps> = ({
 
       paidCreditUpdates.push({
         id: c.id,
-        paidInstallments: isSub ? c.paidInstallments : c.paidInstallments + 1,
+        paidInstallments: isSub ? c.paidInstallments : Math.max(c.paidInstallments, installmentNum),
         lastPaidPeriod: selectedPeriod
       });
     });
@@ -566,16 +661,55 @@ export const CreditCardBillingModal: React.FC<CreditCardBillingModalProps> = ({
 
           {/* Period Selector */}
           <div className="w-full sm:w-auto self-start sm:self-end shrink-0">
-            <label className="block text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
-              <Calendar className="w-3.5 h-3.5 text-indigo-400" />
-              <span>Período de Facturación</span>
+            <label className="block text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1.5 flex items-center justify-between gap-1.5">
+              <span className="flex items-center gap-1.5">
+                <Calendar className="w-3.5 h-3.5 text-indigo-400" />
+                <span>Período de Facturación</span>
+              </span>
+              {selectedPeriod > (currentPeriod || new Date().toISOString().slice(0, 7)) && (
+                <span className="text-[9px] px-1.5 py-0.2 rounded bg-sky-500/15 text-sky-400 font-bold border border-sky-500/30">
+                  Proyección Futura
+                </span>
+              )}
             </label>
-            <input
-              type="month"
-              value={selectedPeriod}
-              onChange={(e) => setSelectedPeriod(e.target.value)}
-              className="w-full sm:w-auto bg-slate-950 border border-slate-800 hover:border-slate-700 rounded-2xl px-3.5 py-2.5 text-xs text-white font-bold focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition shadow-sm"
-            />
+
+            <div className="flex items-center gap-1.5">
+              {/* Prev Month Button */}
+              <button
+                type="button"
+                onClick={() => setSelectedPeriod((prev) => addMonths(prev, -1))}
+                title="Mes anterior"
+                className="p-2.5 rounded-2xl bg-slate-950 border border-slate-800 hover:border-slate-700 text-slate-300 hover:text-white transition shadow-sm"
+              >
+                <ChevronLeft className="w-4 h-4" />
+              </button>
+
+              {/* Styled Select Dropdown */}
+              <div className="relative flex-1 sm:w-56">
+                <select
+                  value={selectedPeriod}
+                  onChange={(e) => setSelectedPeriod(e.target.value)}
+                  className="w-full bg-slate-950 border border-slate-800 hover:border-slate-700 rounded-2xl pl-3 pr-8 py-2.5 text-xs text-white font-bold focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition shadow-sm appearance-none cursor-pointer"
+                >
+                  {availablePeriods.map((period) => (
+                    <option key={period} value={period} className="bg-slate-900 text-white py-1">
+                      {getPeriodOptionLabel(period)}
+                    </option>
+                  ))}
+                </select>
+                <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+              </div>
+
+              {/* Next Month Button */}
+              <button
+                type="button"
+                onClick={() => setSelectedPeriod((prev) => addMonths(prev, 1))}
+                title="Mes siguiente"
+                className="p-2.5 rounded-2xl bg-slate-950 border border-slate-800 hover:border-slate-700 text-slate-300 hover:text-white transition shadow-sm"
+              >
+                <ChevronRight className="w-4 h-4" />
+              </button>
+            </div>
           </div>
         </div>
 
@@ -792,7 +926,7 @@ export const CreditCardBillingModal: React.FC<CreditCardBillingModalProps> = ({
                     <h4 className="text-xs font-bold text-white flex items-center gap-2">
                       <span>2. Compras en Cuotas Asociadas a esta Tarjeta</span>
                       <span className="text-[10px] px-2 py-0.5 rounded-full bg-slate-800 text-slate-400 font-semibold">
-                        {cardInstallments.length}
+                        {installmentItems.length}
                       </span>
                     </h4>
                     <p className="text-[11px] text-slate-400">
@@ -803,9 +937,16 @@ export const CreditCardBillingModal: React.FC<CreditCardBillingModalProps> = ({
               </div>
 
               {installmentItems.length === 0 ? (
-                <p className="text-xs text-slate-500 italic py-2">
-                  No tienes compras en cuotas vinculadas a esta tarjeta. Puedes asociarlas al registrar una compra en la pestaña "Compras en Cuotas".
-                </p>
+                cardInstallments.length === 0 ? (
+                  <p className="text-xs text-slate-500 italic py-2">
+                    No tienes compras en cuotas vinculadas a esta tarjeta. Puedes asociarlas al registrar una compra en la pestaña "Compras en Cuotas".
+                  </p>
+                ) : (
+                  <p className="text-xs text-emerald-400/90 italic py-2 flex items-center gap-1.5">
+                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                    <span>🎉 No hay cuotas vigentes para facturar en este período. ¡Todas tus compras en cuotas registradas para esta tarjeta ya habrán finalizado para esta fecha!</span>
+                  </p>
+                )
               ) : (
                 <div className="space-y-2">
                   {installmentItems.map(({ credit, isAlreadyLoaded, isFinished, nextInstallmentNum, amount, userShare }) => {
@@ -847,7 +988,7 @@ export const CreditCardBillingModal: React.FC<CreditCardBillingModalProps> = ({
                                 <span className="text-emerald-400 font-semibold">🎉 Liquidado</span>
                               ) : isAlreadyLoaded ? (
                                 <span className="text-emerald-400 font-medium">
-                                  ✅ Ya cargado en movimientos (Cuota {credit.paidInstallments} de {credit.totalInstallments})
+                                  ✅ Ya cargado en movimientos (Cuota {nextInstallmentNum} de {credit.totalInstallments})
                                 </span>
                               ) : (
                                 <span>

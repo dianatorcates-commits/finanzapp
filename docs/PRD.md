@@ -125,11 +125,13 @@ FinanzApp es una plataforma web financiera integral, interactiva y multi-disposi
     3. **🔄 Suscripciones**: Servicios y cargos recurrentes mensuales (`suscripcion`, ej. streaming, gimnasio, software, seguros) con monto fijo mensual y estado activo/pausado.
 * **RF-24 (Asociación de Cuenta / Tarjeta de Pago y Gastos Compartidos)**:
   * Todo crédito, compra en cuotas o suscripción puede asociarse a una **Cuenta o Tarjeta de Pago (`account_id`)** y configurarse como **Gasto Compartido (`is_shared`)** definiendo el porcentaje (`my_share_percentage`) y monto real asumido por el usuario (`my_share_amount`).
-* **RF-25 (Simulador y Generador de Próxima Facturación de Tarjetas de Crédito al Corte)**:
-  * Mediante `CreditCardBillingModal.tsx` y el resumen por tarjeta, el sistema proyecta la **Próxima Facturación Estimada** en la fecha de corte (`closing_day`) de cada tarjeta de crédito sumando:
-    1. Compras directas registradas en el ciclo actual de la tarjeta.
-    2. Cuotas vigentes del mes (`cuotas_tc`) asociadas a esa tarjeta (`account_id`) que aún no hayan sido materializadas en la tabla de transacciones del período.
-    3. Suscripciones activas (`suscripcion`) y créditos asociados a esa tarjeta pendientes de reflejar en el mes.
+* **RF-25 (Simulador y Generador de Facturación de Tarjetas de Crédito al Corte y Proyección Futura)**:
+  * Mediante `CreditCardBillingModal.tsx`, el sistema proyecta la **Facturación Estimada** en la fecha de corte (`closing_day`) de cada tarjeta de crédito sumando:
+    1. Compras directas registradas en el ciclo consultado de la tarjeta.
+    2. Cuotas vigentes del período (`cuotas_tc`) asociadas a esa tarjeta (`account_id`), calculadas dinámicamente según la fecha de inicio (`start_date`), total de cuotas (`total_installments`) y cuotas pagadas (`paid_installments`). Si una compra en cuotas ya finalizó en un mes anterior, no se incluye ni suma en meses posteriores; si está vigente, muestra el número exacto de cuota para ese período (ej. *Cuota 6 de 6*).
+    3. Suscripciones activas (`suscripcion`) y cargos recurrentes asociados a esa tarjeta, manteniéndose proyectados en meses futuros.
+  * **Selector de Tarjeta Dropdown / Combo Box**: Menú desplegable interactivo que muestra la tarjeta activa con su ícono, nombre, banco y badge de día de corte, permitiendo alternar instantáneamente entre todas las tarjetas de crédito sin barras de scroll horizontal.
+  * **Selector de Período Ampliado y Navegación Rápida**: Permite proyectar períodos futuros (hasta 18 meses hacia adelante) con botones de navegación mes a mes (`<` / `>`), selector desplegable con badges semánticos (*Mes Actual*, *Próximo Mes*, *Proyección Futura*) y recálculo automático instantáneo.
   * El usuario puede **generar/materializar con 1 clic** los cargos pendientes del período en la tabla de transacciones, con verificación anti-duplicados para no volver a insertar cuotas o suscripciones ya cargadas.
 
 ### 4.9. Automatización en Tiempo Real: Google Wallet / MacroDroid & Bot de Telegram
