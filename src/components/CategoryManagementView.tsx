@@ -12,28 +12,41 @@ import {
   ChevronRight,
   Layers,
   Sparkles,
-  AlertCircle
+  AlertCircle,
+  CreditCard,
+  RefreshCw,
+  Filter,
+  ArrowRight
 } from 'lucide-react';
-import { CategoryMapping } from '../types';
+import { CategoryMapping, AutoCategoryRule, TransactionType } from '../types';
+import { getParentCategory } from '../utils/categorizer';
 
 interface CategoryManagementViewProps {
   categoryMappings: CategoryMapping[];
+  autoRules?: AutoCategoryRule[];
   onAddCategory: (categoryName: string) => void | Promise<void>;
   onAddSubcategory: (parentCategoryName: string, subcategoryName: string) => void | Promise<void>;
   onDeleteCategory: (categoryId: string) => void | Promise<void>;
   onDeleteSubcategory: (parentCategoryName: string, subcategoryName: string) => void | Promise<void>;
   onEditCategory?: (categoryId: string, oldName: string, newName: string) => void | Promise<void>;
   onEditSubcategory?: (parentCategoryName: string, oldSubName: string, newSubName: string) => void | Promise<void>;
+  onAddRule?: (newRule: AutoCategoryRule) => void | Promise<void>;
+  onDeleteRule?: (ruleId: string) => void | Promise<void>;
+  onApplyRulesToExisting?: () => void | Promise<void>;
 }
 
 export const CategoryManagementView: React.FC<CategoryManagementViewProps> = ({
   categoryMappings,
+  autoRules = [],
   onAddCategory,
   onAddSubcategory,
   onDeleteCategory,
   onDeleteSubcategory,
   onEditCategory,
-  onEditSubcategory
+  onEditSubcategory,
+  onAddRule,
+  onDeleteRule,
+  onApplyRulesToExisting
 }) => {
   // Master Category selection
   const [selectedCategoryId, setSelectedCategoryId] = useState<string>(
@@ -63,6 +76,118 @@ export const CategoryManagementView: React.FC<CategoryManagementViewProps> = ({
   // Confirmation state for deleting
   const [confirmDeleteCatId, setConfirmDeleteCatId] = useState<string | null>(null);
   const [confirmDeleteSubcat, setConfirmDeleteSubcat] = useState<string | null>(null);
+
+  // Section Navigation (Categorías vs Reglas)
+  const [activeSection, setActiveSection] = useState<'categories' | 'rules'>('categories');
+
+  // Rules form & filter state
+  const [rulePattern, setRulePattern] = useState('');
+  const [ruleTransactionType, setRuleTransactionType] = useState<TransactionType | 'auto'>('auto');
+  const [ruleSubcategory, setRuleSubcategory] = useState<string>(
+    categoryMappings[0]?.subcategories[0] || 'Alimentación y Supermercados'
+  );
+  const [rulesFilter, setRulesFilter] = useState<'ALL' | 'pago_tc' | 'compra' | 'ingreso'>('ALL');
+  const [ruleSearch, setRuleSearch] = useState('');
+  const [appliedFeedback, setAppliedFeedback] = useState(false);
+  const [ruleError, setRuleError] = useState<string | null>(null);
+
+  const handleCreateRule = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const pattern = rulePattern.trim().toUpperCase();
+    if (!pattern) {
+      setRuleError('Ingresa una palabra clave o patrón.');
+      return;
+    }
+    if (!onAddRule) return;
+
+    const parentCat = getParentCategory(ruleSubcategory, categoryMappings);
+    const newRule: AutoCategoryRule = {
+      id: `rule-${Date.now()}`,
+      pattern,
+      category: parentCat,
+      subcategory: ruleSubcategory,
+      transactionType: ruleTransactionType !== 'auto' ? ruleTransactionType : undefined
+    };
+
+    await onAddRule(newRule);
+    setRulePattern('');
+    setRuleError(null);
+  };
+
+  const handleApplyRules = async () => {
+    if (!onApplyRulesToExisting) return;
+    await onApplyRulesToExisting();
+    setAppliedFeedback(true);
+    setTimeout(() => setAppliedFeedback(false), 3000);
+  };
+
+  const filteredRules = (autoRules || []).filter((r) => {
+    if (rulesFilter === 'pago_tc' && r.transactionType !== 'pago_tc') return false;
+    if (rulesFilter === 'compra' && r.transactionType !== 'compra') return false;
+    if (
+      rulesFilter === 'ingreso' &&
+      r.transactionType !== 'ingreso_venta' &&
+      r.transactionType !== 'transferencia_recibida'
+    ) {
+      return false;
+    }
+    if (ruleSearch.trim()) {
+      const q = ruleSearch.toLowerCase();
+      const matchPat = r.pattern.toLowerCase().includes(q);
+      const matchSub = r.subcategory.toLowerCase().includes(q);
+      const matchCat = r.category.toLowerCase().includes(q);
+      return matchPat || matchSub || matchCat;
+    }
+    return true;
+  });
+
+  const getRuleTypeBadge = (type?: TransactionType) => {
+    switch (type) {
+      case 'pago_tc':
+        return (
+          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 text-[11px] font-bold rounded-lg bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">
+            <CreditCard className="w-3 h-3" />
+            <span>Pago TC / Abono</span>
+          </span>
+        );
+      case 'compra':
+        return (
+          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 text-[11px] font-bold rounded-lg bg-rose-500/20 text-rose-300 border border-rose-500/30">
+            <span>🛍️ Compra / Gasto</span>
+          </span>
+        );
+      case 'ingreso_venta':
+        return (
+          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 text-[11px] font-bold rounded-lg bg-teal-500/20 text-teal-300 border border-teal-500/30">
+            <span>💰 Ingreso / Sueldo</span>
+          </span>
+        );
+      case 'transferencia_enviada':
+        return (
+          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 text-[11px] font-bold rounded-lg bg-amber-500/20 text-amber-300 border border-amber-500/30">
+            <span>↗️ Transf. Enviada</span>
+          </span>
+        );
+      case 'transferencia_recibida':
+        return (
+          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 text-[11px] font-bold rounded-lg bg-cyan-500/20 text-cyan-300 border border-cyan-500/30">
+            <span>↙️ Transf. Recibida</span>
+          </span>
+        );
+      case 'comision_interes':
+        return (
+          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 text-[11px] font-bold rounded-lg bg-purple-500/20 text-purple-300 border border-purple-500/30">
+            <span>🏦 Comisión / Interés</span>
+          </span>
+        );
+      default:
+        return (
+          <span className="inline-flex items-center gap-1 px-2 py-0.5 text-[11px] font-medium rounded-lg bg-slate-800 text-slate-300 border border-slate-700">
+            <span>⚙️ Auto según categoría</span>
+          </span>
+        );
+    }
+  };
 
   // Ensure selected category exists, or fallback
   const activeCategory =
@@ -225,38 +350,87 @@ export const CategoryManagementView: React.FC<CategoryManagementViewProps> = ({
       <div className="bg-slate-900/80 border border-slate-800/80 backdrop-blur-md rounded-2xl p-5 sm:p-6 shadow-xl flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div className="flex items-start sm:items-center gap-3.5">
           <div className="p-3 bg-gradient-to-br from-sky-500/20 to-indigo-500/20 text-sky-400 rounded-2xl border border-sky-400/30 shadow-inner flex-shrink-0">
-            <Tag className="w-6 h-6" />
+            {activeSection === 'categories' ? <Tag className="w-6 h-6" /> : <Sparkles className="w-6 h-6 text-sky-300" />}
           </div>
           <div>
             <div className="flex items-center gap-2.5">
               <h2 className="text-xl sm:text-2xl font-black text-white tracking-tight">
-                Categorías y Subcategorías
+                {activeSection === 'categories' ? 'Categorías y Subcategorías' : 'Reglas Automáticas y Pagos TC'}
               </h2>
               <span className="bg-sky-500/20 text-sky-300 text-[11px] font-bold px-2.5 py-0.5 rounded-full border border-sky-500/30">
-                Taxonomía
+                {activeSection === 'categories' ? 'Taxonomía' : 'Automatización'}
               </span>
             </div>
             <p className="text-xs sm:text-sm text-slate-400 mt-1 max-w-2xl">
-              Administra la taxonomía de tus finanzas. Estas categorías alimentan tus presupuestos y las reglas automáticas de clasificación.
+              {activeSection === 'categories'
+                ? 'Administra la taxonomía de tus finanzas. Estas categorías alimentan tus presupuestos y las reglas automáticas de clasificación.'
+                : 'Define palabras clave y patrones para clasificar automáticamente gastos y detectar pagos de tarjetas de crédito (pago_tc).'}
             </p>
           </div>
         </div>
 
-        {/* Quick Taxonomy Badges */}
+        {/* Quick Taxonomy / Rules Badges */}
         <div className="flex items-center gap-3 self-start md:self-center">
-          <div className="bg-slate-950/80 border border-slate-800 px-3.5 py-2 rounded-xl text-center">
-            <span className="block text-[10px] uppercase font-bold text-slate-400">Categorías</span>
-            <span className="text-base font-black text-white">{categoryMappings.length}</span>
-          </div>
-          <div className="bg-slate-950/80 border border-slate-800 px-3.5 py-2 rounded-xl text-center">
-            <span className="block text-[10px] uppercase font-bold text-slate-400">Subcategorías</span>
-            <span className="text-base font-black text-sky-400">{totalSubcategories}</span>
-          </div>
+          {activeSection === 'categories' ? (
+            <>
+              <div className="bg-slate-950/80 border border-slate-800 px-3.5 py-2 rounded-xl text-center">
+                <span className="block text-[10px] uppercase font-bold text-slate-400">Categorías</span>
+                <span className="text-base font-black text-white">{categoryMappings.length}</span>
+              </div>
+              <div className="bg-slate-950/80 border border-slate-800 px-3.5 py-2 rounded-xl text-center">
+                <span className="block text-[10px] uppercase font-bold text-slate-400">Subcategorías</span>
+                <span className="text-base font-black text-sky-400">{totalSubcategories}</span>
+              </div>
+            </>
+          ) : (
+            <>
+              <div className="bg-slate-950/80 border border-slate-800 px-3.5 py-2 rounded-xl text-center">
+                <span className="block text-[10px] uppercase font-bold text-slate-400">Reglas Activas</span>
+                <span className="text-base font-black text-white">{autoRules.length}</span>
+              </div>
+              <div className="bg-slate-950/80 border border-slate-800 px-3.5 py-2 rounded-xl text-center">
+                <span className="block text-[10px] uppercase font-bold text-slate-400">Pagos TC</span>
+                <span className="text-base font-black text-emerald-400">
+                  {autoRules.filter((r) => r.transactionType === 'pago_tc').length}
+                </span>
+              </div>
+            </>
+          )}
         </div>
       </div>
 
-      {/* Estructura Master-Detail en 2 Columnas */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+      {/* Selector de Pestañas: Categorías vs Reglas Automáticas */}
+      <div className="flex flex-wrap items-center gap-2 border-b border-slate-800 pb-3">
+        <button
+          type="button"
+          onClick={() => setActiveSection('categories')}
+          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-xs sm:text-sm transition ${
+            activeSection === 'categories'
+              ? 'bg-sky-500 text-white shadow-lg shadow-sky-500/25'
+              : 'bg-slate-900/80 text-slate-400 hover:text-white hover:bg-slate-800 border border-slate-800'
+          }`}
+        >
+          <Tag className="w-4 h-4" />
+          <span>🏷️ Categorías y Subcategorías</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setActiveSection('rules')}
+          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-xs sm:text-sm transition ${
+            activeSection === 'rules'
+              ? 'bg-gradient-to-r from-indigo-500 via-sky-500 to-blue-600 text-white shadow-lg shadow-indigo-500/25'
+              : 'bg-slate-900/80 text-slate-400 hover:text-white hover:bg-slate-800 border border-slate-800'
+          }`}
+        >
+          <Sparkles className="w-4 h-4 text-sky-300" />
+          <span>⚡ Reglas Automáticas y Pagos ({autoRules.length})</span>
+        </button>
+      </div>
+
+      {/* Estructura Master-Detail en 2 Columnas (Categorías) */}
+      {activeSection === 'categories' && (
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         
         {/* ========================================================= */}
         {/* COLUMNA A (Izquierda): Categorías Generales (5 columnas) */}
@@ -695,9 +869,315 @@ export const CategoryManagementView: React.FC<CategoryManagementViewProps> = ({
           )}
 
         </div>
-
       </div>
+    )}
 
-    </div>
-  );
+    {/* ========================================================= */}
+    {/* SECCIÓN REGLAS AUTOMÁTICAS Y CONFIGURACIÓN DE PAGOS TC */}
+    {/* ========================================================= */}
+    {activeSection === 'rules' && (
+      <div className="space-y-6">
+        {/* Banner de feedback al aplicar reglas */}
+        {appliedFeedback && (
+          <div className="bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 px-4 py-3 rounded-2xl flex items-center justify-between shadow-lg backdrop-blur-md animate-fadeIn">
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-xl bg-emerald-500/20 flex items-center justify-center text-emerald-300">
+                <Check className="w-4 h-4" />
+              </div>
+              <div>
+                <p className="text-sm font-bold">¡Reglas aplicadas con éxito!</p>
+                <p className="text-xs text-emerald-400/80">
+                  Se actualizaron las categorías y tipos de movimiento en todos los registros existentes.
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={() => setAppliedFeedback(false)}
+              className="text-emerald-400 hover:text-white p-1 rounded-lg transition"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        )}
+
+        {/* Acciones Superiores de Reglas */}
+        <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-4 backdrop-blur-md flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+          <div className="space-y-0.5">
+            <h4 className="text-sm font-bold text-white flex items-center gap-2">
+              <Sparkles className="w-4 h-4 text-sky-400" />
+              Motor de Clasificación y Detección de Pagos TC
+            </h4>
+            <p className="text-xs text-slate-400">
+              Las reglas se aplican en orden para asignar automáticamente categoría, subcategoría y tipo de movimiento.
+            </p>
+          </div>
+
+          <button
+            type="button"
+            onClick={handleApplyRules}
+            className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-400 hover:to-blue-500 text-white font-bold text-xs sm:text-sm shadow-lg shadow-sky-500/20 transition whitespace-nowrap"
+          >
+            <RefreshCw className="w-4 h-4" />
+            <span>Aplicar a Movimientos Actuales</span>
+          </button>
+        </div>
+
+        {/* Grid de 2 Columnas para Reglas */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+          
+          {/* ========================================================= */}
+          {/* COLUMNA IZQUIERDA: Formulario Nueva Regla (5 cols) */}
+          {/* ========================================================= */}
+          <div className="lg:col-span-5 bg-slate-900/80 border border-slate-800 rounded-2xl p-5 backdrop-blur-md shadow-xl flex flex-col space-y-4">
+            <div className="pb-3 border-b border-slate-800">
+              <h3 className="font-bold text-sm text-white flex items-center gap-2">
+                <Plus className="w-4 h-4 text-sky-400" />
+                Nueva Regla de Clasificación
+              </h3>
+              <p className="text-xs text-slate-400 mt-1">
+                Ingresa una palabra o frase clave que aparezca en el texto del movimiento bancario.
+              </p>
+            </div>
+
+            <form onSubmit={handleCreateRule} className="space-y-4">
+              {/* Palabra clave o patrón */}
+              <div className="space-y-1.5">
+                <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider">
+                  Patrón o Palabra Clave <span className="text-rose-400">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={rulePattern}
+                  onChange={(e) => {
+                    setRulePattern(e.target.value);
+                    if (ruleError) setRuleError(null);
+                  }}
+                  placeholder="Ej: PAGO TARJETA, AMEX, STARBUCKS, UBER"
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 text-xs sm:text-sm text-white placeholder-slate-500 focus:outline-none focus:border-sky-500 transition font-mono uppercase"
+                />
+                <span className="text-[11px] text-slate-500 block">
+                  Búsqueda insensible a mayúsculas/minúsculas en el detalle de la transacción.
+                </span>
+              </div>
+
+              {/* Tipo de Movimiento (pago_tc, compra, etc.) */}
+              <div className="space-y-1.5">
+                <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider">
+                  Tipo de Movimiento Asignado
+                </label>
+                <select
+                  value={ruleTransactionType}
+                  onChange={(e) => setRuleTransactionType(e.target.value as any)}
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 text-xs sm:text-sm text-white focus:outline-none focus:border-sky-500 transition"
+                >
+                  <option value="auto">Automático / Mantener tipo original</option>
+                  <option value="pago_tc">💳 Pago de Tarjeta de Crédito (pago_tc)</option>
+                  <option value="compra">🛍️ Compra / Gasto Corriente (compra)</option>
+                  <option value="ingreso_venta">💰 Ingreso / Sueldo (ingreso_venta)</option>
+                  <option value="transferencia_enviada">↗️ Transferencia Enviada</option>
+                  <option value="transferencia_recibida">↙️ Transferencia Recibida</option>
+                  <option value="comision_interes">🏦 Comisión / Interés</option>
+                </select>
+
+                {ruleTransactionType === 'pago_tc' && (
+                  <div className="bg-emerald-500/10 border border-emerald-500/30 rounded-xl p-3 text-xs text-emerald-300 flex items-start gap-2.5 mt-2">
+                    <CreditCard className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
+                    <p className="leading-relaxed">
+                      <strong>Detección de Pagos TC:</strong> Los movimientos que coincidan con este patrón se clasificarán como pagos y aparecerán disponibles en el modal <em>"Asociar Pago"</em>.
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              {/* Subcategoría Destino */}
+              <div className="space-y-1.5">
+                <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider">
+                  Subcategoría Destino <span className="text-rose-400">*</span>
+                </label>
+                <select
+                  value={ruleSubcategory}
+                  onChange={(e) => setRuleSubcategory(e.target.value)}
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 text-xs sm:text-sm text-white focus:outline-none focus:border-sky-500 transition"
+                >
+                  {categoryMappings.map((cat) => (
+                    <optgroup key={cat.id} label={`📁 ${cat.name}`}>
+                      {cat.subcategories.map((sub) => (
+                        <option key={sub} value={sub}>
+                          {sub}
+                        </option>
+                      ))}
+                    </optgroup>
+                  ))}
+                </select>
+
+                {/* Categoría General Detectada */}
+                <div className="flex items-center gap-2 pt-1 text-xs text-slate-400">
+                  <span>Categoría General:</span>
+                  <span className="bg-sky-500/10 border border-sky-500/30 text-sky-300 font-semibold px-2 py-0.5 rounded-lg flex items-center gap-1">
+                    <Folder className="w-3 h-3" />
+                    {getParentCategory(ruleSubcategory, categoryMappings)}
+                  </span>
+                </div>
+              </div>
+
+              {ruleError && (
+                <div className="flex items-center gap-2 text-xs text-rose-400 bg-rose-500/10 border border-rose-500/20 p-2.5 rounded-xl">
+                  <AlertCircle className="w-4 h-4 shrink-0" />
+                  <span>{ruleError}</span>
+                </div>
+              )}
+
+              <button
+                type="submit"
+                disabled={!rulePattern.trim()}
+                className="w-full mt-2 py-2.5 px-4 rounded-xl bg-sky-500 hover:bg-sky-400 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold text-xs sm:text-sm shadow-lg shadow-sky-500/20 transition flex items-center justify-center gap-2"
+              >
+                <Plus className="w-4 h-4" />
+                <span>Crear Regla de Clasificación</span>
+              </button>
+            </form>
+          </div>
+
+          {/* ========================================================= */}
+          {/* COLUMNA DERECHA: Lista de Reglas Activas (7 cols) */}
+          {/* ========================================================= */}
+          <div className="lg:col-span-7 bg-slate-900/80 border border-slate-800 rounded-2xl p-5 backdrop-blur-md shadow-xl flex flex-col min-h-[500px]">
+            
+            {/* Header Columna Derecha */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-3.5 border-b border-slate-800 gap-3">
+              <div className="flex items-center gap-2">
+                <Sparkles className="w-4 h-4 text-sky-400" />
+                <h3 className="font-bold text-sm text-white">Reglas Activas</h3>
+                <span className="text-[11px] bg-slate-800 text-slate-300 font-semibold px-2 py-0.5 rounded-full">
+                  {filteredRules.length} de {autoRules.length}
+                </span>
+              </div>
+
+              {/* Búsqueda de reglas */}
+              <div className="relative w-full sm:w-60">
+                <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                <input
+                  type="text"
+                  value={ruleSearch}
+                  onChange={(e) => setRuleSearch(e.target.value)}
+                  placeholder="Buscar patrón o subcat..."
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl pl-8 pr-3 py-1.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-sky-500 transition"
+                />
+              </div>
+            </div>
+
+            {/* Filtros rápidos por tipo */}
+            <div className="flex items-center gap-1.5 py-3 border-b border-slate-800/80 overflow-x-auto text-xs">
+              <button
+                type="button"
+                onClick={() => setRulesFilter('ALL')}
+                className={`px-3 py-1 rounded-lg font-semibold transition whitespace-nowrap ${
+                  rulesFilter === 'ALL'
+                    ? 'bg-sky-500 text-white'
+                    : 'text-slate-400 hover:text-white bg-slate-950 border border-slate-800'
+                }`}
+              >
+                Todas ({autoRules.length})
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setRulesFilter('pago_tc')}
+                className={`px-3 py-1 rounded-lg font-semibold transition whitespace-nowrap flex items-center gap-1.5 ${
+                  rulesFilter === 'pago_tc'
+                    ? 'bg-emerald-500 text-white'
+                    : 'text-slate-400 hover:text-white bg-slate-950 border border-slate-800'
+                }`}
+              >
+                <CreditCard className="w-3 h-3" />
+                <span>Pagos TC ({autoRules.filter((r) => r.transactionType === 'pago_tc').length})</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setRulesFilter('compra')}
+                className={`px-3 py-1 rounded-lg font-semibold transition whitespace-nowrap ${
+                  rulesFilter === 'compra'
+                    ? 'bg-rose-500 text-white'
+                    : 'text-slate-400 hover:text-white bg-slate-950 border border-slate-800'
+                }`}
+              >
+                Compras ({autoRules.filter((r) => r.transactionType === 'compra').length})
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setRulesFilter('ingreso')}
+                className={`px-3 py-1 rounded-lg font-semibold transition whitespace-nowrap ${
+                  rulesFilter === 'ingreso'
+                    ? 'bg-teal-500 text-white'
+                    : 'text-slate-400 hover:text-white bg-slate-950 border border-slate-800'
+                }`}
+              >
+                Ingresos ({autoRules.filter((r) => ['ingreso_venta', 'transferencia_recibida'].includes(r.transactionType || '')).length})
+              </button>
+            </div>
+
+            {/* Lista de Reglas */}
+            <div className="flex-1 overflow-y-auto max-h-[580px] space-y-2.5 pt-3 pr-1">
+              {filteredRules.length === 0 ? (
+                <div className="flex flex-col items-center justify-center text-center p-8 text-slate-500 space-y-3">
+                  <div className="w-12 h-12 rounded-2xl bg-slate-950 border border-slate-800 flex items-center justify-center text-sky-400/40">
+                    <Sparkles className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-bold text-slate-300">No se encontraron reglas</p>
+                    <p className="text-xs text-slate-500 mt-1 max-w-xs">
+                      {ruleSearch || rulesFilter !== 'ALL'
+                        ? 'Prueba cambiando los filtros de búsqueda.'
+                        : 'Crea tu primera regla usando el formulario de la izquierda.'}
+                    </p>
+                  </div>
+                </div>
+              ) : (
+                filteredRules.map((rule) => (
+                  <div
+                    key={rule.id}
+                    className="p-3 bg-slate-950/70 hover:bg-slate-950 border border-slate-800 hover:border-slate-700/80 rounded-xl transition flex items-center justify-between gap-3 group"
+                  >
+                    <div className="space-y-1.5 flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="font-mono text-xs font-bold text-sky-300 bg-sky-950/60 border border-sky-800/60 px-2 py-0.5 rounded-md">
+                          "{rule.pattern}"
+                        </span>
+
+                        {getRuleTypeBadge(rule.transactionType)}
+                      </div>
+
+                      <div className="flex items-center gap-1.5 text-xs text-slate-400 truncate">
+                        <span className="text-slate-500">Asigna:</span>
+                        <span className="font-semibold text-slate-300">{rule.category}</span>
+                        <ArrowRight className="w-3 h-3 text-slate-600 shrink-0" />
+                        <span className="font-medium text-white truncate">{rule.subcategory}</span>
+                      </div>
+                    </div>
+
+                    {onDeleteRule && (
+                      <button
+                        type="button"
+                        onClick={() => onDeleteRule(rule.id)}
+                        className="text-slate-500 hover:text-rose-400 p-2 rounded-lg hover:bg-slate-900 transition shrink-0"
+                        title="Eliminar regla"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    )}
+                  </div>
+                ))
+              )}
+            </div>
+
+          </div>
+
+        </div>
+      </div>
+    )}
+
+  </div>
+);
 };

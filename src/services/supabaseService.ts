@@ -504,6 +504,28 @@ export async function deleteCloudCategory(userId: string, categoryId: string) {
   if (error) console.error('Error deleting category from cloud:', error);
 }
 
+export async function saveCloudRule(userId: string, rule: AutoCategoryRule) {
+  try {
+    const payload: any = {
+      id: rule.id,
+      user_id: userId,
+      pattern: rule.pattern,
+      category: rule.category,
+      subcategory: rule.subcategory,
+      transaction_type: rule.transactionType || null
+    };
+    const { error } = await supabase.from('auto_rules').upsert(payload, { onConflict: 'id' });
+    if (error) {
+      console.warn('Initial saveCloudRule failed, retrying without transaction_type:', error);
+      delete payload.transaction_type;
+      const { error: fallbackErr } = await supabase.from('auto_rules').upsert(payload, { onConflict: 'id' });
+      if (fallbackErr) console.error('Fallback save auto_rule error:', fallbackErr);
+    }
+  } catch (err) {
+    console.error('Unexpected error saving rule to cloud:', err);
+  }
+}
+
 export async function deleteCloudRule(userId: string, ruleId: string) {
   const { error } = await supabase.from('auto_rules').delete().eq('id', ruleId).eq('user_id', userId);
   if (error) console.error('Error deleting auto_rule from cloud:', error);

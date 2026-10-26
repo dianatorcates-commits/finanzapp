@@ -29,6 +29,7 @@ import {
   deleteCloudTransactionsBatch,
   saveCloudCategory,
   deleteCloudCategory,
+  saveCloudRule,
   deleteCloudRule,
   deleteCloudBudget,
   getTelegramProfile,
@@ -860,8 +861,11 @@ export function App() {
   };
 
   // Auto Rules & Budgets Handlers
-  const handleAddAutoRule = (newRule: AutoCategoryRule) => {
+  const handleAddAutoRule = async (newRule: AutoCategoryRule) => {
     setAutoRules((prev) => [newRule, ...prev]);
+    if (currentUser) {
+      await saveCloudRule(currentUser.id, newRule);
+    }
   };
 
   const handleDeleteAutoRule = async (ruleId: string) => {
@@ -871,22 +875,31 @@ export function App() {
     setAutoRules((prev) => prev.filter((r) => r.id !== ruleId));
   };
 
-  const handleApplyRulesToExisting = () => {
+  const handleApplyRulesToExisting = async () => {
+    const updatedTxs: Transaction[] = [];
     setTransactions((prev) =>
       prev.map((tx) => {
         const matched = applyAutoRulesToTransaction(tx, categoryMappings, autoRules);
         if (matched) {
-          return {
+          const updated = {
             ...tx,
             category: matched.category,
             subcategory: matched.subcategory,
             transactionType: matched.transactionType
           };
+          updatedTxs.push(updated);
+          return updated;
         }
         // If no rule matches, preserve the transaction's existing category and subcategory
         return tx;
       })
     );
+
+    if (currentUser && updatedTxs.length > 0) {
+      for (const utx of updatedTxs) {
+        await saveCloudTransaction(currentUser.id, utx);
+      }
+    }
   };
 
   const handleSaveBudget = (categoryName: string, monthlyLimit: number) => {
@@ -1246,12 +1259,16 @@ export function App() {
             ) : activeTab === 'categories' ? (
               <CategoryManagementView
                 categoryMappings={categoryMappings}
+                autoRules={autoRules}
                 onAddCategory={handleAddCategory}
                 onAddSubcategory={handleAddSubcategory}
                 onDeleteCategory={handleDeleteCategory}
                 onDeleteSubcategory={handleDeleteSubcategory}
                 onEditCategory={handleEditCategory}
                 onEditSubcategory={handleEditSubcategory}
+                onAddRule={handleAddAutoRule}
+                onDeleteRule={handleDeleteAutoRule}
+                onApplyRulesToExisting={handleApplyRulesToExisting}
               />
             ) : activeTab === 'budgets' ? (
               <BudgetAndGoalsView
@@ -1301,9 +1318,11 @@ export function App() {
           allTransactions={computedTransactions}
           account={accounts.find((a) => a.id === selectedPurchaseForPayment.accountId)}
           accounts={accounts}
+          autoRules={autoRules}
           onClose={() => setSelectedPurchaseForPayment(null)}
           onAddAllocation={handleAddAllocation}
           onRemoveAllocation={handleRemoveAllocation}
+          onOpenRulesConfig={() => setIsBudgetModalOpen(true)}
         />
       )}
 

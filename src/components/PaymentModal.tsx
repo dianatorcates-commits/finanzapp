@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { X, Link2, Trash2, CheckCircle2, AlertCircle, ArrowRight, Building2, CreditCard } from 'lucide-react';
-import { ComputedTransaction, Account } from '../types';
+import { X, Link2, Trash2, CheckCircle2, AlertCircle, ArrowRight, Building2, CreditCard, Settings } from 'lucide-react';
+import { ComputedTransaction, Account, AutoCategoryRule } from '../types';
 import { isCreditCardPaymentTransaction } from '../utils/paymentAllocation';
 import { formatCLP } from './MetricCards';
 
@@ -9,9 +9,11 @@ interface PaymentModalProps {
   allTransactions: ComputedTransaction[];
   account?: Account;
   accounts?: Account[];
+  autoRules?: AutoCategoryRule[];
   onClose: () => void;
   onAddAllocation: (purchaseId: string, paymentId: string, amount: number) => void;
   onRemoveAllocation: (purchaseId: string, allocationId: string) => void;
+  onOpenRulesConfig?: () => void;
 }
 
 export const PaymentModal: React.FC<PaymentModalProps> = ({
@@ -19,9 +21,11 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
   allTransactions,
   account,
   accounts = [],
+  autoRules = [],
   onClose,
   onAddAllocation,
-  onRemoveAllocation
+  onRemoveAllocation,
+  onOpenRulesConfig
 }) => {
   // Cross-account filter toggle (defaults to false to only show payments on this card by default)
   const [showAllAccounts, setShowAllAccounts] = useState<boolean>(false);
@@ -76,6 +80,17 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
       rawDesc.includes('abono tc');
 
     if (isPaymentDescriptionPattern) return true;
+
+    // 3.5. Match user custom rules where transactionType is 'pago_tc'
+    if (autoRules && autoRules.length > 0) {
+      const matchesRule = autoRules.some((r) => {
+        if (r.transactionType !== 'pago_tc') return false;
+        const pat = (r.pattern || '').toLowerCase().trim();
+        if (!pat) return false;
+        return desc.includes(pat) || rawDesc.includes(pat);
+      });
+      if (matchesRule) return true;
+    }
 
     // 4. Negative amount directly on the same credit card account (represents a refund / credit note / abono)
     if (tx.amount < 0 && tx.accountId === purchase.accountId) {
@@ -249,38 +264,52 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
                 </span>
               </div>
 
-              {/* Cross-Account Filter Switch */}
-              <div className="flex items-center justify-between bg-slate-50 border border-slate-200 px-3 py-2 rounded-xl text-xs">
-                <div className="flex items-center gap-2">
-                  <Building2 className="w-4 h-4 text-sky-600 flex-shrink-0" />
-                  <div>
-                    <span className="font-semibold text-slate-800">
-                      {showAllAccounts ? 'Mostrando pagos de todas las cuentas' : `Solo pagos de ${account?.name || 'esta tarjeta'}`}
-                    </span>
-                    <p className="text-[11px] text-slate-500">
-                      {showAllAccounts
-                        ? 'Permite vincular pagos o transferencias desde tu Cuenta Corriente'
-                        : 'Filtrando únicamente abonos registrados en esta tarjeta'}
-                    </p>
+              {/* Cross-Account Filter Switch & Rules Config Button */}
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2">
+                <div className="flex-1 flex items-center justify-between bg-slate-50 border border-slate-200 px-3 py-2 rounded-xl text-xs">
+                  <div className="flex items-center gap-2">
+                    <Building2 className="w-4 h-4 text-sky-600 flex-shrink-0" />
+                    <div>
+                      <span className="font-semibold text-slate-800">
+                        {showAllAccounts ? 'Mostrando pagos de todas las cuentas' : `Solo pagos de ${account?.name || 'esta tarjeta'}`}
+                      </span>
+                      <p className="text-[11px] text-slate-500">
+                        {showAllAccounts
+                          ? 'Permite vincular pagos o transferencias desde tu Cuenta Corriente'
+                          : 'Filtrando únicamente abonos registrados en esta tarjeta'}
+                      </p>
+                    </div>
                   </div>
+
+                  <button
+                    type="button"
+                    onClick={() => setShowAllAccounts(!showAllAccounts)}
+                    className={`relative inline-flex h-5 w-10 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                      showAllAccounts ? 'bg-sky-600' : 'bg-slate-300'
+                    }`}
+                    role="switch"
+                    aria-checked={showAllAccounts}
+                    title="Alternar entre ver pagos de todas las cuentas o solo de esta tarjeta"
+                  >
+                    <span
+                      className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                        showAllAccounts ? 'translate-x-5' : 'translate-x-0'
+                      }`}
+                    />
+                  </button>
                 </div>
 
-                <button
-                  type="button"
-                  onClick={() => setShowAllAccounts(!showAllAccounts)}
-                  className={`relative inline-flex h-5 w-10 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
-                    showAllAccounts ? 'bg-sky-600' : 'bg-slate-300'
-                  }`}
-                  role="switch"
-                  aria-checked={showAllAccounts}
-                  title="Alternar entre ver pagos de todas las cuentas o solo de esta tarjeta"
-                >
-                  <span
-                    className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
-                      showAllAccounts ? 'translate-x-5' : 'translate-x-0'
-                    }`}
-                  />
-                </button>
+                {onOpenRulesConfig && (
+                  <button
+                    type="button"
+                    onClick={onOpenRulesConfig}
+                    className="flex-shrink-0 inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold text-sky-700 bg-sky-50 hover:bg-sky-100 border border-sky-200 transition"
+                    title="Configurar qué palabras clave o movimientos se reconocen como pagos de tarjeta"
+                  >
+                    <Settings className="w-3.5 h-3.5 text-sky-600" />
+                    <span>⚙️ Configurar reglas de pago</span>
+                  </button>
+                )}
               </div>
 
               {availablePayments.length > 0 ? (
@@ -336,15 +365,25 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
                   </button>
                 </form>
               ) : (
-                <div className="bg-amber-50 border border-amber-200 p-3 rounded-xl flex items-center gap-2 text-amber-800 text-xs">
-                  <AlertCircle className="w-5 h-5 flex-shrink-0 text-amber-600" />
-                  <div>
+                <div className="bg-amber-50 border border-amber-200 p-3.5 rounded-xl flex items-start gap-2.5 text-amber-800 text-xs">
+                  <AlertCircle className="w-5 h-5 flex-shrink-0 text-amber-600 mt-0.5" />
+                  <div className="space-y-2 flex-1">
                     <p className="font-bold">No hay pagos con saldo disponible para asociar.</p>
-                    <p className="text-amber-700 mt-0.5">
+                    <p className="text-amber-700 leading-relaxed">
                       {!showAllAccounts
                         ? 'Activa el interruptor superior para buscar pagos o transferencias en tu Cuenta Corriente u otras cuentas.'
                         : 'Puedes registrar un abono manualmente con monto negativo o cargar una cartola con el pago de tu tarjeta.'}
                     </p>
+                    {onOpenRulesConfig && (
+                      <button
+                        type="button"
+                        onClick={onOpenRulesConfig}
+                        className="inline-flex items-center gap-1.5 text-xs font-bold text-amber-900 bg-amber-100 hover:bg-amber-200 px-3 py-1.5 rounded-lg border border-amber-300 transition"
+                      >
+                        <Settings className="w-3.5 h-3.5 text-amber-700" />
+                        <span>⚙️ Configurar qué se considera pago (Reglas)</span>
+                      </button>
+                    )}
                   </div>
                 </div>
               )}
