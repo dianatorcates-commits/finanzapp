@@ -124,7 +124,7 @@ export const AccountManagerModal: React.FC<AccountManagerModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
-      <div className="bg-white rounded-2xl shadow-2xl max-w-xl w-full border border-slate-200 overflow-hidden flex flex-col max-h-[90vh]">
+      <div className="bg-white text-slate-800 rounded-2xl shadow-2xl max-w-xl w-full border border-slate-200 overflow-hidden flex flex-col max-h-[90vh]">
         
         {/* Header */}
         <div className="bg-slate-900 text-white p-4 flex items-center justify-between">
@@ -280,7 +280,7 @@ export const AccountManagerModal: React.FC<AccountManagerModalProps> = ({
                     placeholder="Ej: TC Mastercard Falabella"
                     value={name}
                     onChange={(e) => setName(e.target.value)}
-                    className="w-full text-xs py-2 px-3 bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500/20"
+                    className="w-full text-xs py-2 px-3 bg-white text-slate-900 placeholder-slate-400 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500/20"
                   />
                 </div>
                 <div>
@@ -291,7 +291,7 @@ export const AccountManagerModal: React.FC<AccountManagerModalProps> = ({
                     placeholder="Ej: Banco Estado, BCI, Scotiabank"
                     value={bank}
                     onChange={(e) => setBank(e.target.value)}
-                    className="w-full text-xs py-2 px-3 bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500/20"
+                    className="w-full text-xs py-2 px-3 bg-white text-slate-900 placeholder-slate-400 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500/20"
                   />
                 </div>
               </div>
@@ -302,7 +302,7 @@ export const AccountManagerModal: React.FC<AccountManagerModalProps> = ({
                   <select
                     value={type}
                     onChange={(e) => setType(e.target.value as AccountType)}
-                    className="w-full text-xs py-2 px-3 bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500/20 font-medium"
+                    className="w-full text-xs py-2 px-3 bg-white text-slate-900 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500/20 font-medium"
                   >
                     <option value="credit_card">💳 Tarjeta de Crédito (TC)</option>
                     <option value="checking">🏦 Cuenta Corriente</option>
@@ -317,7 +317,7 @@ export const AccountManagerModal: React.FC<AccountManagerModalProps> = ({
                     placeholder="Ej: **** 1234"
                     value={accountNumber}
                     onChange={(e) => setAccountNumber(e.target.value)}
-                    className="w-full text-xs py-2 px-3 bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500/20"
+                    className="w-full text-xs py-2 px-3 bg-white text-slate-900 placeholder-slate-400 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500/20"
                   />
                 </div>
               </div>
@@ -330,7 +330,7 @@ export const AccountManagerModal: React.FC<AccountManagerModalProps> = ({
                     placeholder="Ej: 2000000"
                     value={creditLimit}
                     onChange={(e) => setCreditLimit(e.target.value)}
-                    className="w-full text-xs py-2 px-3 bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500/20"
+                    className="w-full text-xs py-2 px-3 bg-white text-slate-900 placeholder-slate-400 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500/20"
                   />
                 </div>
               )}
@@ -367,7 +367,7 @@ export const AccountManagerModal: React.FC<AccountManagerModalProps> = ({
                       placeholder="Ej: 24 (Por defecto fin de mes)"
                       value={closingDay}
                       onChange={(e) => setClosingDay(e.target.value)}
-                      className="w-full text-xs py-1.5 px-3 bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500/20"
+                      className="w-full text-xs py-1.5 px-3 bg-white text-slate-900 placeholder-slate-400 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500/20"
                     />
                     <span className="text-[10px] text-slate-400 block mt-0.5">
                       Compras después de este día pasan al mes siguiente.
@@ -385,7 +385,7 @@ export const AccountManagerModal: React.FC<AccountManagerModalProps> = ({
                       placeholder="Ej: 5 (Opcional)"
                       value={dueDay}
                       onChange={(e) => setDueDay(e.target.value)}
-                      className="w-full text-xs py-1.5 px-3 bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500/20"
+                      className="w-full text-xs py-1.5 px-3 bg-white text-slate-900 placeholder-slate-400 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500/20"
                     />
                     <span className="text-[10px] text-slate-400 block mt-0.5">
                       Fecha límite de pago de la facturación.

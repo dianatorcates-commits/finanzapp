@@ -141,7 +141,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
-      <div className="bg-white rounded-2xl shadow-2xl max-w-xl w-full border border-slate-200 overflow-hidden flex flex-col max-h-[90vh]">
+      <div className="bg-white text-slate-800 rounded-2xl shadow-2xl max-w-xl w-full border border-slate-200 overflow-hidden flex flex-col max-h-[90vh]">
         
         {/* Modal Header */}
         <div className="bg-slate-900 text-white p-4 flex items-center justify-between">
@@ -321,13 +321,13 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
                     <select
                       value={selectedPaymentId}
                       onChange={(e) => setSelectedPaymentId(e.target.value)}
-                      className="w-full text-xs py-2 px-3 bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500/20 font-medium"
+                      className="w-full text-xs py-2 px-3 bg-white text-slate-900 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500/20 font-medium"
                     >
                       {availablePayments.map((p) => {
                         const originAcc = accounts.find((a) => a.id === p.accountId);
                         const accTag = originAcc ? `[${originAcc.name}] ` : '';
                         return (
-                          <option key={p.id} value={p.id}>
+                          <option key={p.id} value={p.id} className="bg-white text-slate-900">
                             {accTag}{p.date} - {p.description} (Disp: {formatCLP(p.unallocatedPaymentBalance || 0)})
                           </option>
                         );
@@ -353,7 +353,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
                       placeholder={`Ej: ${Math.min(purchase.netAmount, selectedPayment?.unallocatedPaymentBalance || 0)}`}
                       value={allocationAmount}
                       onChange={(e) => setAllocationAmount(e.target.value)}
-                      className="w-full text-xs py-2 px-3 bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500/20 font-mono"
+                      className="w-full text-xs py-2 px-3 bg-white text-slate-900 placeholder-slate-400 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500/20 font-mono"
                     />
                   </div>
 

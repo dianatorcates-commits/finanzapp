@@ -49,7 +49,7 @@ export const CategoryManagerModal: React.FC<CategoryManagerModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
-      <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full border border-slate-200 overflow-hidden flex flex-col max-h-[90vh]">
+      <div className="bg-white text-slate-800 rounded-2xl shadow-2xl max-w-2xl w-full border border-slate-200 overflow-hidden flex flex-col max-h-[90vh]">
         
         {/* Header */}
         <div className="bg-slate-900 text-white p-4 flex items-center justify-between">
@@ -89,7 +89,7 @@ export const CategoryManagerModal: React.FC<CategoryManagerModalProps> = ({
                   placeholder="Ej: Abonos y Pagos, Inversiones"
                   value={newCatName}
                   onChange={(e) => setNewCatName(e.target.value)}
-                  className="w-full text-xs py-2 px-3 bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500/20"
+                  className="w-full text-xs py-2 px-3 bg-white text-slate-900 placeholder-slate-400 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500/20"
                 />
               </div>
               <button
@@ -124,7 +124,7 @@ export const CategoryManagerModal: React.FC<CategoryManagerModalProps> = ({
                   placeholder="Ej: Abono Comida, Pago Tarjeta"
                   value={newSubcatName}
                   onChange={(e) => setNewSubcatName(e.target.value)}
-                  className="w-full text-xs py-2 px-3 bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500/20"
+                  className="w-full text-xs py-2 px-3 bg-white text-slate-900 placeholder-slate-400 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500/20"
                 />
               </div>
               <button
