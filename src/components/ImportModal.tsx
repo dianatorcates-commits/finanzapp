@@ -162,7 +162,7 @@ export const ImportModal: React.FC<ImportModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
-      <div className="bg-white rounded-2xl shadow-2xl max-w-3xl w-full border border-slate-200 overflow-hidden flex flex-col max-h-[90vh]">
+      <div className="bg-white text-slate-800 rounded-2xl shadow-2xl max-w-3xl w-full border border-slate-200 overflow-hidden flex flex-col max-h-[90vh]">
         
         {/* Header */}
         <div className="bg-slate-900 text-white p-4 flex items-center justify-between">
@@ -322,7 +322,7 @@ export const ImportModal: React.FC<ImportModalProps> = ({
                 placeholder="Ejemplo:&#10;15/09/2026 UBER TRIPS SANTIAGO 8.500&#10;16/09/2026 SUPERMERCADO JUMBO 45.900&#10;18/09/2026 PAGO TC SANTANDER -50.000"
                 value={rawText}
                 onChange={(e) => setRawText(e.target.value)}
-                className="w-full text-xs font-mono p-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-sky-500/20"
+                className="w-full text-xs font-mono p-3 bg-white text-slate-900 placeholder-slate-400 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-sky-500/20"
               />
               <button
                 type="button"
@@ -353,7 +353,7 @@ export const ImportModal: React.FC<ImportModalProps> = ({
                     type="month"
                     value={bulkPeriodInput}
                     onChange={(e) => setBulkPeriodInput(e.target.value)}
-                    className="text-xs py-1 px-2 bg-white border border-slate-300 rounded-lg focus:outline-none font-mono"
+                    className="text-xs py-1 px-2 bg-white text-slate-900 border border-slate-300 rounded-lg focus:outline-none font-mono"
                   />
                   <button
                     type="button"
@@ -421,7 +421,7 @@ export const ImportModal: React.FC<ImportModalProps> = ({
                             type="date"
                             value={tx.date}
                             onChange={(e) => handleUpdatePreviewRow(tx.id, { date: e.target.value })}
-                            className="text-[11px] font-mono py-0.5 px-1.5 bg-white border border-slate-300 rounded focus:outline-none"
+                            className="text-[11px] font-mono py-0.5 px-1.5 bg-white text-slate-900 border border-slate-300 rounded focus:outline-none"
                           />
                         </td>
 
