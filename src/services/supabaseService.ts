@@ -102,10 +102,8 @@ export async function fetchUserData(userId: string) {
       type: a.type,
       bank: a.bank,
       currency: a.currency || 'CLP',
-      creditLimit: a.type === 'credit_card' ? (a.credit_limit !== null && a.credit_limit !== undefined ? Number(a.credit_limit) : undefined) : undefined,
-      initialBalance: a.initial_balance !== null && a.initial_balance !== undefined
-        ? Number(a.initial_balance)
-        : (a.type !== 'credit_card' && a.credit_limit !== null && a.credit_limit !== undefined ? Number(a.credit_limit) : undefined),
+      creditLimit: a.credit_limit !== null && a.credit_limit !== undefined ? Number(a.credit_limit) : undefined,
+      initialBalance: a.initial_balance !== null && a.initial_balance !== undefined ? Number(a.initial_balance) : undefined,
       accountNumber: a.account_number || undefined,
       color: a.color,
       closingDay: a.closing_day ? parseInt(a.closing_day, 10) : undefined,
@@ -130,22 +128,24 @@ export async function fetchUserData(userId: string) {
       const rawName = b.category_name || '';
       let name = rawName;
       let categoryName = rawName;
-      let categories: string[] = [];
-      let subcategories: string[] = [];
+      let categories: string[] = Array.isArray(b.categories) ? b.categories : [];
+      let subcategories: string[] = Array.isArray(b.subcategories) ? b.subcategories : [];
 
+      // Fallback para registros legacy que tenían un objeto JSON en category_name
       if (typeof rawName === 'string' && rawName.trim().startsWith('{')) {
         try {
           const parsed = JSON.parse(rawName);
           name = parsed.name || parsed.categoryName || rawName;
           categoryName = name;
-          categories = Array.isArray(parsed.categories) ? parsed.categories : [];
-          subcategories = Array.isArray(parsed.subcategories) ? parsed.subcategories : [];
+          if (categories.length === 0 && Array.isArray(parsed.categories)) categories = parsed.categories;
+          if (subcategories.length === 0 && Array.isArray(parsed.subcategories)) subcategories = parsed.subcategories;
         } catch {
-          name = rawName;
-          categoryName = rawName;
-          categories = [rawName];
+          // ignore
         }
-      } else {
+      }
+
+      // Si ambos arreglos vienen vacíos en un registro antiguo, usa [rawName] como fallback
+      if (categories.length === 0 && subcategories.length === 0 && rawName) {
         categories = [rawName];
       }
 
@@ -189,7 +189,11 @@ export async function fetchUserData(userId: string) {
           current: t.installment_current,
           total: t.installment_total
         } : undefined,
-        allocations: parsedAllocations
+        allocations: parsedAllocations,
+        notes: t.notes || undefined,
+        isPotentialDuplicate: t.is_potential_duplicate ? Boolean(t.is_potential_duplicate) : undefined,
+        duplicateOfDescription: t.duplicate_of_description || undefined,
+        duplicateOfId: t.duplicate_of_id || undefined
       };
     });
 
@@ -258,8 +262,8 @@ export async function syncLocalDataToCloud(
         type: a.type,
         bank: a.bank,
         currency: a.currency || 'CLP',
-        credit_limit: a.type === 'credit_card' ? (a.creditLimit ?? null) : (a.initialBalance ?? null),
-        initial_balance: a.initialBalance ?? null,
+        credit_limit: a.type === 'credit_card' ? (a.creditLimit ?? null) : null,
+        initial_balance: a.type !== 'credit_card' ? (a.initialBalance ?? null) : null,
         account_number: a.accountNumber ?? null,
         closing_day: a.closingDay || null,
         due_day: a.dueDay || null
@@ -325,8 +329,10 @@ export async function syncLocalDataToCloud(
       const budgetsPayload = localState.budgets.map((b) => ({
         id: b.id,
         user_id: userId,
-        category_name: encodeBudgetName(b),
-        monthly_limit: b.monthlyLimit
+        category_name: b.name || b.categoryName,
+        monthly_limit: b.monthlyLimit,
+        categories: b.categories || [],
+        subcategories: b.subcategories || []
       }));
       const { error: bdgErr } = await supabase.from('category_budgets').upsert(budgetsPayload, { onConflict: 'id' });
       if (bdgErr) console.error('Error syncing budgets to cloud:', bdgErr);
@@ -349,7 +355,11 @@ export async function syncLocalDataToCloud(
         subcategory: t.subcategory,
         installment_current: t.installments?.current,
         installment_total: t.installments?.total,
-        allocations: t.allocations || []
+        allocations: t.allocations || [],
+        notes: t.notes || null,
+        is_potential_duplicate: t.isPotentialDuplicate || false,
+        duplicate_of_description: t.duplicateOfDescription || null,
+        duplicate_of_id: t.duplicateOfId || null
       }));
       const { error: txErr } = await supabase.from('transactions').upsert(txsPayload, { onConflict: 'id' });
       if (txErr) {
@@ -416,8 +426,8 @@ export async function saveCloudAccount(userId: string, account: Account) {
       type: account.type,
       bank: account.bank,
       currency: account.currency || 'CLP',
-      credit_limit: account.type === 'credit_card' ? (account.creditLimit ?? null) : (account.initialBalance ?? null),
-      initial_balance: account.initialBalance ?? null,
+      credit_limit: account.type === 'credit_card' ? (account.creditLimit ?? null) : null,
+      initial_balance: account.type !== 'credit_card' ? (account.initialBalance ?? null) : null,
       account_number: account.accountNumber ?? null,
       color: account.color,
       closing_day: account.closingDay || null,
@@ -480,7 +490,11 @@ export async function saveCloudTransaction(userId: string, tx: Transaction) {
       subcategory: tx.subcategory || null,
       installment_current: tx.installments?.current || null,
       installment_total: tx.installments?.total || null,
-      allocations: tx.allocations || []
+      allocations: tx.allocations || [],
+      notes: tx.notes || null,
+      is_potential_duplicate: tx.isPotentialDuplicate || false,
+      duplicate_of_description: tx.duplicateOfDescription || null,
+      duplicate_of_id: tx.duplicateOfId || null
     };
     const { error } = await supabase.from('transactions').upsert(payload, { onConflict: 'id' });
     if (error) {
@@ -560,24 +574,15 @@ export async function deleteCloudRule(userId: string, ruleId: string) {
   if (error) console.error('Error deleting auto_rule from cloud:', error);
 }
 
-export function encodeBudgetName(b: CategoryBudget): string {
-  if ((b.categories && b.categories.length > 0) || (b.subcategories && b.subcategories.length > 0) || b.name) {
-    return JSON.stringify({
-      name: b.name || b.categoryName,
-      categories: b.categories || [],
-      subcategories: b.subcategories || []
-    });
-  }
-  return b.categoryName;
-}
-
 export async function saveCloudBudget(userId: string, budget: CategoryBudget) {
   try {
     const payload = {
       id: budget.id,
       user_id: userId,
-      category_name: encodeBudgetName(budget),
-      monthly_limit: budget.monthlyLimit
+      category_name: budget.name || budget.categoryName,
+      monthly_limit: budget.monthlyLimit,
+      categories: budget.categories || [],
+      subcategories: budget.subcategories || []
     };
     const { error } = await supabase.from('category_budgets').upsert(payload, { onConflict: 'id' });
     if (error) console.error('Error saving budget to cloud:', error);

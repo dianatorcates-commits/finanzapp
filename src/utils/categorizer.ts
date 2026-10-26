@@ -483,6 +483,7 @@ export function autoCategorize(
 /**
  * Calculates total spending and matching expense transactions for a budget.
  * Supports budgets with grouped categories and/or subcategories, as well as legacy single-category budgets.
+ * Normalizes text (case/accents/whitespace) and allows matching both category and subcategory.
  */
 export function getBudgetSpending(
   budget: CategoryBudget,
@@ -492,18 +493,38 @@ export function getBudgetSpending(
     (tx) => tx.amount > 0 && !isPaymentOrIncomeTransaction(tx)
   );
 
-  const hasGroups =
-    (budget.categories && budget.categories.length > 0) ||
-    (budget.subcategories && budget.subcategories.length > 0);
+  const normalize = (str?: string | null) =>
+    (str || '')
+      .trim()
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '');
+
+  const budgetTargets = new Set<string>();
+
+  if (budget.categories && budget.categories.length > 0) {
+    budget.categories.forEach((c) => {
+      if (c && c.trim()) budgetTargets.add(normalize(c));
+    });
+  }
+
+  if (budget.subcategories && budget.subcategories.length > 0) {
+    budget.subcategories.forEach((s) => {
+      if (s && s.trim()) budgetTargets.add(normalize(s));
+    });
+  }
+
+  // Si no tiene categorías ni subcategorías explícitas, usar el nombre del presupuesto
+  if (budgetTargets.size === 0) {
+    const raw = budget.name || budget.categoryName;
+    if (raw && raw.trim()) budgetTargets.add(normalize(raw));
+  }
 
   const matchingTransactions = expenseTransactions.filter((tx) => {
-    if (hasGroups) {
-      const matchCat = Boolean(budget.categories && budget.categories.includes(tx.category));
-      const matchSub = Boolean(budget.subcategories && budget.subcategories.includes(tx.subcategory));
-      return matchCat || matchSub;
-    }
-    // Presupuesto legado
-    return tx.category === budget.categoryName || tx.subcategory === budget.categoryName;
+    const txCat = normalize(tx.category);
+    const txSub = normalize(tx.subcategory);
+
+    return (txCat && budgetTargets.has(txCat)) || (txSub && budgetTargets.has(txSub));
   });
 
   const spent = matchingTransactions.reduce((sum, tx) => {
