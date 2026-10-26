@@ -483,7 +483,8 @@ export function autoCategorize(
 /**
  * Calculates total spending and matching expense transactions for a budget.
  * Supports budgets with grouped categories and/or subcategories, as well as legacy single-category budgets.
- * Normalizes text (case/accents/whitespace) and allows matching both category and subcategory.
+ * Strictly separates categoryTargets (matched against tx.category) and subcategoryTargets (matched against tx.subcategory)
+ * to prevent subcategories with the same name as a category (e.g. "Transporte") from falsely matching unwanted sibling subcategories.
  */
 export function getBudgetSpending(
   budget: CategoryBudget,
@@ -500,31 +501,36 @@ export function getBudgetSpending(
       .normalize('NFD')
       .replace(/[\u0300-\u036f]/g, '');
 
-  const budgetTargets = new Set<string>();
+  const categoryTargets = new Set<string>();
+  const subcategoryTargets = new Set<string>();
 
   if (budget.categories && budget.categories.length > 0) {
     budget.categories.forEach((c) => {
-      if (c && c.trim()) budgetTargets.add(normalize(c));
+      if (c && c.trim()) categoryTargets.add(normalize(c));
     });
   }
 
   if (budget.subcategories && budget.subcategories.length > 0) {
     budget.subcategories.forEach((s) => {
-      if (s && s.trim()) budgetTargets.add(normalize(s));
+      if (s && s.trim()) subcategoryTargets.add(normalize(s));
     });
   }
 
-  // Si no tiene categorías ni subcategorías explícitas, usar el nombre del presupuesto
-  if (budgetTargets.size === 0) {
-    const raw = budget.name || budget.categoryName;
-    if (raw && raw.trim()) budgetTargets.add(normalize(raw));
-  }
+  const hasExplicitTargets = categoryTargets.size > 0 || subcategoryTargets.size > 0;
+  const fallbackName = normalize(budget.name || budget.categoryName);
 
   const matchingTransactions = expenseTransactions.filter((tx) => {
     const txCat = normalize(tx.category);
     const txSub = normalize(tx.subcategory);
 
-    return (txCat && budgetTargets.has(txCat)) || (txSub && budgetTargets.has(txSub));
+    if (hasExplicitTargets) {
+      const matchByCategory = txCat !== '' && categoryTargets.has(txCat);
+      const matchBySubcategory = txSub !== '' && subcategoryTargets.has(txSub);
+      return matchByCategory || matchBySubcategory;
+    }
+
+    // Solo si el presupuesto no tiene ningún chip en categories ni subcategories
+    return (txCat !== '' && txCat === fallbackName) || (txSub !== '' && txSub === fallbackName);
   });
 
   const spent = matchingTransactions.reduce((sum, tx) => {
