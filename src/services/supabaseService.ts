@@ -216,7 +216,8 @@ export async function fetchUserData(userId: string) {
       myShareAmount: parseFloat(c.my_share_amount) || 0,
       paymentDay: c.payment_day ? parseInt(c.payment_day, 10) : undefined,
       startDate: c.start_date || undefined,
-      lastPaidPeriod: c.last_paid_period || undefined
+      lastPaidPeriod: c.last_paid_period || undefined,
+      accountId: c.account_id || undefined
     }));
 
     return {
@@ -392,7 +393,8 @@ export async function syncLocalDataToCloud(
         my_share_amount: c.myShareAmount,
         payment_day: c.paymentDay || null,
         start_date: c.startDate || null,
-        last_paid_period: c.lastPaidPeriod || null
+        last_paid_period: c.lastPaidPeriod || null,
+        account_id: c.accountId || null
       }));
       const { error: credErr } = await supabase.from('credits').upsert(creditsPayload, { onConflict: 'id' });
       if (credErr) console.error('Error syncing credits to cloud:', credErr);
@@ -716,7 +718,8 @@ export async function fetchCredits(userId: string): Promise<Credit[]> {
       myShareAmount: parseFloat(c.my_share_amount) || 0,
       paymentDay: c.payment_day ? parseInt(c.payment_day, 10) : undefined,
       startDate: c.start_date || undefined,
-      lastPaidPeriod: c.last_paid_period || undefined
+      lastPaidPeriod: c.last_paid_period || undefined,
+      accountId: c.account_id || undefined
     }));
   } catch (err) {
     console.error('Unexpected error fetching credits:', err);
@@ -742,7 +745,8 @@ export async function saveCreditsToCloud(userId: string, credits: Credit[]): Pro
       my_share_amount: c.myShareAmount,
       payment_day: c.paymentDay || null,
       start_date: c.startDate || null,
-      last_paid_period: c.lastPaidPeriod || null
+      last_paid_period: c.lastPaidPeriod || null,
+      account_id: c.accountId || null
     }));
 
     const { error } = await supabase
@@ -774,7 +778,8 @@ export async function saveCreditToCloud(userId: string, credit: Credit): Promise
       my_share_amount: credit.myShareAmount,
       payment_day: credit.paymentDay || null,
       start_date: credit.startDate || null,
-      last_paid_period: credit.lastPaidPeriod || null
+      last_paid_period: credit.lastPaidPeriod || null,
+      account_id: credit.accountId || null
     };
 
     const { error } = await supabase

@@ -1333,6 +1333,7 @@ export function App() {
             ) : (
               <CreditsManagementView
                 credits={credits}
+                accounts={accounts}
                 currentPeriod={filters.month !== 'ALL' ? filters.month : new Date().toISOString().slice(0, 7)}
                 onSaveCredit={handleSaveCredit}
                 onDeleteCredit={handleDeleteCredit}

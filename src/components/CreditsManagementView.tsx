@@ -23,10 +23,11 @@ import {
   ChevronRight,
   DollarSign
 } from 'lucide-react';
-import { Credit, CreditType } from '../types';
+import { Credit, CreditType, Account } from '../types';
 
 export interface CreditsManagementViewProps {
   credits: Credit[];
+  accounts: Account[];
   currentPeriod: string; // ej. '2026-10'
   onSaveCredit: (credit: Credit) => void | Promise<void>;
   onDeleteCredit: (creditId: string) => void | Promise<void>;
@@ -126,6 +127,7 @@ const CREDIT_TYPE_OPTIONS: CreditTypeOption[] = [
 
 export const CreditsManagementView: React.FC<CreditsManagementViewProps> = ({
   credits,
+  accounts = [],
   currentPeriod,
   onSaveCredit,
   onDeleteCredit,
@@ -145,6 +147,7 @@ export const CreditsManagementView: React.FC<CreditsManagementViewProps> = ({
   const [type, setType] = useState<CreditType>('consumo');
   const [bank, setBank] = useState<string>(CHILEAN_BANKS[0]);
   const [customBank, setCustomBank] = useState<string>('');
+  const [accountId, setAccountId] = useState<string>('');
   const [totalAmount, setTotalAmount] = useState<string>('');
   const [totalInstallments, setTotalInstallments] = useState<string>('36');
   const [paidInstallments, setPaidInstallments] = useState<string>('0');
@@ -201,6 +204,7 @@ export const CreditsManagementView: React.FC<CreditsManagementViewProps> = ({
       setPaymentDay(selectedCredit.paymentDay ? selectedCredit.paymentDay.toString() : '5');
       setStartDate(selectedCredit.startDate || activePeriod);
       setLastPaidPeriod(selectedCredit.lastPaidPeriod || '');
+      setAccountId(selectedCredit.accountId || '');
       setFormError(null);
     }
   }, [selectedCredit, isCreatingNew, activePeriod]);
@@ -244,6 +248,7 @@ export const CreditsManagementView: React.FC<CreditsManagementViewProps> = ({
     setType('consumo');
     setBank(CHILEAN_BANKS[0]);
     setCustomBank('');
+    setAccountId('');
     setTotalAmount('');
     setTotalInstallments('36');
     setPaidInstallments('0');
@@ -351,7 +356,8 @@ export const CreditsManagementView: React.FC<CreditsManagementViewProps> = ({
       myShareAmount: shareAmt,
       paymentDay: paymentDay ? parseInt(paymentDay, 10) : undefined,
       startDate: startDate || undefined,
-      lastPaidPeriod: lastPaidPeriod || undefined
+      lastPaidPeriod: lastPaidPeriod || undefined,
+      accountId: accountId.trim() ? accountId.trim() : undefined
     };
 
     try {
@@ -569,14 +575,24 @@ export const CreditsManagementView: React.FC<CreditsManagementViewProps> = ({
                           <h3 className="text-sm font-bold text-white truncate">
                             {credit.name}
                           </h3>
-                          <p className="text-xs text-slate-400 truncate flex items-center gap-1.5 mt-0.5">
+                          <div className="text-xs text-slate-400 truncate flex items-center gap-1.5 mt-0.5 flex-wrap">
                             <span>{credit.bank}</span>
+                            {(() => {
+                              const acc = accounts.find((a) => a.id === credit.accountId);
+                              if (!acc) return null;
+                              return (
+                                <span className="text-[10px] px-1.5 py-0.5 rounded bg-sky-500/10 text-sky-300 border border-sky-500/30 font-semibold flex items-center gap-1">
+                                  <span>{acc.type === 'credit_card' ? '💳' : '🏦'}</span>
+                                  <span>{acc.name}</span>
+                                </span>
+                              );
+                            })()}
                             {credit.isShared && (
                               <span className="text-[10px] px-1.5 py-0.2 rounded bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 font-semibold">
                                 Compartido {credit.mySharePercentage || 50}%
                               </span>
                             )}
-                          </p>
+                          </div>
                         </div>
                       </div>
 
@@ -696,7 +712,14 @@ export const CreditsManagementView: React.FC<CreditsManagementViewProps> = ({
                     </label>
                     <select
                       value={type}
-                      onChange={(e) => setType(e.target.value as CreditType)}
+                      onChange={(e) => {
+                        const newType = e.target.value as CreditType;
+                        setType(newType);
+                        if ((newType === 'cuotas_tc' || newType === 'avance_tc') && !accountId) {
+                          const firstTc = accounts.find((a) => a.type === 'credit_card');
+                          if (firstTc) setAccountId(firstTc.id);
+                        }
+                      }}
                       className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500 transition"
                     >
                       {CREDIT_TYPE_OPTIONS.map((opt) => (
@@ -740,6 +763,46 @@ export const CreditsManagementView: React.FC<CreditsManagementViewProps> = ({
                     />
                   </div>
                 )}
+
+                {/* Tarjeta o Cuenta con que se paga */}
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-1.5 flex items-center justify-between">
+                    <span>Tarjeta o Cuenta con que se paga</span>
+                    <span className="text-[10px] text-slate-500 font-normal normal-case">Opcional</span>
+                  </label>
+                  <select
+                    value={accountId}
+                    onChange={(e) => setAccountId(e.target.value)}
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500 transition"
+                  >
+                    <option value="">Sin asociar / Otra cuenta o externa</option>
+                    {accounts.filter((a) => a.type === 'credit_card').length > 0 && (
+                      <optgroup label="Tarjetas de Crédito">
+                        {accounts
+                          .filter((a) => a.type === 'credit_card')
+                          .map((acc) => (
+                            <option key={acc.id} value={acc.id}>
+                              💳 {acc.name} ({acc.bank})
+                            </option>
+                          ))}
+                      </optgroup>
+                    )}
+                    {accounts.filter((a) => a.type !== 'credit_card').length > 0 && (
+                      <optgroup label="Cuentas Bancarias / Vista">
+                        {accounts
+                          .filter((a) => a.type !== 'credit_card')
+                          .map((acc) => (
+                            <option key={acc.id} value={acc.id}>
+                              🏦 {acc.name} ({acc.bank})
+                            </option>
+                          ))}
+                      </optgroup>
+                    )}
+                  </select>
+                  <span className="text-[11px] text-slate-500 mt-1 block">
+                    Permite identificar en qué estado de cuenta o tarjeta se cobra la cuota mensual.
+                  </span>
+                </div>
 
                 {/* 3. Cuotas Totales y Cuotas Pagadas */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -929,9 +992,24 @@ export const CreditsManagementView: React.FC<CreditsManagementViewProps> = ({
                       <h2 className="text-xl font-extrabold text-white tracking-tight">
                         {selectedCredit.name}
                       </h2>
-                      <p className="text-xs text-slate-400">
-                        {selectedCredit.bank} {selectedCredit.isShared ? `• Compartido (${selectedCredit.mySharePercentage || 50}%)` : ''}
-                      </p>
+                      <div className="flex items-center gap-2 flex-wrap mt-1">
+                        <span className="text-xs text-slate-400">{selectedCredit.bank}</span>
+                        {(() => {
+                          const acc = accounts.find((a) => a.id === selectedCredit.accountId);
+                          if (!acc) return null;
+                          return (
+                            <span className="text-xs px-2.5 py-0.5 rounded-full bg-sky-500/15 text-sky-300 border border-sky-500/30 font-medium flex items-center gap-1.5">
+                              <span>{acc.type === 'credit_card' ? '💳 Se paga con:' : '🏦 Se paga con:'}</span>
+                              <b className="text-white">{acc.name}</b>
+                            </span>
+                          );
+                        })()}
+                        {selectedCredit.isShared && (
+                          <span className="text-xs px-2 py-0.5 rounded-full bg-indigo-500/15 text-indigo-300 border border-indigo-500/30 font-medium">
+                            Compartido ({selectedCredit.mySharePercentage || 50}%)
+                          </span>
+                        )}
+                      </div>
                     </div>
                   </div>
 
@@ -1086,8 +1164,15 @@ export const CreditsManagementView: React.FC<CreditsManagementViewProps> = ({
                       </label>
                       <select
                         value={type}
-                        onChange={(e) => setType(e.target.value as CreditType)}
-                        className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-sky-500 transition"
+                        onChange={(e) => {
+                          const newType = e.target.value as CreditType;
+                          setType(newType);
+                          if ((newType === 'cuotas_tc' || newType === 'avance_tc') && !accountId) {
+                            const firstTc = accounts.find((a) => a.type === 'credit_card');
+                            if (firstTc) setAccountId(firstTc.id);
+                          }
+                        }}
+                        className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500 transition"
                       >
                         {CREDIT_TYPE_OPTIONS.map((opt) => (
                           <option key={opt.type} value={opt.type}>
@@ -1128,6 +1213,46 @@ export const CreditsManagementView: React.FC<CreditsManagementViewProps> = ({
                       />
                     </div>
                   )}
+
+                  {/* Tarjeta o Cuenta con que se paga */}
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-1.5 flex items-center justify-between">
+                      <span>Tarjeta o Cuenta con que se paga</span>
+                      <span className="text-[10px] text-slate-500 font-normal normal-case">Opcional</span>
+                    </label>
+                    <select
+                      value={accountId}
+                      onChange={(e) => setAccountId(e.target.value)}
+                      className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500 transition"
+                    >
+                      <option value="">Sin asociar / Otra cuenta o externa</option>
+                      {accounts.filter((a) => a.type === 'credit_card').length > 0 && (
+                        <optgroup label="Tarjetas de Crédito">
+                          {accounts
+                            .filter((a) => a.type === 'credit_card')
+                            .map((acc) => (
+                              <option key={acc.id} value={acc.id}>
+                                💳 {acc.name} ({acc.bank})
+                              </option>
+                            ))}
+                        </optgroup>
+                      )}
+                      {accounts.filter((a) => a.type !== 'credit_card').length > 0 && (
+                        <optgroup label="Cuentas Bancarias / Vista">
+                          {accounts
+                            .filter((a) => a.type !== 'credit_card')
+                            .map((acc) => (
+                              <option key={acc.id} value={acc.id}>
+                                🏦 {acc.name} ({acc.bank})
+                              </option>
+                            ))}
+                        </optgroup>
+                      )}
+                    </select>
+                    <span className="text-[11px] text-slate-500 mt-1 block">
+                      Permite identificar en qué estado de cuenta o tarjeta se cobra la cuota mensual.
+                    </span>
+                  </div>
 
                   {/* Cuotas Totales y Cuotas Pagadas */}
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

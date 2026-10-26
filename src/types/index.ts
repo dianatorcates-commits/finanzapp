@@ -132,6 +132,7 @@ export interface Credit {
   paymentDay?: number;          // Día del mes en que vence o se paga (1-31)
   startDate?: string;           // Fecha o mes de inicio (YYYY-MM)
   lastPaidPeriod?: string;      // Último mes en que se pagó la cuota (YYYY-MM)
+  accountId?: string;           // ID de la tarjeta o cuenta bancaria con que se paga
 }
 
 // ==========================================
