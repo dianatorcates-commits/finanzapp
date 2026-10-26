@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
 import {
   X,
   CreditCard,
@@ -77,11 +77,28 @@ export const CreditCardBillingModal: React.FC<CreditCardBillingModalProps> = ({
     creditCards[0]?.id || ''
   );
 
-  // UI accordion toggles
+  // UI accordion toggles & dropdown state
+  const [isCardDropdownOpen, setIsCardDropdownOpen] = useState<boolean>(false);
+  const cardDropdownRef = useRef<HTMLDivElement>(null);
   const [showTransactionsList, setShowTransactionsList] = useState<boolean>(false);
   const [selectedPendingIds, setSelectedPendingIds] = useState<Record<string, boolean>>({});
   const [isGenerating, setIsGenerating] = useState<boolean>(false);
   const [generationSuccessMessage, setGenerationSuccessMessage] = useState<string | null>(null);
+
+  // Close dropdown on outside click
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (cardDropdownRef.current && !cardDropdownRef.current.contains(event.target as Node)) {
+        setIsCardDropdownOpen(false);
+      }
+    }
+    if (isCardDropdownOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [isCardDropdownOpen]);
 
   // Active card object
   const activeCard = useMemo(() => {
@@ -426,54 +443,138 @@ export const CreditCardBillingModal: React.FC<CreditCardBillingModalProps> = ({
           </button>
         </div>
 
-        {/* Period Selector & Card Selection Pills */}
-        <div className="p-4 sm:p-5 bg-slate-900/90 border-b border-slate-800/80 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          {/* Card Selection Tabs */}
+        {/* Period Selector & Card Selection Dropdown / Combo Box */}
+        <div className="p-4 sm:p-5 bg-slate-900/90 border-b border-slate-800/80 flex flex-col sm:flex-row sm:items-end justify-between gap-4">
+          {/* Card Selection Dropdown / Combo Box */}
           {creditCards.length === 0 ? (
             <div className="text-xs text-amber-400 flex items-center gap-2">
               <AlertCircle className="w-4 h-4 shrink-0" />
               <span>No tienes tarjetas de crédito registradas en tus cuentas.</span>
             </div>
           ) : (
-            <div className="flex items-center gap-2 overflow-x-auto pb-1 sm:pb-0">
-              {creditCards.map((card) => {
-                const isSelected = card.id === activeCard?.id;
-                return (
-                  <button
-                    key={card.id}
-                    onClick={() => setSelectedCardId(card.id)}
-                    className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold transition shrink-0 border ${
-                      isSelected
-                        ? 'bg-indigo-600 text-white border-indigo-500 shadow-md shadow-indigo-600/30'
-                        : 'bg-slate-800/70 hover:bg-slate-800 text-slate-300 border-slate-700/80 hover:text-white'
-                    }`}
-                  >
-                    <span>💳 {card.name}</span>
-                    <span className="text-[10px] opacity-75 font-normal">({card.bank})</span>
-                    {card.closingDay && (
-                      <span className={`text-[10px] px-1.5 py-0.2 rounded font-semibold ${
-                        isSelected ? 'bg-white/20 text-white' : 'bg-slate-900 text-slate-400'
-                      }`}>
-                        Corte día {card.closingDay}
+            <div className="relative w-full sm:w-auto sm:min-w-[340px]" ref={cardDropdownRef}>
+              <label className="block text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
+                <CreditCard className="w-3.5 h-3.5 text-indigo-400" />
+                <span>Tarjeta de Crédito</span>
+              </label>
+              <button
+                type="button"
+                onClick={() => setIsCardDropdownOpen(!isCardDropdownOpen)}
+                className={`w-full flex items-center justify-between gap-3 px-3.5 py-2.5 rounded-2xl bg-slate-950 border transition text-left shadow-sm ${
+                  isCardDropdownOpen
+                    ? 'border-indigo-500 ring-2 ring-indigo-500/25 bg-slate-950'
+                    : 'border-slate-800 hover:border-slate-700 bg-slate-950/80 hover:bg-slate-950'
+                }`}
+              >
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-indigo-500/20 to-purple-500/20 border border-indigo-500/30 text-indigo-400 flex items-center justify-center shrink-0">
+                    <CreditCard className="w-4 h-4" />
+                  </div>
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="text-xs font-bold text-white truncate block">
+                        {activeCard?.name}
                       </span>
-                    )}
-                  </button>
-                );
-              })}
+                      {activeCard?.closingDay && (
+                        <span className="text-[10px] px-1.5 py-0.2 rounded font-semibold bg-indigo-500/15 text-indigo-300 border border-indigo-500/30 shrink-0">
+                          Corte día {activeCard.closingDay}
+                        </span>
+                      )}
+                    </div>
+                    <span className="text-[11px] text-slate-400 block truncate mt-0.5">
+                      {activeCard?.bank}
+                      {activeCard?.creditLimit ? ` • Cupo: ${formatCLP(activeCard.creditLimit)}` : ''}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-1.5 text-slate-400 shrink-0">
+                  <span className="text-[10px] font-medium hidden sm:inline text-slate-500">
+                    Cambiar
+                  </span>
+                  <ChevronDown
+                    className={`w-4 h-4 transition-transform duration-200 ${
+                      isCardDropdownOpen ? 'rotate-180 text-indigo-400' : ''
+                    }`}
+                  />
+                </div>
+              </button>
+
+              {/* Dropdown Menu */}
+              {isCardDropdownOpen && (
+                <div className="absolute left-0 top-full mt-1.5 w-full bg-slate-900/98 backdrop-blur-xl border border-slate-700/90 rounded-2xl shadow-2xl p-1.5 z-40 space-y-1 animate-fade-in max-h-72 overflow-y-auto">
+                  <div className="px-3 py-1.5 text-[10px] font-bold text-slate-400 uppercase tracking-wider border-b border-slate-800/80 flex items-center justify-between">
+                    <span>Tus Tarjetas de Crédito</span>
+                    <span className="text-slate-500">{creditCards.length} disponibles</span>
+                  </div>
+                  {creditCards.map((card) => {
+                    const isSelected = card.id === activeCard?.id;
+                    return (
+                      <button
+                        key={card.id}
+                        type="button"
+                        onClick={() => {
+                          setSelectedCardId(card.id);
+                          setIsCardDropdownOpen(false);
+                        }}
+                        className={`w-full flex items-center justify-between gap-3 p-2.5 rounded-xl text-left transition ${
+                          isSelected
+                            ? 'bg-indigo-600/20 text-white border border-indigo-500/40 shadow-sm'
+                            : 'hover:bg-slate-800/80 text-slate-300 hover:text-white'
+                        }`}
+                      >
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          <div
+                            className={`w-8 h-8 rounded-lg border flex items-center justify-center shrink-0 ${
+                              isSelected
+                                ? 'bg-indigo-500/30 border-indigo-400 text-indigo-300'
+                                : 'bg-slate-800 border-slate-700 text-slate-400'
+                            }`}
+                          >
+                            <CreditCard className="w-4 h-4" />
+                          </div>
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className="text-xs font-bold truncate">
+                                {card.name}
+                              </span>
+                              {card.closingDay && (
+                                <span className="text-[10px] px-1.5 py-0.2 rounded font-semibold bg-slate-800 text-slate-300 border border-slate-700 shrink-0">
+                                  Corte día {card.closingDay}
+                                </span>
+                              )}
+                            </div>
+                            <span className="text-[11px] text-slate-400 block truncate mt-0.5">
+                              {card.bank}
+                              {card.creditLimit ? ` • Cupo: ${formatCLP(card.creditLimit)}` : ''}
+                            </span>
+                          </div>
+                        </div>
+
+                        {isSelected && (
+                          <div className="w-5 h-5 rounded-full bg-indigo-500/20 text-indigo-400 flex items-center justify-center shrink-0">
+                            <Check className="w-3.5 h-3.5" />
+                          </div>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           )}
 
           {/* Period Selector */}
-          <div className="flex items-center gap-2 self-start sm:self-center shrink-0">
-            <span className="text-xs text-slate-400 font-semibold flex items-center gap-1">
+          <div className="w-full sm:w-auto self-start sm:self-end shrink-0">
+            <label className="block text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
               <Calendar className="w-3.5 h-3.5 text-indigo-400" />
-              <span>Período:</span>
-            </span>
+              <span>Período de Facturación</span>
+            </label>
             <input
               type="month"
               value={selectedPeriod}
               onChange={(e) => setSelectedPeriod(e.target.value)}
-              className="bg-slate-950 border border-slate-700 rounded-xl px-2.5 py-1.5 text-xs text-white font-bold focus:outline-none focus:border-indigo-500 transition"
+              className="w-full sm:w-auto bg-slate-950 border border-slate-800 hover:border-slate-700 rounded-2xl px-3.5 py-2.5 text-xs text-white font-bold focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition shadow-sm"
             />
           </div>
         </div>
