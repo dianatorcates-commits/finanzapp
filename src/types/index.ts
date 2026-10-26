@@ -84,8 +84,11 @@ export interface AutoCategoryRule {
 
 export interface CategoryBudget {
   id: string;
-  categoryName: string; // General Category or Subcategory
+  name?: string;
+  categoryName: string; // Nombre visible del presupuesto
   monthlyLimit: number; // Limit in CLP
+  categories?: string[];
+  subcategories?: string[];
 }
 
 export interface TelegramProfile {

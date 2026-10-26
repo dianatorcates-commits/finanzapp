@@ -1,4 +1,5 @@
-import { CategoryMapping, TransactionType, AccountType, AutoCategoryRule } from '../types';
+import { CategoryMapping, TransactionType, AccountType, AutoCategoryRule, CategoryBudget, ComputedTransaction } from '../types';
+import { isPaymentOrIncomeTransaction } from './paymentAllocation';
 
 export interface CategorizationResult {
   category: string;
@@ -478,3 +479,38 @@ export function autoCategorize(
     transactionType: finalType
   };
 }
+
+/**
+ * Calculates total spending and matching expense transactions for a budget.
+ * Supports budgets with grouped categories and/or subcategories, as well as legacy single-category budgets.
+ */
+export function getBudgetSpending(
+  budget: CategoryBudget,
+  transactions: ComputedTransaction[]
+): { spent: number; matchingTransactions: ComputedTransaction[] } {
+  const expenseTransactions = transactions.filter(
+    (tx) => tx.amount > 0 && !isPaymentOrIncomeTransaction(tx)
+  );
+
+  const hasGroups =
+    (budget.categories && budget.categories.length > 0) ||
+    (budget.subcategories && budget.subcategories.length > 0);
+
+  const matchingTransactions = expenseTransactions.filter((tx) => {
+    if (hasGroups) {
+      const matchCat = Boolean(budget.categories && budget.categories.includes(tx.category));
+      const matchSub = Boolean(budget.subcategories && budget.subcategories.includes(tx.subcategory));
+      return matchCat || matchSub;
+    }
+    // Presupuesto legado
+    return tx.category === budget.categoryName || tx.subcategory === budget.categoryName;
+  });
+
+  const spent = matchingTransactions.reduce((sum, tx) => {
+    const val = tx.netAmount !== undefined ? tx.netAmount : tx.amount;
+    return sum + val;
+  }, 0);
+
+  return { spent, matchingTransactions };
+}
+

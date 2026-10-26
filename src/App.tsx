@@ -31,6 +31,7 @@ import {
   deleteCloudCategory,
   saveCloudRule,
   deleteCloudRule,
+  saveCloudBudget,
   deleteCloudBudget,
   getTelegramProfile,
   saveCloudAccount,
@@ -902,14 +903,51 @@ export function App() {
     }
   };
 
-  const handleSaveBudget = (categoryName: string, monthlyLimit: number) => {
+  const handleSaveBudget = async (
+    budgetOrCategory: string | (Partial<CategoryBudget> & { name?: string; categoryName?: string; monthlyLimit: number }),
+    limitParam?: number
+  ) => {
+    let budgetToSave: CategoryBudget;
+
+    if (typeof budgetOrCategory === 'string') {
+      const catName = budgetOrCategory;
+      const limit = limitParam ?? 0;
+      const existing = budgets.find((b) => b.categoryName === catName || b.name === catName);
+      budgetToSave = {
+        id: existing?.id || `b-${Date.now()}`,
+        name: catName,
+        categoryName: catName,
+        monthlyLimit: limit,
+        categories: existing?.categories || [catName],
+        subcategories: existing?.subcategories || []
+      };
+    } else {
+      const data = budgetOrCategory;
+      const id = data.id || `b-${Date.now()}`;
+      const name = (data.name || data.categoryName || 'Presupuesto').trim();
+      budgetToSave = {
+        id,
+        name,
+        categoryName: name,
+        monthlyLimit: data.monthlyLimit,
+        categories: data.categories || [],
+        subcategories: data.subcategories || []
+      };
+    }
+
     setBudgets((prev) => {
-      const exists = prev.find((b) => b.categoryName === categoryName);
-      if (exists) {
-        return prev.map((b) => (b.categoryName === categoryName ? { ...b, monthlyLimit } : b));
+      const idx = prev.findIndex((b) => b.id === budgetToSave.id);
+      if (idx >= 0) {
+        const copy = [...prev];
+        copy[idx] = budgetToSave;
+        return copy;
       }
-      return [...prev, { id: `b-${Date.now()}`, categoryName, monthlyLimit }];
+      return [...prev, budgetToSave];
     });
+
+    if (currentUser) {
+      await saveCloudBudget(currentUser.id, budgetToSave);
+    }
   };
 
   const handleDeleteBudget = async (budgetId: string) => {

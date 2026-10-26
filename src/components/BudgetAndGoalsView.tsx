@@ -19,7 +19,9 @@ import {
   Clock,
   ArrowRight,
   Flame,
-  PieChart as PieChartIcon
+  PieChart as PieChartIcon,
+  Folder,
+  Tag
 } from 'lucide-react';
 import {
   CategoryBudget,
@@ -28,13 +30,14 @@ import {
   SavingsGoal
 } from '../types';
 import { isPaymentOrIncomeTransaction } from '../utils/paymentAllocation';
+import { getBudgetSpending } from '../utils/categorizer';
 
 interface BudgetAndGoalsViewProps {
   budgets: CategoryBudget[];
   computedTransactions: ComputedTransaction[];
   selectedMonth: string;
   categoryMappings: CategoryMapping[];
-  onSaveBudget: (categoryName: string, monthlyLimit: number) => void | Promise<void>;
+  onSaveBudget: (budgetData: any, monthlyLimit?: number) => void | Promise<void>;
   onDeleteBudget: (budgetId: string) => void | Promise<void>;
   savingsGoals: SavingsGoal[];
   onAddSavingsGoal: (goal: Omit<SavingsGoal, 'id'>) => void | Promise<void>;
@@ -66,30 +69,45 @@ export const BudgetAndGoalsView: React.FC<BudgetAndGoalsViewProps> = ({
   onDeleteSavingsGoal,
   onContributeToGoal
 }) => {
-  // 1. Calculate Spent by Category
-  const spentMap = useMemo(() => {
-    const map = new Map<string, number>();
-    computedTransactions
-      .filter((tx) => tx.amount > 0 && !isPaymentOrIncomeTransaction(tx))
-      .forEach((tx) => {
-        const cat = tx.category || 'Otros Gastos';
-        const current = map.get(cat) || 0;
-        map.set(cat, current + (tx.netAmount !== undefined ? tx.netAmount : tx.amount));
-      });
+  // 1. Calculate Spending for Each Budget via getBudgetSpending
+  const budgetSpendings = useMemo(() => {
+    const map = new Map<string, { spent: number; matchingTransactions: ComputedTransaction[] }>();
+    budgets.forEach((b) => {
+      map.set(b.id, getBudgetSpending(b, computedTransactions));
+    });
     return map;
-  }, [computedTransactions]);
+  }, [budgets, computedTransactions]);
 
-  // Selected Category for Live Radiography (defaults to first budget or first category)
-  const [selectedCategoryName, setSelectedCategoryName] = useState<string>(
-    budgets[0]?.categoryName || categoryMappings[0]?.name || ''
+  // Selected Budget for Live Radiography (defaults to first budget)
+  const [selectedBudgetId, setSelectedBudgetId] = useState<string | null>(
+    budgets[0]?.id || null
   );
 
-  // Form State: Add/Edit Budget
-  const [formCategory, setFormCategory] = useState<string>(
+  const activeBudget = useMemo(() => {
+    if (selectedBudgetId) {
+      const found = budgets.find((b) => b.id === selectedBudgetId);
+      if (found) return found;
+    }
+    return budgets[0] || null;
+  }, [budgets, selectedBudgetId]);
+
+  // Form State: Add/Edit Grouped Budget
+  const [formBudgetName, setFormBudgetName] = useState<string>('');
+  const [formLimit, setFormLimit] = useState<string>('');
+  const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
+  const [selectedSubcategories, setSelectedSubcategories] = useState<string[]>([]);
+  const [editingBudgetId, setEditingBudgetId] = useState<string | null>(null);
+  const [formError, setFormError] = useState<string | null>(null);
+
+  // Menu dropdown for '+' button and inline selector mode
+  const [isAddMenuOpen, setIsAddMenuOpen] = useState<boolean>(false);
+  const [addMode, setAddMode] = useState<'none' | 'category' | 'subcategory'>('none');
+  const [tempCategoryToAdd, setTempCategoryToAdd] = useState<string>(
     categoryMappings[0]?.name || 'Alimentación y Gastronomía'
   );
-  const [formLimit, setFormLimit] = useState<string>('');
-  const [editingBudgetId, setEditingBudgetId] = useState<string | null>(null);
+  const [tempSubcategoryToAdd, setTempSubcategoryToAdd] = useState<string>(
+    categoryMappings[0]?.subcategories[0] || 'Alimentación y Supermercados'
+  );
 
   // Form State: New Savings Goal
   const [isAddingGoal, setIsAddingGoal] = useState<boolean>(false);
@@ -103,14 +121,14 @@ export const BudgetAndGoalsView: React.FC<BudgetAndGoalsViewProps> = ({
   const [contributeGoalId, setContributeGoalId] = useState<string | null>(null);
   const [contributeAmount, setContributeAmount] = useState<string>('');
 
-  // Confirmation Delete Budget
+  // Confirmation Delete Budget & Goals
   const [confirmDeleteBudgetId, setConfirmDeleteBudgetId] = useState<string | null>(null);
   const [confirmDeleteGoalId, setConfirmDeleteGoalId] = useState<string | null>(null);
 
   // Global Health Calculations
   const totalBudgeted = budgets.reduce((sum, b) => sum + b.monthlyLimit, 0);
   const totalSpentInBudgeted = budgets.reduce(
-    (sum, b) => sum + (spentMap.get(b.categoryName) || 0),
+    (sum, b) => sum + (budgetSpendings.get(b.id)?.spent || 0),
     0
   );
   const globalRemaining = totalBudgeted - totalSpentInBudgeted;
@@ -140,37 +158,129 @@ export const BudgetAndGoalsView: React.FC<BudgetAndGoalsViewProps> = ({
     }
   }, [selectedMonth]);
 
-  // Top Merchant Expenses in Selected Category
+  // Active Spending and Top Merchant Expenses for Selected Budget
+  const activeSpending = useMemo(() => {
+    if (!activeBudget) return { spent: 0, matchingTransactions: [] };
+    return budgetSpendings.get(activeBudget.id) || getBudgetSpending(activeBudget, computedTransactions);
+  }, [activeBudget, budgetSpendings, computedTransactions]);
+
+  const activeSpent = activeSpending.spent;
+  const activeRemaining = activeBudget ? activeBudget.monthlyLimit - activeSpent : 0;
+  const activeDailyBudget =
+    activeRemaining > 0 && daysInfo.daysLeft > 0
+      ? Math.round(activeRemaining / daysInfo.daysLeft)
+      : 0;
+
   const topCategoryExpenses = useMemo(() => {
-    if (!selectedCategoryName) return [];
-    return computedTransactions
-      .filter(
-        (tx) =>
-          tx.category === selectedCategoryName &&
-          tx.amount > 0 &&
-          !isPaymentOrIncomeTransaction(tx)
-      )
-      .sort((a, b) => (b.netAmount || b.amount) - (a.netAmount || a.amount))
-      .slice(0, 4);
-  }, [computedTransactions, selectedCategoryName]);
+    if (!activeBudget) return [];
+    return [...(activeSpending.matchingTransactions || [])]
+      .sort((a, b) => (b.netAmount !== undefined ? b.netAmount : b.amount) - (a.netAmount !== undefined ? a.netAmount : a.amount))
+      .slice(0, 5);
+  }, [activeBudget, activeSpending]);
+
+  // Handlers for Adding / Removing categories and subcategories in Form
+  const handleAddCategoryConfirm = () => {
+    if (!tempCategoryToAdd) return;
+    if (!selectedCategories.includes(tempCategoryToAdd)) {
+      setSelectedCategories((prev) => [...prev, tempCategoryToAdd]);
+      if (!formBudgetName.trim()) {
+        setFormBudgetName(tempCategoryToAdd);
+      }
+    }
+    setAddMode('none');
+    setFormError(null);
+  };
+
+  const handleAddSubcategoryConfirm = () => {
+    if (!tempSubcategoryToAdd) return;
+    if (!selectedSubcategories.includes(tempSubcategoryToAdd)) {
+      setSelectedSubcategories((prev) => [...prev, tempSubcategoryToAdd]);
+      if (!formBudgetName.trim()) {
+        setFormBudgetName(tempSubcategoryToAdd);
+      }
+    }
+    setAddMode('none');
+    setFormError(null);
+  };
+
+  const handleRemoveCategory = (catName: string) => {
+    setSelectedCategories((prev) => prev.filter((c) => c !== catName));
+  };
+
+  const handleRemoveSubcategory = (subName: string) => {
+    setSelectedSubcategories((prev) => prev.filter((s) => s !== subName));
+  };
 
   // Handlers for Budgets
   const handleSaveBudgetSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    const name = formBudgetName.trim();
+    if (!name) {
+      setFormError('Ingresa un nombre para el presupuesto.');
+      return;
+    }
+
     const cleaned = formLimit.replace(/\D/g, '');
     const num = parseInt(cleaned, 10);
-    if (!formCategory || isNaN(num) || num <= 0) return;
+    if (isNaN(num) || num <= 0) {
+      setFormError('Ingresa un tope mensual válido en CLP.');
+      return;
+    }
 
-    await onSaveBudget(formCategory, num);
+    let finalCats = [...selectedCategories];
+    let finalSubs = [...selectedSubcategories];
+
+    // If none selected, check if name matches a known category
+    if (finalCats.length === 0 && finalSubs.length === 0) {
+      const matchingCat = categoryMappings.find(
+        (c) => c.name.toLowerCase() === name.toLowerCase()
+      );
+      if (matchingCat) {
+        finalCats = [matchingCat.name];
+      } else {
+        setFormError('Agrega al menos una categoría o subcategoría con el botón "+".');
+        return;
+      }
+    }
+
+    const budgetPayload = {
+      id: editingBudgetId || `b-${Date.now()}`,
+      name,
+      categoryName: name,
+      monthlyLimit: num,
+      categories: finalCats,
+      subcategories: finalSubs
+    };
+
+    await onSaveBudget(budgetPayload);
+    setFormBudgetName('');
     setFormLimit('');
+    setSelectedCategories([]);
+    setSelectedSubcategories([]);
     setEditingBudgetId(null);
-    setSelectedCategoryName(formCategory);
+    setFormError(null);
+    setSelectedBudgetId(budgetPayload.id);
   };
 
   const handleStartEditBudget = (b: CategoryBudget) => {
-    setFormCategory(b.categoryName);
-    setFormLimit(b.monthlyLimit.toString());
     setEditingBudgetId(b.id);
+    setFormBudgetName(b.name || b.categoryName);
+    setFormLimit(b.monthlyLimit.toString());
+    const cats = b.categories && b.categories.length > 0
+      ? b.categories
+      : (b.categoryName && (!b.subcategories || b.subcategories.length === 0) ? [b.categoryName] : []);
+    setSelectedCategories(cats);
+    setSelectedSubcategories(b.subcategories || []);
+    setFormError(null);
+  };
+
+  const handleCancelEdit = () => {
+    setEditingBudgetId(null);
+    setFormBudgetName('');
+    setFormLimit('');
+    setSelectedCategories([]);
+    setSelectedSubcategories([]);
+    setFormError(null);
   };
 
   // Handlers for Savings Goals
@@ -204,15 +314,6 @@ export const BudgetAndGoalsView: React.FC<BudgetAndGoalsViewProps> = ({
     setContributeGoalId(null);
     setContributeAmount('');
   };
-
-  // Selected Category Budget & Remaining
-  const activeBudget = budgets.find((b) => b.categoryName === selectedCategoryName);
-  const activeSpent = spentMap.get(selectedCategoryName) || 0;
-  const activeRemaining = activeBudget ? activeBudget.monthlyLimit - activeSpent : 0;
-  const activeDailyBudget =
-    activeRemaining > 0 && daysInfo.daysLeft > 0
-      ? Math.round(activeRemaining / daysInfo.daysLeft)
-      : 0;
 
   return (
     <div className="space-y-6 animate-fadeIn">
@@ -345,25 +446,22 @@ export const BudgetAndGoalsView: React.FC<BudgetAndGoalsViewProps> = ({
             </div>
           </div>
 
-          {/* 2. Formulario Rápido de Fijar / Editar Presupuesto */}
+          {/* 2. Formulario de Fijar / Editar Presupuesto */}
           <form
             onSubmit={handleSaveBudgetSubmit}
-            className="bg-slate-900/80 border border-slate-800 rounded-2xl p-4 sm:p-5 backdrop-blur-md shadow-xl space-y-3"
+            className="bg-slate-900/80 border border-slate-800 rounded-2xl p-4 sm:p-5 backdrop-blur-md shadow-xl space-y-3.5 relative"
           >
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <Sparkles className="w-4 h-4 text-sky-400" />
                 <h4 className="font-bold text-xs sm:text-sm text-white">
-                  {editingBudgetId ? 'Editar Límite Presupuestario' : 'Fijar Nuevo Tope Mensual'}
+                  {editingBudgetId ? 'Editar Presupuesto' : 'Nuevo Presupuesto Mensual'}
                 </h4>
               </div>
               {editingBudgetId && (
                 <button
                   type="button"
-                  onClick={() => {
-                    setEditingBudgetId(null);
-                    setFormLimit('');
-                  }}
+                  onClick={handleCancelEdit}
                   className="text-xs text-slate-400 hover:text-white"
                 >
                   Cancelar
@@ -371,50 +469,246 @@ export const BudgetAndGoalsView: React.FC<BudgetAndGoalsViewProps> = ({
               )}
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-12 gap-2.5">
-              <div className="sm:col-span-6">
-                <select
-                  value={formCategory}
-                  onChange={(e) => setFormCategory(e.target.value)}
-                  disabled={Boolean(editingBudgetId)}
-                  className="w-full text-xs py-2 px-3 bg-slate-950 border border-slate-800 text-white rounded-xl focus:outline-none focus:border-sky-500 cursor-pointer disabled:opacity-60"
-                >
-                  {categoryMappings.map((c) => (
-                    <option key={c.id} value={c.name} className="bg-slate-900 text-white">
-                      📁 {c.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="sm:col-span-4 relative">
-                <span className="absolute left-3 top-2.5 text-xs text-slate-500">$</span>
+            {/* Inputs: Nombre del Presupuesto, Tope Mensual, Botón +, Botón Guardar */}
+            <div className="grid grid-cols-1 sm:grid-cols-12 gap-2.5 items-end">
+              {/* Nombre del Presupuesto */}
+              <div className="sm:col-span-5 space-y-1">
+                <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider">
+                  Nombre del Presupuesto <span className="text-rose-400">*</span>
+                </label>
                 <input
-                  type="number"
-                  placeholder="Ej: 350000"
-                  value={formLimit}
-                  onChange={(e) => setFormLimit(e.target.value)}
-                  className="w-full pl-7 pr-3 py-2 text-xs bg-slate-950 border border-slate-800 text-white rounded-xl focus:outline-none focus:border-sky-500 placeholder-slate-600"
+                  type="text"
+                  placeholder="Ej: Gastos del Hogar, Salidas, etc."
+                  value={formBudgetName}
+                  onChange={(e) => {
+                    setFormBudgetName(e.target.value);
+                    if (formError) setFormError(null);
+                  }}
+                  className="w-full text-xs py-2 px-3 bg-slate-950 border border-slate-800 text-white rounded-xl focus:outline-none focus:border-sky-500 placeholder-slate-600"
                 />
               </div>
 
-              <div className="sm:col-span-2">
+              {/* Tope Mensual */}
+              <div className="sm:col-span-4 space-y-1">
+                <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider">
+                  Tope Mensual ($ CLP) <span className="text-rose-400">*</span>
+                </label>
+                <div className="relative">
+                  <span className="absolute left-3 top-2 text-xs text-slate-500">$</span>
+                  <input
+                    type="number"
+                    placeholder="Ej: 350000"
+                    value={formLimit}
+                    onChange={(e) => {
+                      setFormLimit(e.target.value);
+                      if (formError) setFormError(null);
+                    }}
+                    className="w-full pl-7 pr-3 py-2 text-xs bg-slate-950 border border-slate-800 text-white rounded-xl focus:outline-none focus:border-sky-500 placeholder-slate-600"
+                  />
+                </div>
+              </div>
+
+              {/* Botón '+' con Menú Desplegable y Botón Guardar */}
+              <div className="sm:col-span-3 flex items-center gap-1.5">
+                {/* Botón '+' con dropdown */}
+                <div className="relative">
+                  <button
+                    type="button"
+                    onClick={() => setIsAddMenuOpen(!isAddMenuOpen)}
+                    className="bg-slate-800 hover:bg-slate-700 text-sky-400 hover:text-white p-2 rounded-xl border border-slate-700/80 transition flex items-center justify-center shadow-md"
+                    title="Agregar categoría o subcategoría al presupuesto"
+                  >
+                    <Plus className="w-4 h-4" />
+                  </button>
+
+                  {/* Dropdown Menu */}
+                  {isAddMenuOpen && (
+                    <div className="absolute left-0 sm:right-0 sm:left-auto top-full mt-1.5 w-48 bg-slate-900 border border-slate-700 rounded-xl shadow-2xl z-30 py-1 text-xs backdrop-blur-md overflow-hidden animate-fadeIn">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setAddMode('category');
+                          setIsAddMenuOpen(false);
+                        }}
+                        className="w-full px-3 py-2 text-left text-slate-300 hover:text-white hover:bg-sky-500/20 flex items-center gap-2 transition"
+                      >
+                        <Folder className="w-3.5 h-3.5 text-sky-400" />
+                        <span>📁 Agregar Categoría</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setAddMode('subcategory');
+                          setIsAddMenuOpen(false);
+                        }}
+                        className="w-full px-3 py-2 text-left text-slate-300 hover:text-white hover:bg-indigo-500/20 flex items-center gap-2 transition"
+                      >
+                        <Tag className="w-3.5 h-3.5 text-indigo-400" />
+                        <span>🏷️ Agregar Subcategoría</span>
+                      </button>
+                    </div>
+                  )}
+                </div>
+
+                {/* Botón Guardar / Fijar */}
                 <button
                   type="submit"
-                  className="w-full bg-sky-500 hover:bg-sky-400 text-white font-bold text-xs py-2 px-3 rounded-xl shadow-md shadow-sky-500/20 transition transform hover:scale-[1.02] flex items-center justify-center gap-1"
+                  className="flex-1 bg-sky-500 hover:bg-sky-400 text-white font-bold text-xs py-2 px-3 rounded-xl shadow-md shadow-sky-500/20 transition transform hover:scale-[1.02] flex items-center justify-center gap-1"
                 >
                   <span>{editingBudgetId ? 'Guardar' : 'Fijar'}</span>
                 </button>
               </div>
             </div>
+
+            {/* Modal / Inline Selector si addMode !== 'none' */}
+            {addMode === 'category' && (
+              <div className="p-3 bg-slate-950/90 border border-sky-500/40 rounded-xl space-y-2 animate-fadeIn">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-sky-300 flex items-center gap-1.5">
+                    <Folder className="w-3.5 h-3.5" />
+                    Seleccionar Categoría General
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setAddMode('none')}
+                    className="text-slate-400 hover:text-white p-0.5"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+                <div className="flex items-center gap-2">
+                  <select
+                    value={tempCategoryToAdd}
+                    onChange={(e) => setTempCategoryToAdd(e.target.value)}
+                    className="flex-1 text-xs py-1.5 px-2.5 bg-slate-900 border border-slate-700 text-white rounded-lg focus:outline-none focus:border-sky-500 cursor-pointer"
+                  >
+                    {categoryMappings.map((c) => (
+                      <option key={c.id} value={c.name} disabled={selectedCategories.includes(c.name)}>
+                        📁 {c.name} {selectedCategories.includes(c.name) ? '(Ya agregada)' : ''}
+                      </option>
+                    ))}
+                  </select>
+                  <button
+                    type="button"
+                    onClick={handleAddCategoryConfirm}
+                    className="px-3 py-1.5 bg-sky-500 hover:bg-sky-400 text-white font-bold text-xs rounded-lg shadow transition"
+                  >
+                    Añadir
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {addMode === 'subcategory' && (
+              <div className="p-3 bg-slate-950/90 border border-indigo-500/40 rounded-xl space-y-2 animate-fadeIn">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-indigo-300 flex items-center gap-1.5">
+                    <Tag className="w-3.5 h-3.5" />
+                    Seleccionar Subcategoría
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setAddMode('none')}
+                    className="text-slate-400 hover:text-white p-0.5"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+                <div className="flex items-center gap-2">
+                  <select
+                    value={tempSubcategoryToAdd}
+                    onChange={(e) => setTempSubcategoryToAdd(e.target.value)}
+                    className="flex-1 text-xs py-1.5 px-2.5 bg-slate-900 border border-slate-700 text-white rounded-lg focus:outline-none focus:border-indigo-500 cursor-pointer"
+                  >
+                    {categoryMappings.map((c) => (
+                      <optgroup key={c.id} label={`📁 ${c.name}`}>
+                        {c.subcategories.map((sub) => (
+                          <option key={sub} value={sub} disabled={selectedSubcategories.includes(sub)}>
+                            {sub} {selectedSubcategories.includes(sub) ? '(Ya agregada)' : ''}
+                          </option>
+                        ))}
+                      </optgroup>
+                    ))}
+                  </select>
+                  <button
+                    type="button"
+                    onClick={handleAddSubcategoryConfirm}
+                    className="px-3 py-1.5 bg-indigo-500 hover:bg-indigo-400 text-white font-bold text-xs rounded-lg shadow transition"
+                  >
+                    Añadir
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Chips de Categorías y Subcategorías Seleccionadas */}
+            <div className="space-y-1.5 pt-1 border-t border-slate-800/80">
+              <div className="flex items-center justify-between text-[11px] text-slate-400">
+                <span>Categorías y Subcategorías Agrupadas:</span>
+                <span className="text-slate-500">
+                  {selectedCategories.length + selectedSubcategories.length} seleccionadas
+                </span>
+              </div>
+
+              {selectedCategories.length === 0 && selectedSubcategories.length === 0 ? (
+                <p className="text-[11px] text-slate-500 italic">
+                  💡 Haz clic en el botón <strong className="text-sky-400 font-bold">+</strong> para agregar una o más categorías o subcategorías a este presupuesto.
+                </p>
+              ) : (
+                <div className="flex flex-wrap gap-1.5 max-h-28 overflow-y-auto pr-1">
+                  {selectedCategories.map((cat) => (
+                    <span
+                      key={cat}
+                      className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold bg-sky-500/20 text-sky-300 border border-sky-500/30"
+                    >
+                      <Folder className="w-3 h-3 text-sky-400" />
+                      <span>{cat}</span>
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveCategory(cat)}
+                        className="text-sky-300 hover:text-white p-0.5 rounded transition"
+                        title="Quitar categoría"
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    </span>
+                  ))}
+
+                  {selectedSubcategories.map((sub) => (
+                    <span
+                      key={sub}
+                      className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold bg-indigo-500/20 text-indigo-300 border border-indigo-500/30"
+                    >
+                      <Tag className="w-3 h-3 text-indigo-400" />
+                      <span>{sub}</span>
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveSubcategory(sub)}
+                        className="text-indigo-300 hover:text-white p-0.5 rounded transition"
+                        title="Quitar subcategoría"
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    </span>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {formError && (
+              <div className="text-xs text-rose-400 bg-rose-500/10 border border-rose-500/20 px-3 py-1.5 rounded-lg flex items-center gap-1.5">
+                <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
+                <span>{formError}</span>
+              </div>
+            )}
           </form>
 
-          {/* 3. Lista Interactiva de Presupuestos por Categoría */}
+          {/* 3. Lista Interactiva de Presupuestos Personalizados */}
           <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-5 backdrop-blur-md shadow-xl flex flex-col h-[460px]">
             <div className="flex items-center justify-between pb-3 border-b border-slate-800">
               <div className="flex items-center gap-2">
                 <Target className="w-4 h-4 text-sky-400" />
-                <h4 className="font-bold text-sm text-white">Topes por Categoría</h4>
+                <h4 className="font-bold text-sm text-white">Topes Presupuestarios</h4>
                 <span className="text-[11px] bg-slate-800 text-slate-300 font-semibold px-2 py-0.5 rounded-full">
                   {budgets.length}
                 </span>
@@ -422,35 +716,36 @@ export const BudgetAndGoalsView: React.FC<BudgetAndGoalsViewProps> = ({
               <span className="text-[11px] text-slate-500">Haz clic para ver radiografía</span>
             </div>
 
-            <div className="mt-3 flex-1 overflow-y-auto space-y-2 pr-1 scrollbar-thin scrollbar-thumb-slate-800">
+            <div className="mt-3 flex-1 overflow-y-auto space-y-2.5 pr-1 scrollbar-thin scrollbar-thumb-slate-800">
               {budgets.length === 0 ? (
                 <div className="text-center py-16 text-slate-500 space-y-2">
                   <Target className="w-8 h-8 mx-auto opacity-30 text-sky-400" />
                   <p className="text-xs">Aún no has fijado ningún presupuesto mensual.</p>
                   <p className="text-[11px] text-slate-600">
-                    Usa el formulario superior para fijar topes de consumo para supermercado, ocio, etc.
+                    Usa el formulario superior para agrupar categorías y subcategorías con un tope deseado.
                   </p>
                 </div>
               ) : (
                 budgets.map((b) => {
-                  const spent = spentMap.get(b.categoryName) || 0;
+                  const spending = budgetSpendings.get(b.id) || getBudgetSpending(b, computedTransactions);
+                  const spent = spending.spent;
                   const limit = b.monthlyLimit;
                   const pct = limit > 0 ? Math.round((spent / limit) * 100) : 0;
                   const remaining = limit - spent;
-                  const isSelected = selectedCategoryName === b.categoryName;
+                  const isSelected = activeBudget?.id === b.id;
 
                   return (
                     <div
                       key={b.id}
-                      onClick={() => setSelectedCategoryName(b.categoryName)}
+                      onClick={() => setSelectedBudgetId(b.id)}
                       className={`group p-3.5 rounded-xl border transition cursor-pointer ${
                         isSelected
                           ? 'bg-sky-500/10 border-sky-500/60 shadow-md shadow-sky-500/10'
                           : 'bg-slate-950/50 border-slate-800/80 hover:bg-slate-900 hover:border-slate-700'
                       }`}
                     >
-                      {/* Top Row: Category Name & Badges */}
-                      <div className="flex items-center justify-between mb-2">
+                      {/* Top Row: Budget Name & Badges */}
+                      <div className="flex items-center justify-between mb-1.5">
                         <div className="flex items-center gap-2 min-w-0">
                           <span
                             className={`w-2 h-2 rounded-full flex-shrink-0 ${
@@ -462,7 +757,7 @@ export const BudgetAndGoalsView: React.FC<BudgetAndGoalsViewProps> = ({
                             }`}
                           />
                           <span className="text-xs sm:text-sm font-bold text-white truncate">
-                            {b.categoryName}
+                            {b.name || b.categoryName}
                           </span>
                         </div>
 
@@ -487,7 +782,7 @@ export const BudgetAndGoalsView: React.FC<BudgetAndGoalsViewProps> = ({
                               handleStartEditBudget(b);
                             }}
                             className="opacity-0 group-hover:opacity-100 text-slate-400 hover:text-sky-300 p-1 rounded hover:bg-slate-800 transition"
-                            title="Editar tope"
+                            title="Editar presupuesto"
                           >
                             <Edit2 className="w-3 h-3" />
                           </button>
@@ -535,6 +830,35 @@ export const BudgetAndGoalsView: React.FC<BudgetAndGoalsViewProps> = ({
                         </div>
                       </div>
 
+                      {/* Chips de Categorías y Subcategorías Agrupadas */}
+                      <div className="flex flex-wrap gap-1 mb-2">
+                        {b.categories && b.categories.length > 0 ? (
+                          b.categories.map((cat) => (
+                            <span
+                              key={cat}
+                              className="inline-flex items-center gap-1 text-[10px] font-semibold px-1.5 py-0.5 rounded bg-sky-500/15 text-sky-300 border border-sky-500/30"
+                            >
+                              📁 {cat}
+                            </span>
+                          ))
+                        ) : null}
+                        {b.subcategories && b.subcategories.length > 0 ? (
+                          b.subcategories.map((sub) => (
+                            <span
+                              key={sub}
+                              className="inline-flex items-center gap-1 text-[10px] font-semibold px-1.5 py-0.5 rounded bg-indigo-500/15 text-indigo-300 border border-indigo-500/30"
+                            >
+                              🏷️ {sub}
+                            </span>
+                          ))
+                        ) : null}
+                        {(!b.categories || b.categories.length === 0) && (!b.subcategories || b.subcategories.length === 0) && (
+                          <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-1.5 py-0.5 rounded bg-slate-800 text-slate-300">
+                            📁 {b.categoryName}
+                          </span>
+                        )}
+                      </div>
+
                       {/* Progress Bar */}
                       <div className="w-full bg-slate-900 h-2 rounded-full overflow-hidden border border-slate-800 mb-1.5">
                         <div
@@ -576,96 +900,103 @@ export const BudgetAndGoalsView: React.FC<BudgetAndGoalsViewProps> = ({
         {/* ========================================================================= */}
         <div className="lg:col-span-6 space-y-5">
           
-          {/* 1. Bloque Superior: Radiografía de la Categoría Seleccionada */}
+          {/* 1. Bloque Superior: Radiografía del Presupuesto Seleccionado */}
           <div className="bg-slate-900/80 border border-slate-800/80 rounded-2xl p-5 backdrop-blur-md shadow-xl flex flex-col justify-between">
-            {selectedCategoryName ? (
+            {activeBudget ? (
               <div className="space-y-4">
                 <div className="flex items-center justify-between pb-3 border-b border-slate-800">
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs uppercase font-bold text-slate-400 tracking-wider">
-                      Detalle del Mes:
-                    </span>
-                    <span className="text-xs sm:text-sm font-black text-sky-300 bg-sky-950/60 border border-sky-500/30 px-2.5 py-0.5 rounded-lg">
-                      📁 {selectedCategoryName}
-                    </span>
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs uppercase font-bold text-slate-400 tracking-wider">
+                        Detalle del Mes:
+                      </span>
+                      <span className="text-xs sm:text-sm font-black text-sky-300 bg-sky-950/60 border border-sky-500/30 px-2.5 py-0.5 rounded-lg">
+                        {activeBudget.name || activeBudget.categoryName}
+                      </span>
+                    </div>
+                    {/* Chips de Categorías y Subcategorías agrupadas */}
+                    <div className="flex flex-wrap gap-1 pt-0.5">
+                      {activeBudget.categories?.map((cat) => (
+                        <span key={cat} className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-sky-500/15 text-sky-300 border border-sky-500/25">
+                          📁 {cat}
+                        </span>
+                      ))}
+                      {activeBudget.subcategories?.map((sub) => (
+                        <span key={sub} className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-indigo-500/15 text-indigo-300 border border-indigo-500/25">
+                          🏷️ {sub}
+                        </span>
+                      ))}
+                    </div>
                   </div>
 
-                  {activeBudget && (
-                    <span className="text-xs text-slate-400">
-                      Tope: <strong className="text-white">{formatCLP(activeBudget.monthlyLimit)}</strong>
-                    </span>
-                  )}
+                  <span className="text-xs text-slate-400">
+                    Tope: <strong className="text-white">{formatCLP(activeBudget.monthlyLimit)}</strong>
+                  </span>
                 </div>
 
                 {/* Presupuesto Diario Sugerido Card */}
-                {activeBudget ? (
-                  <div
-                    className={`p-4 rounded-xl border backdrop-blur-md ${
-                      activeRemaining > 0
-                        ? 'bg-sky-950/30 border-sky-500/30'
-                        : 'bg-rose-950/30 border-rose-500/30'
-                    }`}
-                  >
-                    <div className="flex items-center justify-between mb-1">
-                      <span className="text-xs font-bold text-slate-300 flex items-center gap-1.5">
-                        <Calendar className="w-3.5 h-3.5 text-sky-400" />
-                        <span>Presupuesto Diario Sugerido</span>
+                <div
+                  className={`p-4 rounded-xl border backdrop-blur-md ${
+                    activeRemaining > 0
+                      ? 'bg-sky-950/30 border-sky-500/30'
+                      : 'bg-rose-950/30 border-rose-500/30'
+                  }`}
+                >
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-xs font-bold text-slate-300 flex items-center gap-1.5">
+                      <Calendar className="w-3.5 h-3.5 text-sky-400" />
+                      <span>Presupuesto Diario Sugerido</span>
+                    </span>
+                    {daysInfo.daysLeft > 0 && !daysInfo.isPast && (
+                      <span className="text-[11px] text-sky-400 font-semibold">
+                        Quedan {daysInfo.daysLeft} días
                       </span>
-                      {daysInfo.daysLeft > 0 && !daysInfo.isPast && (
-                        <span className="text-[11px] text-sky-400 font-semibold">
-                          Quedan {daysInfo.daysLeft} días
-                        </span>
-                      )}
-                    </div>
-
-                    {daysInfo.isPast ? (
-                      <p className="text-xs text-slate-400">
-                        Período cerrado. El gasto final fue de <strong>{formatCLP(activeSpent)}</strong>.
-                      </p>
-                    ) : activeRemaining > 0 ? (
-                      <div className="mt-2 flex items-baseline justify-between">
-                        <div>
-                          <p className="text-2xl font-black text-emerald-400 tracking-tight">
-                            {formatCLP(activeDailyBudget)}
-                            <span className="text-xs font-normal text-slate-400"> / día</span>
-                          </p>
-                          <p className="text-[11px] text-slate-400 mt-0.5">
-                            Puedes gastar esto diariamente sin sobrepasar tu tope de {formatCLP(activeBudget.monthlyLimit)}.
-                          </p>
-                        </div>
-                        <Flame className="w-6 h-6 text-emerald-400/60 flex-shrink-0" />
-                      </div>
-                    ) : (
-                      <div className="mt-2 flex items-baseline justify-between">
-                        <div>
-                          <p className="text-2xl font-black text-rose-400 tracking-tight">
-                            $0
-                            <span className="text-xs font-normal text-rose-300"> / día restante</span>
-                          </p>
-                          <p className="text-[11px] text-rose-300 mt-0.5">
-                            Has excedido este presupuesto por {formatCLP(Math.abs(activeRemaining))}. Evita más cargos en esta categoría.
-                          </p>
-                        </div>
-                        <AlertTriangle className="w-6 h-6 text-rose-400/80 flex-shrink-0" />
-                      </div>
                     )}
                   </div>
-                ) : (
-                  <div className="p-3.5 bg-slate-950/60 border border-slate-800 rounded-xl text-xs text-slate-400">
-                    Esta categoría aún no tiene un tope mensual fijado. Asígnale uno en el formulario de la izquierda para calcular tu gasto diario sugerido.
-                  </div>
-                )}
+
+                  {daysInfo.isPast ? (
+                    <p className="text-xs text-slate-400">
+                      Período cerrado. El gasto final fue de <strong>{formatCLP(activeSpent)}</strong>.
+                    </p>
+                  ) : activeRemaining > 0 ? (
+                    <div className="mt-2 flex items-baseline justify-between">
+                      <div>
+                        <p className="text-2xl font-black text-emerald-400 tracking-tight">
+                          {formatCLP(activeDailyBudget)}
+                          <span className="text-xs font-normal text-slate-400"> / día</span>
+                        </p>
+                        <p className="text-[11px] text-slate-400 mt-0.5">
+                          Puedes gastar esto diariamente sin sobrepasar tu tope de {formatCLP(activeBudget.monthlyLimit)}.
+                        </p>
+                      </div>
+                      <Flame className="w-6 h-6 text-emerald-400/60 flex-shrink-0" />
+                    </div>
+                  ) : (
+                    <div className="mt-2 flex items-baseline justify-between">
+                      <div>
+                        <p className="text-2xl font-black text-rose-400 tracking-tight">
+                          $0
+                          <span className="text-xs font-normal text-rose-300"> / día restante</span>
+                        </p>
+                        <p className="text-[11px] text-rose-300 mt-0.5">
+                          Has excedido este presupuesto por {formatCLP(Math.abs(activeRemaining))}. Evita más cargos en las categorías asociadas.
+                        </p>
+                      </div>
+                      <AlertTriangle className="w-6 h-6 text-rose-400/80 flex-shrink-0" />
+                    </div>
+                  )}
+                </div>
 
                 {/* Top Comercios / Gastos */}
                 <div>
                   <h5 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2 flex items-center justify-between">
-                    <span>Mayores Gastos en {selectedCategoryName}</span>
+                    <span>Mayores Gastos en {activeBudget.name || activeBudget.categoryName}</span>
                     <span className="text-[10px] text-slate-500 font-normal">Top de este mes</span>
                   </h5>
 
                   {topCategoryExpenses.length === 0 ? (
                     <p className="text-xs text-slate-500 italic py-2">
-                      No hay compras registradas en {selectedCategoryName} para este mes.
+                      No hay compras registradas para este presupuesto en el mes seleccionado.
                     </p>
                   ) : (
                     <div className="space-y-1.5">
@@ -676,7 +1007,7 @@ export const BudgetAndGoalsView: React.FC<BudgetAndGoalsViewProps> = ({
                         >
                           <div className="min-w-0 pr-2">
                             <p className="font-semibold text-slate-200 truncate">{tx.description}</p>
-                            <span className="text-[10px] text-slate-500">{tx.date}</span>
+                            <span className="text-[10px] text-slate-500">{tx.date} • {tx.subcategory || tx.category}</span>
                           </div>
                           <span className="font-bold text-white flex-shrink-0">
                             {formatCLP(tx.netAmount !== undefined ? tx.netAmount : tx.amount)}

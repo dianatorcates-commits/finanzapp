@@ -16,6 +16,7 @@ import { ComputedTransaction, Account, CategoryBudget, CustomChartWidget, DEFAUL
 import { formatCLP } from './MetricCards';
 import { Target, AlertTriangle, CheckCircle2, Plus, Calendar, CreditCard, Landmark, Sliders } from 'lucide-react';
 import { formatBillingCycle } from '../utils/dateUtils';
+import { getBudgetSpending } from '../utils/categorizer';
 
 interface ChartsDashboardProps {
   computedTransactions: ComputedTransaction[];
@@ -223,9 +224,9 @@ export const ChartsDashboard: React.FC<ChartsDashboardProps> = ({
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {budgets.map((b) => {
-              const spent = categorySpendingMap.get(b.categoryName) || 0;
+              const { spent } = getBudgetSpending(b, computedTransactions);
               const limit = b.monthlyLimit;
-              const pct = Math.round((spent / limit) * 100);
+              const pct = limit > 0 ? Math.round((spent / limit) * 100) : 0;
               const isOver = spent > limit;
               const isWarning = pct >= 80 && !isOver;
 
@@ -239,7 +240,7 @@ export const ChartsDashboard: React.FC<ChartsDashboardProps> = ({
               return (
                 <div key={b.id} className="p-3.5 bg-slate-950/70 border border-slate-800 rounded-xl space-y-2.5">
                   <div className="flex items-center justify-between">
-                    <span className="text-xs font-bold text-white truncate">{b.categoryName}</span>
+                    <span className="text-xs font-bold text-white truncate">{b.name || b.categoryName}</span>
                     <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${badgeColor}`}>
                       {pct}% {isOver ? 'Excedido' : isWarning ? 'Cerca del Límite' : 'Ok'}
                     </span>

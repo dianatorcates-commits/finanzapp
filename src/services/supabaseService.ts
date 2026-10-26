@@ -126,11 +126,38 @@ export async function fetchUserData(userId: string) {
       transactionType: r.transaction_type || r.transactionType || undefined
     }));
 
-    const budgets: CategoryBudget[] = (budgetsData || []).map((b: any) => ({
-      id: b.id,
-      categoryName: b.category_name,
-      monthlyLimit: parseFloat(b.monthly_limit)
-    }));
+    const budgets: CategoryBudget[] = (budgetsData || []).map((b: any) => {
+      const rawName = b.category_name || '';
+      let name = rawName;
+      let categoryName = rawName;
+      let categories: string[] = [];
+      let subcategories: string[] = [];
+
+      if (typeof rawName === 'string' && rawName.trim().startsWith('{')) {
+        try {
+          const parsed = JSON.parse(rawName);
+          name = parsed.name || parsed.categoryName || rawName;
+          categoryName = name;
+          categories = Array.isArray(parsed.categories) ? parsed.categories : [];
+          subcategories = Array.isArray(parsed.subcategories) ? parsed.subcategories : [];
+        } catch {
+          name = rawName;
+          categoryName = rawName;
+          categories = [rawName];
+        }
+      } else {
+        categories = [rawName];
+      }
+
+      return {
+        id: b.id,
+        name,
+        categoryName,
+        monthlyLimit: parseFloat(b.monthly_limit),
+        categories,
+        subcategories
+      };
+    });
 
     const transactions: Transaction[] = (txsData || []).map((t: any) => {
       let parsedAllocations: PaymentAllocation[] = [];
@@ -297,7 +324,7 @@ export async function syncLocalDataToCloud(
       const budgetsPayload = localState.budgets.map((b) => ({
         id: b.id,
         user_id: userId,
-        category_name: b.categoryName,
+        category_name: encodeBudgetName(b),
         monthly_limit: b.monthlyLimit
       }));
       const { error: bdgErr } = await supabase.from('category_budgets').upsert(budgetsPayload, { onConflict: 'id' });
@@ -529,6 +556,32 @@ export async function saveCloudRule(userId: string, rule: AutoCategoryRule) {
 export async function deleteCloudRule(userId: string, ruleId: string) {
   const { error } = await supabase.from('auto_rules').delete().eq('id', ruleId).eq('user_id', userId);
   if (error) console.error('Error deleting auto_rule from cloud:', error);
+}
+
+export function encodeBudgetName(b: CategoryBudget): string {
+  if ((b.categories && b.categories.length > 0) || (b.subcategories && b.subcategories.length > 0) || b.name) {
+    return JSON.stringify({
+      name: b.name || b.categoryName,
+      categories: b.categories || [],
+      subcategories: b.subcategories || []
+    });
+  }
+  return b.categoryName;
+}
+
+export async function saveCloudBudget(userId: string, budget: CategoryBudget) {
+  try {
+    const payload = {
+      id: budget.id,
+      user_id: userId,
+      category_name: encodeBudgetName(budget),
+      monthly_limit: budget.monthlyLimit
+    };
+    const { error } = await supabase.from('category_budgets').upsert(payload, { onConflict: 'id' });
+    if (error) console.error('Error saving budget to cloud:', error);
+  } catch (err) {
+    console.error('Unexpected error saving budget to cloud:', err);
+  }
 }
 
 export async function deleteCloudBudget(userId: string, budgetId: string) {

@@ -385,8 +385,20 @@ export const BudgetAndRulesModal: React.FC<BudgetAndRulesModalProps> = ({
                     {budgets.map((b) => (
                       <div key={b.id} className="p-3.5 flex items-center justify-between hover:bg-slate-50 transition">
                         <div>
-                          <p className="text-xs font-bold text-slate-800">{b.categoryName}</p>
-                          <p className="text-[11px] text-slate-500 font-medium">
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <p className="text-xs font-bold text-slate-800">{b.name || b.categoryName}</p>
+                            {b.categories && b.categories.length > 0 && (
+                              <span className="text-[10px] bg-sky-100 text-sky-700 font-semibold px-1.5 py-0.5 rounded">
+                                {b.categories.length} {b.categories.length === 1 ? 'categoría' : 'categorías'}
+                              </span>
+                            )}
+                            {b.subcategories && b.subcategories.length > 0 && (
+                              <span className="text-[10px] bg-indigo-100 text-indigo-700 font-semibold px-1.5 py-0.5 rounded">
+                                {b.subcategories.length} {b.subcategories.length === 1 ? 'subcat' : 'subcats'}
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-[11px] text-slate-500 font-medium mt-0.5">
                             Límite Máximo Mensual: <span className="font-bold text-emerald-700">{formatCLP(b.monthlyLimit)}</span>
                           </p>
                         </div>
