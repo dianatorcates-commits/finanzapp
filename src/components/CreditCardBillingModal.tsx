@@ -74,6 +74,202 @@ export function addMonths(period: string, count: number): string {
   return `${year}-${month}`;
 }
 
+/**
+ * Normaliza cadenas para comparación de texto inteligente:
+ * minúsculas, remoción de acentos/diacríticos y caracteres especiales.
+ */
+export function normalizeSearchText(str: string): string {
+  return (str || '')
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9\s]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+/** Stopwords comunes en glosas bancarias y financieras en español */
+export const FINANCE_STOPWORDS = new Set([
+  'compra', 'compras',
+  'cuota', 'cuotas', 'cta', 'ctas',
+  'en', 'de', 'del', 'la', 'las', 'el', 'los', 'al', 'por', 'para', 'con', 'sin', 'un', 'una',
+  'tc', 'td', 'tarjeta', 'credito', 'debito', 'visa', 'mastercard', 'amex',
+  'pago', 'pagos', 'abono', 'cargo', 'int', 'interes', 'tasa',
+  'transbank', 'redcompra',
+  'sa', 'spa', 'ltda', 'limitada', 'eirl', 'cl', 'com', 'chile', 'santiago'
+]);
+
+/**
+ * Extrae tokens significativos eliminando stopwords y palabras muy cortas
+ */
+export function extractSignificantTokens(name: string): string[] {
+  const normalized = normalizeSearchText(name);
+  if (!normalized) return [];
+  const words = normalized.split(' ').filter((w) => w.length >= 2);
+  const filtered = words.filter((w) => !FINANCE_STOPWORDS.has(w) && w.length >= 3);
+  if (filtered.length > 0) {
+    return filtered;
+  }
+  return words;
+}
+
+/**
+ * Extrae número de cuota actual y total de una glosa bancaria si están presentes
+ * Ej: "(Cuota 4/24)", "Cuota 04/24", "Cta 4 de 24", "(4/24)"
+ */
+export function parseInstallmentsFromText(text: string): { current: number; total: number } | null {
+  if (!text) return null;
+  const match1 = text.match(/(?:cuota|cta|cuotas)\s*(\d{1,2})\s*(?:\/|de)\s*(\d{1,2})/i);
+  if (match1) {
+    const current = parseInt(match1[1], 10);
+    const total = parseInt(match1[2], 10);
+    if (!isNaN(current) && !isNaN(total) && total > 0) {
+      return { current, total };
+    }
+  }
+  const match2 = text.match(/\((\d{1,2})\s*\/\s*(\d{1,2})\)/);
+  if (match2) {
+    const current = parseInt(match2[1], 10);
+    const total = parseInt(match2[2], 10);
+    if (!isNaN(current) && !isNaN(total) && total > 0 && total <= 72) {
+      return { current, total };
+    }
+  }
+  return null;
+}
+
+/**
+ * Evalúa afinidad de texto entre el nombre de un crédito y la glosa de la transacción
+ */
+export function evaluateTextMatch(
+  creditName: string,
+  txDescription: string,
+  txRawDescription?: string
+): { matches: boolean; score: number } {
+  const normName = normalizeSearchText(creditName);
+  const fullTxText = normalizeSearchText(`${txDescription} ${txRawDescription || ''}`);
+  if (!normName || !fullTxText) {
+    return { matches: false, score: 0 };
+  }
+
+  // Coincidencia exacta o inclusión de cadena completa si tiene al menos 3 caracteres
+  if (normName.length >= 3 && fullTxText.includes(normName)) {
+    return { matches: true, score: 70 };
+  }
+
+  const tokens = extractSignificantTokens(creditName);
+  if (tokens.length === 0) {
+    return { matches: false, score: 0 };
+  }
+
+  const txWords = fullTxText.split(' ').filter((w) => w.length >= 2);
+  let matchedTokens = 0;
+
+  for (const token of tokens) {
+    // Si alguna palabra de la transacción es igual o comienza con el token (ej: "mac" -> "maconline")
+    const hasWordMatch = txWords.some((tw) => {
+      if (tw === token) return true;
+      if (token.length >= 3 && tw.startsWith(token)) return true;
+      if (token.length >= 4 && tw.includes(token)) return true;
+      if (tw.length >= 4 && token.includes(tw)) return true;
+      return false;
+    });
+
+    if (hasWordMatch || (token.length >= 4 && fullTxText.includes(token))) {
+      matchedTokens++;
+    }
+  }
+
+  if (matchedTokens > 0) {
+    const score = matchedTokens >= 2 ? 60 : 50;
+    return { matches: true, score };
+  }
+
+  return { matches: false, score: 0 };
+}
+
+export interface CreditMatchResult {
+  isLoaded: boolean;
+  matchedTx: ComputedTransaction | null;
+  installmentInfo?: { current: number; total: number };
+}
+
+/**
+ * Motor Multi-Factor para asociar créditos/cuotas/suscripciones con movimientos existentes en la cartola
+ */
+export function findCreditMatch(
+  credit: Credit,
+  transactions: ComputedTransaction[],
+  selectedPeriod: string,
+  claimedTxIds: Set<string>
+): CreditMatchResult {
+  // Check 1: Explicit lastPaidPeriod matches
+  if (credit.lastPaidPeriod === selectedPeriod) {
+    return { isLoaded: true, matchedTx: null };
+  }
+
+  let bestTx: ComputedTransaction | null = null;
+  let bestScore = -1;
+  let bestInstallmentInfo: { current: number; total: number } | undefined = undefined;
+
+  for (const tx of transactions) {
+    if (claimedTxIds.has(tx.id)) continue;
+
+    // Multi-factor 1: Amount match (within 2 CLP margin)
+    const diffNominal = Math.abs(tx.amount - credit.installmentAmount);
+    const diffShare = credit.myShareAmount ? Math.abs(tx.amount - credit.myShareAmount) : Infinity;
+    const amountMatches = diffNominal <= 2 || diffShare <= 2;
+    if (!amountMatches) continue;
+
+    let score = 20; // Base score for exact/close amount
+
+    // Multi-factor 2: Installments match/conflict
+    const txInstallments =
+      tx.installments ||
+      parseInstallmentsFromText(tx.description || '') ||
+      parseInstallmentsFromText(tx.rawDescription || '');
+
+    if (credit.type === 'cuotas_tc') {
+      if (txInstallments && credit.totalInstallments) {
+        if (txInstallments.total === credit.totalInstallments) {
+          score += 40; // Coincidencia exacta del total de cuotas
+        } else {
+          score -= 50; // Conflicto: el total de cuotas no coincide (ej: 3 vs 24)
+        }
+      }
+    }
+
+    // Multi-factor 3: Text match
+    const textMatch = evaluateTextMatch(credit.name, tx.description || '', tx.rawDescription);
+    if (textMatch.matches) {
+      score += textMatch.score;
+    }
+
+    // Threshold: Un match debe tener al menos 60 puntos.
+    // Esto garantiza que:
+    // - Monto (20) + Texto (50+) = 70 >= 60 (Match válido)
+    // - Monto (20) + Cuotas (40) + Texto (50) = 110 >= 60 (Match excelente)
+    // - Solo Monto (20) sin texto ni cuotas = 20 < 60 (Rechazado: previene falsos positivos del Escenario 3)
+    // - Monto (20) + Texto (50) pero conflicto de cuotas (-50) = 20 < 60 (Rechazado por conflicto)
+    if (score >= 60 && score > bestScore) {
+      bestScore = score;
+      bestTx = tx;
+      bestInstallmentInfo = txInstallments || undefined;
+    }
+  }
+
+  if (bestTx) {
+    claimedTxIds.add(bestTx.id);
+    return {
+      isLoaded: true,
+      matchedTx: bestTx,
+      installmentInfo: bestInstallmentInfo
+    };
+  }
+
+  return { isLoaded: false, matchedTx: null };
+}
+
 export const CreditCardBillingModal: React.FC<CreditCardBillingModalProps> = ({
   isOpen,
   onClose,
@@ -163,36 +359,6 @@ export const CreditCardBillingModal: React.FC<CreditCardBillingModalProps> = ({
     );
   }, [credits, activeCard]);
 
-  // Helper: check if a credit/installment is already registered in transactions for this period
-  const checkIsAlreadyLoaded = (credit: Credit): boolean => {
-    // Check 1: Explicit lastPaidPeriod matches
-    if (credit.lastPaidPeriod === selectedPeriod) return true;
-
-    // Check 2: Look for an exact or approximate match in cardTransactions
-    const normCreditName = credit.name.trim().toLowerCase();
-    const found = cardTransactions.some((tx) => {
-      const normTxDesc = (tx.description || '').trim().toLowerCase();
-      const normRawDesc = (tx.rawDescription || '').trim().toLowerCase();
-      const nameMatches =
-        normTxDesc.includes(normCreditName) ||
-        normCreditName.includes(normTxDesc) ||
-        normRawDesc.includes(normCreditName);
-
-      const amountMatches =
-        Math.abs(tx.amount - credit.installmentAmount) < 2 ||
-        Math.abs(tx.amount - (credit.myShareAmount || 0)) < 2;
-
-      const installmentsMatch =
-        tx.installments &&
-        credit.totalInstallments &&
-        tx.installments.total === credit.totalInstallments;
-
-      return nameMatches && (amountMatches || installmentsMatch);
-    });
-
-    return found;
-  };
-
   // Available Periods for Dropdown Selector (Past 4 months to next 18 months)
   const availablePeriods = useMemo(() => {
     const base = currentPeriod || new Date().toISOString().slice(0, 7);
@@ -224,13 +390,16 @@ export const CreditCardBillingModal: React.FC<CreditCardBillingModalProps> = ({
     return label;
   };
 
-  // Detailed Analysis of Installments with Dynamic Projection for Future Months
-  const installmentItems = useMemo(() => {
+  // Motor Inteligente de Detección Multi-Factor de Cuotas y Suscripciones ya Facturadas
+  const { installmentItems, subscriptionItems } = useMemo(() => {
+    const claimedTxIds = new Set<string>();
     const base = currentPeriod || new Date().toISOString().slice(0, 7);
 
-    return cardInstallments
+    // 1. Detección y Análisis de Cuotas
+    const instItems = cardInstallments
       .map((c) => {
-        const isAlreadyLoaded = checkIsAlreadyLoaded(c);
+        const matchResult = findCreditMatch(c, cardTransactions, selectedPeriod, claimedTxIds);
+        const isAlreadyLoaded = matchResult.isLoaded;
         const total = c.totalInstallments || 0;
         let projectedNum = 1;
         let isStarted = true;
@@ -270,6 +439,8 @@ export const CreditCardBillingModal: React.FC<CreditCardBillingModalProps> = ({
         return {
           credit: c,
           isAlreadyLoaded,
+          matchedTx: matchResult.matchedTx,
+          installmentInfo: matchResult.installmentInfo,
           isFinished,
           isStarted,
           isActiveInThisPeriod,
@@ -279,20 +450,21 @@ export const CreditCardBillingModal: React.FC<CreditCardBillingModalProps> = ({
         };
       })
       .filter((item) => item.isActiveInThisPeriod);
-  }, [cardInstallments, cardTransactions, selectedPeriod, currentPeriod]);
 
-  // Detailed Analysis of Subscriptions
-  const subscriptionItems = useMemo(() => {
-    return cardSubscriptions.map((c) => {
-      const isAlreadyLoaded = checkIsAlreadyLoaded(c);
+    // 2. Detección y Análisis de Suscripciones
+    const subItems = cardSubscriptions.map((c) => {
+      const matchResult = findCreditMatch(c, cardTransactions, selectedPeriod, claimedTxIds);
       return {
         credit: c,
-        isAlreadyLoaded,
+        isAlreadyLoaded: matchResult.isLoaded,
+        matchedTx: matchResult.matchedTx,
         amount: c.installmentAmount,
         userShare: c.myShareAmount || c.installmentAmount
       };
     });
-  }, [cardSubscriptions, cardTransactions, selectedPeriod]);
+
+    return { installmentItems: instItems, subscriptionItems: subItems };
+  }, [cardInstallments, cardSubscriptions, cardTransactions, selectedPeriod, currentPeriod]);
 
   // Pending items that can be generated into transactions
   const pendingGeneratableItems = useMemo(() => {
@@ -949,7 +1121,7 @@ export const CreditCardBillingModal: React.FC<CreditCardBillingModalProps> = ({
                 )
               ) : (
                 <div className="space-y-2">
-                  {installmentItems.map(({ credit, isAlreadyLoaded, isFinished, nextInstallmentNum, amount, userShare }) => {
+                  {installmentItems.map(({ credit, isAlreadyLoaded, isFinished, nextInstallmentNum, amount, userShare, installmentInfo }) => {
                     const isSelected = selectedPendingIds[credit.id] !== false;
                     return (
                       <div
@@ -988,7 +1160,7 @@ export const CreditCardBillingModal: React.FC<CreditCardBillingModalProps> = ({
                                 <span className="text-emerald-400 font-semibold">🎉 Liquidado</span>
                               ) : isAlreadyLoaded ? (
                                 <span className="text-emerald-400 font-medium">
-                                  ✅ Ya cargado en movimientos (Cuota {nextInstallmentNum} de {credit.totalInstallments})
+                                  ✅ Ya en movimientos (Cuota {installmentInfo ? `${installmentInfo.current}/${installmentInfo.total}` : `${nextInstallmentNum}/${credit.totalInstallments}`})
                                 </span>
                               ) : (
                                 <span>
@@ -1079,7 +1251,7 @@ export const CreditCardBillingModal: React.FC<CreditCardBillingModalProps> = ({
                             <div className="flex items-center gap-2 mt-0.5 flex-wrap text-[11px] text-slate-400">
                               {isAlreadyLoaded ? (
                                 <span className="text-emerald-400 font-medium">
-                                  ✅ Cobro del mes ya registrado en movimientos
+                                  ✅ Ya en movimientos
                                 </span>
                               ) : (
                                 <span>Cobro mensual estimado día {credit.paymentDay || 1}</span>

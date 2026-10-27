@@ -137,7 +137,14 @@ FinanzApp es una plataforma web financiera integral, interactiva y multi-disposi
     3. Suscripciones activas (`suscripcion`) y cargos recurrentes asociados a esa tarjeta, manteniéndose proyectados en meses futuros.
   * **Selector de Tarjeta Dropdown / Combo Box**: Menú desplegable interactivo que muestra la tarjeta activa con su ícono, nombre, banco y badge de día de corte, permitiendo alternar instantáneamente entre todas las tarjetas de crédito sin barras de scroll horizontal.
   * **Selector de Período Ampliado y Navegación Rápida**: Permite proyectar períodos futuros (hasta 18 meses hacia adelante) con botones de navegación mes a mes (`<` / `>`), selector desplegable con badges semánticos (*Mes Actual*, *Próximo Mes*, *Proyección Futura*) y recálculo automático instantáneo.
-  * El usuario puede **generar/materializar con 1 clic** los cargos pendientes del período en la tabla de transacciones, con verificación anti-duplicados para no volver a insertar cuotas o suscripciones ya cargadas.
+  * **Detección Inteligente y Multi-Factor de Cuotas y Suscripciones ya Facturadas**: Motor de coincidencia determinista que previene duplicados y doble contabilización evaluando de forma combinada:
+    1. **Tarjeta y Período**: Cuenta bancaria (`account_id`) y ciclo consultado.
+    2. **Monto Exacto/Aproximado**: Tolerancia de $\pm 2$ CLP respecto al monto de la cuota/cargo (`installment_amount`) o la porción del usuario (`my_share_amount`).
+    3. **Total de Cuotas**: Validación y extracción en glosa bancaria (ej. `Cuota 4/24` o metadata `installments.total === total_installments`), penalizando inconsistencias de cuotas.
+    4. **Afinidad de Texto y Stopwords**: Limpieza de palabras vacías bancarias (*Compra*, *En*, *Cuota*, *TC*, *Pago*, *S.A.*) y coincidencia por raíz semántica de tokens significativos (ej. *MAC* $\leftrightarrow$ *MACONLINE*, *Netflix* $\leftrightarrow$ *NETFLIX.COM*, *Bionet* $\leftrightarrow$ *BIONET S.A.*).
+    5. **Prevención de Falsos Positivos**: Montos idénticos sin afinidad de texto ni cuotas no se vinculan erróneamente.
+    6. **Feedback Visual y Control**: Si una cuota o suscripción ya está en los movimientos, muestra el badge verde `✅ Ya en movimientos (Cuota X/Y)` o `✅ Ya en movimientos`, bloquea y desmarca su checkbox para no duplicar en el Gran Total ni permitir doble creación al pulsar *"Generar Cuotas"*.
+  * El usuario puede **generar/materializar con 1 clic** los cargos pendientes del período en la tabla de transacciones.
 
 ### 4.9. Automatización en Tiempo Real: Google Wallet / MacroDroid & Bot de Telegram
 * **RF-26 (Webhook de Google Wallet y Notificaciones Bancarias vía MacroDroid)**:
