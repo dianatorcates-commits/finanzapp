@@ -338,37 +338,9 @@ export async function syncLocalDataToCloud(
       if (bdgErr) console.error('Error syncing budgets to cloud:', bdgErr);
     }
 
-    // 5. Upsert Transactions
+    // 5. Upsert Transactions safely using chunked batch persistence
     if (localState.transactions.length > 0) {
-      const txsPayload = localState.transactions.map((t) => ({
-        id: t.id,
-        user_id: userId,
-        account_id: t.accountId,
-        date: t.date,
-        period: t.period,
-        description: t.description,
-        raw_description: t.rawDescription,
-        amount: t.amount,
-        original_total_amount: t.originalTotalAmount,
-        transaction_type: t.transactionType,
-        category: t.category,
-        subcategory: t.subcategory,
-        installment_current: t.installments?.current,
-        installment_total: t.installments?.total,
-        allocations: t.allocations || [],
-        notes: t.notes || null,
-        is_potential_duplicate: t.isPotentialDuplicate || false,
-        duplicate_of_description: t.duplicateOfDescription || null,
-        duplicate_of_id: t.duplicateOfId || null
-      }));
-      const { error: txErr } = await supabase.from('transactions').upsert(txsPayload, { onConflict: 'id' });
-      if (txErr) {
-        console.error('Error syncing transactions with allocations to cloud:', txErr);
-        // Fallback without allocations if column is missing in Supabase schema
-        const fallbackPayload = txsPayload.map(({ allocations, ...rest }) => rest);
-        const { error: fallbackErr } = await supabase.from('transactions').upsert(fallbackPayload, { onConflict: 'id' });
-        if (fallbackErr) console.error('Fallback transaction sync error:', fallbackErr);
-      }
+      await saveCloudTransactionsBatch(userId, localState.transactions);
     }
 
     // 6. Upsert Savings Goals
@@ -417,7 +389,7 @@ export async function syncLocalDataToCloud(
   }
 }
 
-export async function saveCloudAccount(userId: string, account: Account) {
+export async function saveCloudAccount(userId: string, account: Account): Promise<boolean> {
   try {
     const payload: any = {
       id: account.id,
@@ -434,15 +406,22 @@ export async function saveCloudAccount(userId: string, account: Account) {
       due_day: account.dueDay || null
     };
     const { error } = await supabase.from('accounts').upsert(payload, { onConflict: 'id' });
-    if (error) {
-      console.warn('Initial saveCloudAccount failed, retrying fallback without extra columns:', error);
-      delete payload.initial_balance;
-      delete payload.account_number;
-      const { error: fallbackError } = await supabase.from('accounts').upsert(payload, { onConflict: 'id' });
-      if (fallbackError) console.error('Error saving account to cloud (fallback):', fallbackError);
+    if (!error) return true;
+
+    console.warn('Initial saveCloudAccount failed, retrying fallback without extra columns:', error);
+    delete payload.initial_balance;
+    delete payload.account_number;
+    delete payload.closing_day;
+    delete payload.due_day;
+    const { error: fallbackError } = await supabase.from('accounts').upsert(payload, { onConflict: 'id' });
+    if (fallbackError) {
+      console.error('Error saving account to cloud (fallback):', fallbackError);
+      return false;
     }
+    return true;
   } catch (err) {
     console.error('Unexpected error saving account to cloud:', err);
+    return false;
   }
 }
 
@@ -473,7 +452,7 @@ export async function deleteCloudAccount(userId: string, accountId: string) {
   if (error) console.error('Error deleting account from cloud:', error);
 }
 
-export async function saveCloudTransaction(userId: string, tx: Transaction) {
+export async function saveCloudTransaction(userId: string, tx: Transaction): Promise<boolean> {
   try {
     const payload: any = {
       id: tx.id,
@@ -497,15 +476,146 @@ export async function saveCloudTransaction(userId: string, tx: Transaction) {
       duplicate_of_id: tx.duplicateOfId || null
     };
     const { error } = await supabase.from('transactions').upsert(payload, { onConflict: 'id' });
-    if (error) {
-      console.warn('Initial saveCloudTransaction failed, retrying without allocations:', error);
-      delete payload.allocations;
-      const { error: fallbackErr } = await supabase.from('transactions').upsert(payload, { onConflict: 'id' });
-      if (fallbackErr) console.error('Fallback saveCloudTransaction error:', fallbackErr);
+    if (!error) return true;
+
+    console.warn('Initial saveCloudTransaction failed, retrying without optional columns:', error);
+    delete payload.allocations;
+    delete payload.notes;
+    delete payload.is_potential_duplicate;
+    delete payload.duplicate_of_description;
+    delete payload.duplicate_of_id;
+
+    const { error: fallbackErr } = await supabase.from('transactions').upsert(payload, { onConflict: 'id' });
+    if (fallbackErr) {
+      console.error('Fallback saveCloudTransaction error:', fallbackErr);
+      return false;
     }
+    return true;
   } catch (err) {
     console.error('Unexpected error saving transaction to cloud:', err);
+    return false;
   }
+}
+
+/**
+ * Saves a batch of transactions directly to Supabase in chunks with individual row fallback.
+ * Prevents a single failing transaction from rolling back the entire batch.
+ */
+export async function saveCloudTransactionsBatch(
+  userId: string,
+  txs: Transaction[],
+  knownAccounts?: Account[]
+): Promise<{ success: boolean; savedCount: number; errors: any[] }> {
+  if (!txs || txs.length === 0) return { success: true, savedCount: 0, errors: [] };
+
+  // 1. Pre-asegurar que las cuentas referenciadas existan en Supabase (evita violaciones de clave foránea)
+  if (knownAccounts && knownAccounts.length > 0) {
+    const referencedAccountIds = new Set(txs.map((t) => t.accountId).filter(Boolean));
+    for (const accId of referencedAccountIds) {
+      const acc = knownAccounts.find((a) => a.id === accId);
+      if (acc) {
+        try {
+          await saveCloudAccount(userId, acc);
+        } catch (e) {
+          console.warn(`No se pudo pre-asegurar la cuenta ${accId} antes del lote:`, e);
+        }
+      }
+    }
+  }
+
+  const CHUNK_SIZE = 50;
+  let savedCount = 0;
+  const errors: any[] = [];
+
+  const mapTxPayload = (t: Transaction, level: 'full' | 'no_duplicates' | 'basic') => {
+    const base: any = {
+      id: t.id,
+      user_id: userId,
+      account_id: t.accountId,
+      date: t.date,
+      period: t.period,
+      description: t.description,
+      raw_description: t.rawDescription || t.description || null,
+      amount: t.amount,
+      original_total_amount: t.originalTotalAmount || null,
+      transaction_type: t.transactionType || null,
+      category: t.category || null,
+      subcategory: t.subcategory || null,
+      installment_current: t.installments?.current || null,
+      installment_total: t.installments?.total || null
+    };
+
+    if (level === 'full') {
+      base.allocations = t.allocations || [];
+      base.notes = t.notes || null;
+      base.is_potential_duplicate = t.isPotentialDuplicate || false;
+      base.duplicate_of_description = t.duplicateOfDescription || null;
+      base.duplicate_of_id = t.duplicateOfId || null;
+    } else if (level === 'no_duplicates') {
+      base.allocations = t.allocations || [];
+      base.notes = t.notes || null;
+    }
+    return base;
+  };
+
+  for (let i = 0; i < txs.length; i += CHUNK_SIZE) {
+    const chunk = txs.slice(i, i + CHUNK_SIZE);
+    const chunkPayload = chunk.map((t) => mapTxPayload(t, 'full'));
+
+    const { error: chunkErr } = await supabase.from('transactions').upsert(chunkPayload, { onConflict: 'id' });
+    if (!chunkErr) {
+      savedCount += chunk.length;
+      continue;
+    }
+
+    console.warn(`Lote (${i} a ${i + chunk.length}) falló con payload completo, reintentando sin duplicados:`, chunkErr);
+
+    const fallbackNoDup = chunk.map((t) => mapTxPayload(t, 'no_duplicates'));
+    const { error: fallbackNoDupErr } = await supabase.from('transactions').upsert(fallbackNoDup, { onConflict: 'id' });
+    if (!fallbackNoDupErr) {
+      savedCount += chunk.length;
+      continue;
+    }
+
+    console.warn(`Lote falló en fallback 1, reintentando con payload básico (sin allocations/notes):`, fallbackNoDupErr);
+
+    const fallbackBasic = chunk.map((t) => mapTxPayload(t, 'basic'));
+    const { error: fallbackBasicErr } = await supabase.from('transactions').upsert(fallbackBasic, { onConflict: 'id' });
+    if (!fallbackBasicErr) {
+      savedCount += chunk.length;
+      continue;
+    }
+
+    console.warn(`Fallback de lote básico falló, guardando fila por fila para rescatar transacciones válidas:`, fallbackBasicErr);
+
+    // Salvaguarda individual fila por fila para aislar el error específico
+    for (const t of chunk) {
+      const singleFull = mapTxPayload(t, 'full');
+      const { error: singleFullErr } = await supabase.from('transactions').upsert(singleFull, { onConflict: 'id' });
+      if (!singleFullErr) {
+        savedCount++;
+        continue;
+      }
+
+      const singleNoDup = mapTxPayload(t, 'no_duplicates');
+      const { error: singleNoDupErr } = await supabase.from('transactions').upsert(singleNoDup, { onConflict: 'id' });
+      if (!singleNoDupErr) {
+        savedCount++;
+        continue;
+      }
+
+      const singleBasic = mapTxPayload(t, 'basic');
+      const { error: singleBasicErr } = await supabase.from('transactions').upsert(singleBasic, { onConflict: 'id' });
+      if (!singleBasicErr) {
+        savedCount++;
+      } else {
+        console.error(`Fila de transacción rechazada (${t.id} - ${t.description}):`, singleBasicErr);
+        errors.push({ id: t.id, description: t.description, error: singleBasicErr });
+      }
+    }
+  }
+
+  return { success: errors.length === 0, savedCount, errors };
 }
 
 export async function deleteCloudTransaction(userId: string, txId: string) {

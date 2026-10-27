@@ -1,13 +1,13 @@
 import React, { useState } from 'react';
-import { X, CreditCard, Landmark, Plus, Trash2, Edit2, Calendar, HelpCircle, Check, AlertCircle } from 'lucide-react';
+import { X, CreditCard, Landmark, Plus, Trash2, Edit2, Calendar, HelpCircle, Check, AlertCircle, Loader2 } from 'lucide-react';
 import { Account, AccountType } from '../types';
 import { formatBillingCycle } from '../utils/dateUtils';
 
 interface AccountManagerModalProps {
   accounts: Account[];
   onClose: () => void;
-  onAddAccount: (newAcc: Account) => void;
-  onUpdateAccount?: (updatedAcc: Account) => void;
+  onAddAccount: (newAcc: Account) => Promise<void> | void;
+  onUpdateAccount?: (updatedAcc: Account) => Promise<void> | void;
   onDeleteAccount: (accountId: string) => void;
 }
 
@@ -27,6 +27,7 @@ export const AccountManagerModal: React.FC<AccountManagerModalProps> = ({
   const [creditLimit, setCreditLimit] = useState('');
   const [closingDay, setClosingDay] = useState('');
   const [dueDay, setDueDay] = useState('');
+  const [isSaving, setIsSaving] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const resetForm = () => {
@@ -53,7 +54,7 @@ export const AccountManagerModal: React.FC<AccountManagerModalProps> = ({
     setErrorMessage(null);
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMessage(null);
 
@@ -98,8 +99,16 @@ export const AccountManagerModal: React.FC<AccountManagerModalProps> = ({
         dueDay: parsedDueDay
       };
 
-      if (onUpdateAccount) {
-        onUpdateAccount(updatedAcc);
+      setIsSaving(true);
+      try {
+        if (onUpdateAccount) {
+          await onUpdateAccount(updatedAcc);
+        }
+        resetForm();
+      } catch (err) {
+        console.error('Error al actualizar cuenta:', err);
+      } finally {
+        setIsSaving(false);
       }
     } else {
       // Modo Creación
@@ -116,10 +125,16 @@ export const AccountManagerModal: React.FC<AccountManagerModalProps> = ({
         dueDay: parsedDueDay
       };
 
-      onAddAccount(newAcc);
+      setIsSaving(true);
+      try {
+        await onAddAccount(newAcc);
+        resetForm();
+      } catch (err) {
+        console.error('Error al crear cuenta:', err);
+      } finally {
+        setIsSaving(false);
+      }
     }
-
-    resetForm();
   };
 
   return (
@@ -397,14 +412,26 @@ export const AccountManagerModal: React.FC<AccountManagerModalProps> = ({
               <div className="pt-1">
                 <button
                   type="submit"
+                  disabled={isSaving}
                   className={`w-full font-bold py-2.5 px-4 rounded-xl text-xs transition shadow-sm flex items-center justify-center gap-1.5 ${
-                    editingAccountId
+                    isSaving
+                      ? 'bg-slate-400 text-white cursor-not-allowed'
+                      : editingAccountId
                       ? 'bg-amber-600 hover:bg-amber-500 text-white'
                       : 'bg-sky-600 hover:bg-sky-500 text-white'
                   }`}
                 >
-                  <Check className="w-4 h-4" />
-                  <span>{editingAccountId ? 'Guardar Cambios de Cuenta' : 'Guardar Nueva Cuenta'}</span>
+                  {isSaving ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin text-white" />
+                      <span>Guardando en la nube...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Check className="w-4 h-4" />
+                      <span>{editingAccountId ? 'Guardar Cambios de Cuenta' : 'Guardar Nueva Cuenta'}</span>
+                    </>
+                  )}
                 </button>
               </div>
             </form>

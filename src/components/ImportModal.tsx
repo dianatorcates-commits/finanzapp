@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, Upload, FileText, FileSpreadsheet, Check, Sparkles, HelpCircle, Calendar, AlertTriangle, Trash2, CheckCircle } from 'lucide-react';
+import { X, Upload, FileText, FileSpreadsheet, Check, Sparkles, HelpCircle, Calendar, AlertTriangle, Trash2, CheckCircle, Loader2 } from 'lucide-react';
 import { Account, Transaction } from '../types';
 import { parseCSVFile, parseExcelFile, parseRawText, analyzeCartolaDuplicates } from '../utils/parser';
 import { calculateTransactionPeriod } from '../utils/dateUtils';
@@ -10,7 +10,7 @@ interface ImportModalProps {
   initialAccountId?: string;
   existingTransactions?: Transaction[];
   onClose: () => void;
-  onImport: (newTransactions: Transaction[]) => void;
+  onImport: (newTransactions: Transaction[]) => Promise<void> | void;
 }
 
 export const ImportModal: React.FC<ImportModalProps> = ({
@@ -149,15 +149,24 @@ export const ImportModal: React.FC<ImportModalProps> = ({
     );
   };
 
-  const handleConfirmImport = () => {
-    if (parsedPreview.length === 0 || !selectedAccountId) return;
-    const finalTransactions = parsedPreview.map((tx) => ({
-      ...tx,
-      accountId: selectedAccountId,
-      period: tx.period || calculateTransactionPeriod(tx.date, targetAccount?.closingDay)
-    }));
-    onImport(finalTransactions);
-    onClose();
+  const [isImporting, setIsImporting] = useState<boolean>(false);
+
+  const handleConfirmImport = async () => {
+    if (parsedPreview.length === 0 || !selectedAccountId || isImporting) return;
+    setIsImporting(true);
+    try {
+      const finalTransactions = parsedPreview.map((tx) => ({
+        ...tx,
+        accountId: selectedAccountId,
+        period: tx.period || calculateTransactionPeriod(tx.date, targetAccount?.closingDay)
+      }));
+      await onImport(finalTransactions);
+      onClose();
+    } catch (err) {
+      console.error('Error durante la importación:', err);
+    } finally {
+      setIsImporting(false);
+    }
   };
 
   return (
@@ -511,21 +520,31 @@ export const ImportModal: React.FC<ImportModalProps> = ({
         <div className="bg-slate-100 p-4 border-t border-slate-200 flex justify-between items-center">
           <button
             onClick={onClose}
-            className="px-4 py-2 bg-slate-200 hover:bg-slate-300 text-slate-700 text-xs font-semibold rounded-xl transition"
+            disabled={isImporting}
+            className="px-4 py-2 bg-slate-200 hover:bg-slate-300 disabled:opacity-50 text-slate-700 text-xs font-semibold rounded-xl transition"
           >
             Cancelar
           </button>
           <button
             onClick={handleConfirmImport}
-            disabled={parsedPreview.length === 0}
+            disabled={parsedPreview.length === 0 || isImporting}
             className={`px-5 py-2 text-xs font-bold rounded-xl transition flex items-center gap-1.5 shadow-sm ${
-              parsedPreview.length > 0
+              parsedPreview.length > 0 && !isImporting
                 ? 'bg-sky-600 hover:bg-sky-500 text-white cursor-pointer'
                 : 'bg-slate-300 text-slate-500 cursor-not-allowed'
             }`}
           >
-            <Check className="w-4 h-4" />
-            <span>Confirmar e Importar ({parsedPreview.length})</span>
+            {isImporting ? (
+              <>
+                <Loader2 className="w-4 h-4 animate-spin text-white" />
+                <span>Guardando en la nube...</span>
+              </>
+            ) : (
+              <>
+                <Check className="w-4 h-4" />
+                <span>Confirmar e Importar ({parsedPreview.length})</span>
+              </>
+            )}
           </button>
         </div>
 

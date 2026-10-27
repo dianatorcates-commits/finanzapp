@@ -62,6 +62,11 @@ FinanzApp es una plataforma web financiera integral, interactiva y multi-disposi
   * Si un movimiento entrante tiene la **misma Cuenta y el mismo Monto** que una transacción existente dentro de una ventana de **$\pm 7$ días corridos** (pero en distinta fecha, típico de compras realizadas en fin de semana vía Google Wallet/Telegram y contabilizadas el lunes o martes en la cartola bancaria), el sistema lo etiqueta con alerta ámbar de **`⚠️ Posible Duplicada`** mostrando el detalle de la transacción original coincidente.
 * **RF-09 (Resolución de Posibles Duplicadas en Previsualización y Tabla)**:
   * Tanto en la vista previa de `ImportModal.tsx` como en la tabla principal de movimientos (`TransactionTable.tsx`), el usuario puede inspeccionar la alerta de posible duplicidad y elegir entre **Aceptar ("No es duplicada")** —limpiando la alerta de forma permanente en base de datos— o **Eliminar / Omitir** el registro duplicado.
+* **RF-09B (Persistencia Inmediata por Lotes, Resiliencia ante Fallos y Protección de Sesión)**:
+  * Al confirmar la importación en `ImportModal.tsx`, las transacciones se guardan directamente en Supabase mediante `saveCloudTransactionsBatch` divididas en fragmentos (*chunks* de 50 items) con spinner interactivo de carga (*"Guardando en la nube..."*).
+  * **Pre-aseguramiento de Cuentas**: Antes de insertar las transacciones, el motor verifica que todas las cuentas referenciadas existan en `public.accounts`, garantizando integridad referencial y eliminando errores por clave foránea (`transactions_account_id_fkey`).
+  * **Salvaguardas Multinivel y Aislamiento de Errores**: Si un lote falla por discrepancias de columnas o anomalías, el sistema reintenta con esquemas progresivos y finalmente fila por fila, asegurando que ninguna fila válida sea descartada por un error individual.
+  * **Protección contra Sobrescrituras en Refresco de Sesión**: Los movimientos se persisten inmediatamente en la caché aislada de `localStorage` y se bloquea el reemplazo del estado durante eventos `TOKEN_REFRESHED` o cambios de visibilidad en `onAuthStateChange`, evitando la pérdida de transacciones recién importadas.
 
 ### 4.3. Gestión Integral de Movimientos
 * **RF-10 (Edición Completa mediante Modal)**:

@@ -25,6 +25,7 @@ import {
   signOutUser,
   deleteCloudAccount,
   saveCloudTransaction,
+  saveCloudTransactionsBatch,
   deleteCloudTransaction,
   deleteCloudTransactionsBatch,
   saveCloudCategory,
@@ -164,9 +165,13 @@ export function App() {
     } catch {}
   }, [credits, currentUser?.id]);
 
-  // Auto-sync with Supabase Cloud whenever state changes for logged in user (only when cloud data has finished loading)
+  // Refs for import in-flight locking and loaded user tracking
+  const isImportingRef = useRef<boolean>(false);
+  const lastLoadedUserIdRef = useRef<string | null>(null);
+
+  // Auto-sync with Supabase Cloud whenever state changes for logged in user (only when cloud data has finished loading and not actively importing a batch)
   useEffect(() => {
-    if (currentUser?.id && !isCloudLoading) {
+    if (currentUser?.id && !isCloudLoading && !isImportingRef.current) {
       syncLocalDataToCloud(currentUser.id, {
         accounts,
         categoryMappings,
@@ -449,25 +454,27 @@ export function App() {
     };
   }, [currentUser?.id]);
 
-  // Auth Listener
+  // Auth Listener with Protection against Session Refresh Overwriting
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       const user = session?.user ?? null;
       setCurrentUser(user);
       if (user) {
         setViewMode('app');
-        loadCloudData(user.id);
+        if (lastLoadedUserIdRef.current !== user.id) {
+          lastLoadedUserIdRef.current = user.id;
+          loadCloudData(user.id);
+        }
       }
     });
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       const user = session?.user ?? null;
-      setCurrentUser(user);
-      if (user) {
-        setViewMode('app');
-        loadCloudData(user.id);
-      } else {
-        // User logged out or session expired: reset state immediately to clean demo data
+
+      // Only reset local state on explicit logout
+      if (event === 'SIGNED_OUT') {
+        setCurrentUser(null);
+        lastLoadedUserIdRef.current = null;
         setAccounts(INITIAL_ACCOUNTS);
         setTransactions(INITIAL_TRANSACTIONS);
         setCategoryMappings(DEFAULT_CATEGORY_MAPPINGS);
@@ -491,6 +498,21 @@ export function App() {
           searchQuery: '',
           onlyPendingTC: false
         });
+        return;
+      }
+
+      if (user) {
+        setCurrentUser(user);
+        setViewMode('app');
+        // Only load full cloud data on explicit sign in if user changed or not yet loaded,
+        // and NEVER if an active batch import is currently saving
+        if (event === 'SIGNED_IN') {
+          if (lastLoadedUserIdRef.current !== user.id && !isImportingRef.current) {
+            lastLoadedUserIdRef.current = user.id;
+            loadCloudData(user.id);
+          }
+        }
+        // TOKEN_REFRESHED, USER_UPDATED, etc. do NOT reload cloud data, preserving newly added/imported transactions!
       }
     });
 
@@ -679,13 +701,48 @@ export function App() {
     }
   };
 
-  const handleImportTransactions = (newTxs: Transaction[]) => {
+  const handleImportTransactions = async (newTxs: Transaction[]) => {
+    if (!newTxs || newTxs.length === 0) return;
+    isImportingRef.current = true;
+
+    // 1. Inmediatamente actualizar estado React
     setTransactions((prev) => [...newTxs, ...prev]);
+
+    // 2. Persistir inmediatamente en caché de usuario en localStorage
+    if (currentUser?.id) {
+      try {
+        const cached = localStorage.getItem(`${STORAGE_KEY_TRANSACTIONS}_${currentUser.id}`);
+        const currentList: Transaction[] = cached ? JSON.parse(cached) : [];
+        const combined = [...newTxs, ...currentList.filter((t) => !newTxs.some((n) => n.id === t.id))];
+        localStorage.setItem(`${STORAGE_KEY_TRANSACTIONS}_${currentUser.id}`, JSON.stringify(combined));
+      } catch (e) {
+        console.error('Error guardando transacciones importadas en localStorage:', e);
+      }
+    }
+
+    // 3. Persistir directamente en Supabase con fragmentos seguros y pre-validación de cuentas
+    if (currentUser?.id) {
+      try {
+        const result = await saveCloudTransactionsBatch(currentUser.id, newTxs, accounts);
+        if (!result.success) {
+          console.warn(`Guardado de cartola parcial: ${result.savedCount} de ${newTxs.length} guardadas. Errores:`, result.errors);
+        }
+      } catch (err) {
+        console.error('Error guardando cartola importada en Supabase:', err);
+      } finally {
+        isImportingRef.current = false;
+      }
+    } else {
+      isImportingRef.current = false;
+    }
   };
 
   const handleAddAccount = async (newAcc: Account) => {
-    if (currentUser) {
-      await saveCloudAccount(currentUser.id, newAcc);
+    if (currentUser?.id) {
+      const ok = await saveCloudAccount(currentUser.id, newAcc);
+      if (!ok) {
+        console.error('Error guardando cuenta en Supabase:', newAcc.name);
+      }
     }
     setAccounts((prev) => [...prev, newAcc]);
   };
@@ -1088,11 +1145,9 @@ export function App() {
       }
     }
 
-    // 3. Persist new transactions to cloud
+    // 3. Persist new transactions directly in cloud via batch
     if (currentUser?.id) {
-      for (const tx of newTxs) {
-        await saveCloudTransaction(currentUser.id, tx);
-      }
+      await saveCloudTransactionsBatch(currentUser.id, newTxs);
     }
   };
 
