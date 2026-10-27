@@ -16,7 +16,10 @@ import {
   Sparkles,
   ShieldCheck,
   Landmark,
-  Smartphone
+  Smartphone,
+  Plus,
+  Zap,
+  Bot
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -58,36 +61,49 @@ export const Sidebar: React.FC<SidebarProps> = ({
   isOpenMobile = false,
   onCloseMobile
 }) => {
-  const userName = currentUser?.user_metadata?.full_name || currentUser?.email?.split('@')[0] || 'Invitado';
+  const userName =
+    currentUser?.user_metadata?.full_name ||
+    currentUser?.email?.split('@')[0] ||
+    'Felipe el Ordenado';
   const userAvatar = currentUser?.user_metadata?.avatar_url;
 
   const content = (
-    <div className="flex flex-col justify-between h-full p-4 overflow-y-auto scrollbar-thin scrollbar-thumb-slate-800">
+    <div className="flex flex-col justify-between h-full p-4 overflow-y-auto scrollbar-thin scrollbar-thumb-slate-800 font-sans">
       
       {/* Upper Area */}
-      <div className="space-y-6">
+      <div className="space-y-5">
         
         {/* Brand Header */}
-        <div className="flex items-center justify-between pb-3 border-b border-slate-800/80 px-1">
+        <div className="flex items-center justify-between pb-3 border-b border-[#302840]/60 px-1">
           <div className="flex items-center space-x-3">
-            <img
-              src="/images/wallet_mascot_logo_128x128.png"
-              alt="FinanzApp Logo"
-              className="w-8 h-8 object-contain drop-shadow-md rounded-lg transition-transform hover:scale-105"
-            />
-            <div className="flex items-center gap-1.5">
-              <span className="text-base font-bold tracking-tight text-white">FinanzApp</span>
-              <span className="text-[10px] bg-sky-500/20 text-sky-300 font-bold px-2 py-0.5 rounded-full border border-sky-500/40 uppercase tracking-wider">
-                PRO
+            <div className="relative">
+              <img
+                src="/images/wallet_mascot_logo_128x128.png"
+                alt="FinanzApp Mascot"
+                className="w-8 h-8 object-contain rounded-xl drop-shadow-md transition-transform hover:scale-105"
+              />
+              <span className="absolute -bottom-1 -right-1 w-2.5 h-2.5 rounded-full bg-[#00FFCC] ring-2 ring-[#0A0A12] animate-pulse" />
+            </div>
+            <div className="flex flex-col">
+              <div className="flex items-center gap-1.5">
+                <span className="text-sm font-headline font-bold tracking-tight text-[#E8E0F0]">
+                  FinanzApp
+                </span>
+                <span className="text-[9px] bg-[#FF2D78]/15 text-[#FF2D78] font-mono font-bold px-1.5 py-0.2 rounded border border-[#FF2D78]/30 uppercase tracking-wider">
+                  v2.0
+                </span>
+              </div>
+              <span className="text-[10px] text-[#A098B0] font-mono leading-none">
+                Terminal Financiero
               </span>
             </div>
           </div>
 
-          {/* Close button for mobile */}
+          {/* Close button for mobile drawer */}
           {onCloseMobile && (
             <button
               onClick={onCloseMobile}
-              className="md:hidden text-slate-400 hover:text-white p-1 rounded-lg hover:bg-slate-800 transition"
+              className="md:hidden text-slate-400 hover:text-white p-1 rounded-lg hover:bg-slate-900 transition"
               aria-label="Cerrar Menú"
             >
               <X className="w-5 h-5" />
@@ -95,10 +111,24 @@ export const Sidebar: React.FC<SidebarProps> = ({
           )}
         </div>
 
-        {/* Section 1: Principal Navigation */}
+        {/* Primary Action Button: + Nuevo Movimiento / Importar Cartola con Glow Neón */}
+        <div className="pt-1">
+          <button
+            onClick={() => {
+              onOpenImport();
+              if (onCloseMobile) onCloseMobile();
+            }}
+            className="w-full flex items-center justify-center gap-2 bg-[#FF2D78] hover:bg-[#ff1a6c] text-white font-headline font-bold text-xs py-2.5 px-3.5 rounded-xl shadow-lg glow-primary transition-all transform hover:-translate-y-0.5 active:translate-y-0"
+          >
+            <Plus className="w-4 h-4 stroke-[3]" />
+            <span>+ Nuevo Movimiento</span>
+          </button>
+        </div>
+
+        {/* Section 1: Vistas Principales */}
         <div className="space-y-1">
-          <p className="text-[11px] font-bold text-slate-500 uppercase tracking-wider px-3 mb-2">
-            Vistas Principales
+          <p className="text-[10px] font-mono font-bold text-[#A098B0] uppercase tracking-wider px-3 mb-1.5">
+            // Vistas Principales
           </p>
           
           <button
@@ -106,14 +136,14 @@ export const Sidebar: React.FC<SidebarProps> = ({
               onSelectTab('dashboard');
               if (onCloseMobile) onCloseMobile();
             }}
-            className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-medium transition group ${
+            className={`w-full flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-medium transition group ${
               activeTab === 'dashboard'
-                ? 'bg-slate-900/90 text-sky-400 border-l-2 border-sky-400 shadow-md font-semibold'
-                : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900/50'
+                ? 'bg-[#141422] text-[#00FFCC] border-l-2 border-[#00FFCC] font-semibold shadow-inner'
+                : 'text-[#A098B0] hover:text-[#E8E0F0] hover:bg-[#111118]'
             }`}
           >
-            <LayoutDashboard className={`w-4 h-4 transition ${activeTab === 'dashboard' ? 'text-sky-400' : 'text-slate-500 group-hover:text-slate-300'}`} />
-            <span>Dashboard y Resumen</span>
+            <LayoutDashboard className={`w-4 h-4 transition ${activeTab === 'dashboard' ? 'text-[#00FFCC]' : 'text-[#A098B0] group-hover:text-white'}`} />
+            <span className="font-headline">Dashboard y Resumen</span>
           </button>
 
           <button
@@ -121,14 +151,14 @@ export const Sidebar: React.FC<SidebarProps> = ({
               onSelectTab('transactions');
               if (onCloseMobile) onCloseMobile();
             }}
-            className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-medium transition group ${
+            className={`w-full flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-medium transition group ${
               activeTab === 'transactions'
-                ? 'bg-slate-900/90 text-sky-400 border-l-2 border-sky-400 shadow-md font-semibold'
-                : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900/50'
+                ? 'bg-[#141422] text-[#00FFCC] border-l-2 border-[#00FFCC] font-semibold shadow-inner'
+                : 'text-[#A098B0] hover:text-[#E8E0F0] hover:bg-[#111118]'
             }`}
           >
-            <ReceiptText className={`w-4 h-4 transition ${activeTab === 'transactions' ? 'text-sky-400' : 'text-slate-500 group-hover:text-slate-300'}`} />
-            <span>Movimientos y Cartola</span>
+            <ReceiptText className={`w-4 h-4 transition ${activeTab === 'transactions' ? 'text-[#00FFCC]' : 'text-[#A098B0] group-hover:text-white'}`} />
+            <span className="font-headline">Movimientos y Cartola</span>
           </button>
 
           <button
@@ -136,78 +166,14 @@ export const Sidebar: React.FC<SidebarProps> = ({
               onSelectTab('budgets');
               if (onCloseMobile) onCloseMobile();
             }}
-            className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs transition group ${
+            className={`w-full flex items-center gap-3 px-3 py-2 rounded-xl text-xs transition group ${
               activeTab === 'budgets'
-                ? 'bg-slate-900/90 text-sky-400 border-l-2 border-sky-400 font-semibold shadow-inner'
-                : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900/50 font-medium'
+                ? 'bg-[#141422] text-[#00FFCC] border-l-2 border-[#00FFCC] font-semibold shadow-inner'
+                : 'text-[#A098B0] hover:text-[#E8E0F0] hover:bg-[#111118] font-medium'
             }`}
           >
-            <Target className={`w-4 h-4 transition ${activeTab === 'budgets' ? 'text-sky-400' : 'text-slate-500 group-hover:text-amber-400'}`} />
-            <span>Presupuestos y Metas</span>
-          </button>
-        </div>
-
-        {/* Section 2: Quick Actions */}
-        <div className="space-y-1">
-          <p className="text-[11px] font-bold text-slate-500 uppercase tracking-wider px-3 mb-2">
-            Acciones Rápidas
-          </p>
-
-          {/* Featured Import Button */}
-          <button
-            onClick={() => {
-              onOpenImport();
-              if (onCloseMobile) onCloseMobile();
-            }}
-            className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-sky-500 via-blue-600 to-indigo-600 hover:from-sky-400 hover:to-indigo-500 text-white font-bold text-xs py-2.5 px-3.5 rounded-xl shadow-lg shadow-sky-500/20 hover:shadow-sky-500/35 transition transform hover:-translate-y-0.5 mb-2"
-          >
-            <Upload className="w-4 h-4" />
-            <span>Importar Cartola</span>
-          </button>
-
-          <button
-            onClick={() => {
-              onAutoAllocate();
-              if (onCloseMobile) onCloseMobile();
-            }}
-            className="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-medium text-slate-400 hover:text-emerald-400 hover:bg-slate-900/50 transition group"
-            title="Asociar pagos cronológicamente a compras en tarjeta de crédito"
-          >
-            <Link2 className="w-4 h-4 text-slate-500 group-hover:text-emerald-400 transition" />
-            <span>Auto-asociar Pagos</span>
-          </button>
-
-          <button
-            onClick={() => {
-              onExport();
-              if (onCloseMobile) onCloseMobile();
-            }}
-            className="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-medium text-slate-400 hover:text-slate-200 hover:bg-slate-900/50 transition group"
-          >
-            <Download className="w-4 h-4 text-slate-500 group-hover:text-sky-400 transition" />
-            <span>Exportar a Excel</span>
-          </button>
-        </div>
-
-        {/* Section 3: Configuration & Management */}
-        <div className="space-y-1">
-          <p className="text-[11px] font-bold text-slate-500 uppercase tracking-wider px-3 mb-2">
-            Configuración y Canales
-          </p>
-
-          <button
-            onClick={() => {
-              onSelectTab('accounts');
-              if (onCloseMobile) onCloseMobile();
-            }}
-            className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs transition group ${
-              activeTab === 'accounts'
-                ? 'bg-slate-900/90 text-sky-400 border-l-2 border-sky-400 font-semibold shadow-inner'
-                : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900/50 font-medium'
-            }`}
-          >
-            <CreditCard className={`w-4 h-4 transition ${activeTab === 'accounts' ? 'text-sky-400' : 'text-slate-500 group-hover:text-sky-400'}`} />
-            <span>Mis Cuentas y Tarjetas</span>
+            <Target className={`w-4 h-4 transition ${activeTab === 'budgets' ? 'text-[#FFE04A]' : 'text-[#A098B0] group-hover:text-[#FFE04A]'}`} />
+            <span className="font-headline">Presupuestos y Metas</span>
           </button>
 
           <button
@@ -215,14 +181,29 @@ export const Sidebar: React.FC<SidebarProps> = ({
               onSelectTab('credits');
               if (onCloseMobile) onCloseMobile();
             }}
-            className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs transition group ${
+            className={`w-full flex items-center gap-3 px-3 py-2 rounded-xl text-xs transition group ${
               activeTab === 'credits'
-                ? 'bg-slate-900/90 text-sky-400 border-l-2 border-sky-400 font-semibold shadow-inner'
-                : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900/50 font-medium'
+                ? 'bg-[#141422] text-[#00FFCC] border-l-2 border-[#00FFCC] font-semibold shadow-inner'
+                : 'text-[#A098B0] hover:text-[#E8E0F0] hover:bg-[#111118] font-medium'
             }`}
           >
-            <Landmark className={`w-4 h-4 transition ${activeTab === 'credits' ? 'text-sky-400' : 'text-slate-500 group-hover:text-emerald-400'}`} />
-            <span>Mis Créditos y Deudas</span>
+            <Landmark className={`w-4 h-4 transition ${activeTab === 'credits' ? 'text-[#00FFCC]' : 'text-[#A098B0] group-hover:text-[#00FFCC]'}`} />
+            <span className="font-headline">Cuotas y Créditos</span>
+          </button>
+
+          <button
+            onClick={() => {
+              onSelectTab('accounts');
+              if (onCloseMobile) onCloseMobile();
+            }}
+            className={`w-full flex items-center gap-3 px-3 py-2 rounded-xl text-xs transition group ${
+              activeTab === 'accounts'
+                ? 'bg-[#141422] text-[#00FFCC] border-l-2 border-[#00FFCC] font-semibold shadow-inner'
+                : 'text-[#A098B0] hover:text-[#E8E0F0] hover:bg-[#111118] font-medium'
+            }`}
+          >
+            <CreditCard className={`w-4 h-4 transition ${activeTab === 'accounts' ? 'text-[#00FFCC]' : 'text-[#A098B0] group-hover:text-white'}`} />
+            <span className="font-headline">Cuentas y Tarjetas</span>
           </button>
 
           <button
@@ -230,16 +211,24 @@ export const Sidebar: React.FC<SidebarProps> = ({
               onSelectTab('categories');
               if (onCloseMobile) onCloseMobile();
             }}
-            className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs transition group ${
+            className={`w-full flex items-center gap-3 px-3 py-2 rounded-xl text-xs transition group ${
               activeTab === 'categories'
-                ? 'bg-slate-900/90 text-sky-400 border-l-2 border-sky-400 font-semibold shadow-inner'
-                : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900/50 font-medium'
+                ? 'bg-[#141422] text-[#00FFCC] border-l-2 border-[#00FFCC] font-semibold shadow-inner'
+                : 'text-[#A098B0] hover:text-[#E8E0F0] hover:bg-[#111118] font-medium'
             }`}
           >
-            <Tag className={`w-4 h-4 transition ${activeTab === 'categories' ? 'text-sky-400' : 'text-slate-500 group-hover:text-indigo-400'}`} />
-            <span>Categorías y Reglas</span>
+            <Tag className={`w-4 h-4 transition ${activeTab === 'categories' ? 'text-[#FF2D78]' : 'text-[#A098B0] group-hover:text-[#FF2D78]'}`} />
+            <span className="font-headline">Categorías y Reglas</span>
           </button>
+        </div>
 
+        {/* Section 2: Indicadores de Estado en Vivo (Live Status) */}
+        <div className="space-y-1.5 pt-2 border-t border-[#302840]/60">
+          <p className="text-[10px] font-mono font-bold text-[#A098B0] uppercase tracking-wider px-3 mb-1">
+            // Canales en Vivo
+          </p>
+
+          {/* Telegram Bot Live Status */}
           <button
             onClick={() => {
               if (currentUser) {
@@ -249,24 +238,25 @@ export const Sidebar: React.FC<SidebarProps> = ({
               }
               if (onCloseMobile) onCloseMobile();
             }}
-            className="w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-medium text-slate-400 hover:text-sky-300 hover:bg-slate-900/50 transition group"
+            className="w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-medium text-[#E8E0F0] hover:bg-[#141422] transition group"
           >
-            <div className="flex items-center gap-3">
-              <Send className="w-4 h-4 text-sky-400 -rotate-12 transition group-hover:scale-110" />
-              <span>Telegram Bot</span>
+            <div className="flex items-center gap-2.5">
+              <Bot className="w-4 h-4 text-[#FF2D78] transition group-hover:scale-110" />
+              <span className="text-xs">Telegram Bot</span>
             </div>
             {isTelegramLinked ? (
-              <span className="flex items-center gap-1 text-[10px] bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 px-2 py-0.5 rounded-full font-semibold">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+              <span className="flex items-center gap-1.5 text-[10px] text-[#FF2D78] bg-[#FF2D78]/10 border border-[#FF2D78]/30 px-2 py-0.5 rounded-full font-mono font-semibold">
+                <span className="w-1.5 h-1.5 rounded-full bg-[#FF2D78] animate-pulse" />
                 Activo
               </span>
             ) : (
-              <span className="text-[10px] bg-slate-800 text-slate-400 px-2 py-0.5 rounded-full font-medium">
+              <span className="text-[10px] bg-[#141422] text-[#A098B0] border border-[#302840] px-2 py-0.5 rounded-full font-mono">
                 Conectar
               </span>
             )}
           </button>
 
+          {/* MacroDroid / Wallet Live Status */}
           <button
             onClick={() => {
               if (currentUser) {
@@ -276,24 +266,54 @@ export const Sidebar: React.FC<SidebarProps> = ({
               }
               if (onCloseMobile) onCloseMobile();
             }}
-            className="w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-medium text-slate-400 hover:text-emerald-300 hover:bg-slate-900/50 transition group"
+            className="w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-medium text-[#E8E0F0] hover:bg-[#141422] transition group"
           >
-            <div className="flex items-center gap-3">
-              <Smartphone className="w-4 h-4 text-emerald-400 transition group-hover:scale-110" />
-              <span>Wallet / Android</span>
+            <div className="flex items-center gap-2.5">
+              <Zap className="w-4 h-4 text-[#00FFCC] transition group-hover:scale-110" />
+              <span className="text-xs">MacroDroid / Wallet</span>
             </div>
-            <span className="text-[10px] bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 px-2 py-0.5 rounded-full font-semibold">
-              Webhook
+            <span className="flex items-center gap-1.5 text-[10px] text-[#00FFCC] bg-[#00FFCC]/10 border border-[#00FFCC]/30 px-2 py-0.5 rounded-full font-mono font-semibold">
+              <span className="w-1.5 h-1.5 rounded-full bg-[#00FFCC]" />
+              Conectado
             </span>
           </button>
+        </div>
 
-          {/* Reset Demo Option */}
+        {/* Section 3: Acciones Rápidas */}
+        <div className="space-y-1 pt-2 border-t border-[#302840]/60">
+          <p className="text-[10px] font-mono font-bold text-[#A098B0] uppercase tracking-wider px-3 mb-1">
+            // Utilidades
+          </p>
+
+          <button
+            onClick={() => {
+              onAutoAllocate();
+              if (onCloseMobile) onCloseMobile();
+            }}
+            className="w-full flex items-center gap-2.5 px-3 py-1.5 rounded-xl text-xs font-medium text-[#A098B0] hover:text-[#00FFCC] hover:bg-[#111118] transition group"
+            title="Asociar pagos cronológicamente a compras en tarjeta de crédito"
+          >
+            <Link2 className="w-3.5 h-3.5 text-[#A098B0] group-hover:text-[#00FFCC] transition" />
+            <span>Auto-asociar Pagos</span>
+          </button>
+
+          <button
+            onClick={() => {
+              onExport();
+              if (onCloseMobile) onCloseMobile();
+            }}
+            className="w-full flex items-center gap-2.5 px-3 py-1.5 rounded-xl text-xs font-medium text-[#A098B0] hover:text-white hover:bg-[#111118] transition group"
+          >
+            <Download className="w-3.5 h-3.5 text-[#A098B0] group-hover:text-sky-400 transition" />
+            <span>Exportar a Excel</span>
+          </button>
+
           <button
             onClick={() => {
               onResetDemo();
               if (onCloseMobile) onCloseMobile();
             }}
-            className="w-full flex items-center gap-3 px-3.5 py-2 rounded-xl text-xs font-medium text-slate-500 hover:text-slate-300 hover:bg-slate-900/40 transition group"
+            className="w-full flex items-center gap-2.5 px-3 py-1.5 rounded-xl text-xs font-medium text-slate-500 hover:text-slate-300 hover:bg-[#111118] transition group"
             title="Restablecer datos de prueba a la cartola original"
           >
             <RefreshCw className="w-3.5 h-3.5 text-slate-600 group-hover:text-slate-400 transition" />
@@ -303,27 +323,27 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
       </div>
 
-      {/* Footer Area: User Profile Card */}
-      <div className="pt-4 mt-4 border-t border-slate-800/80">
+      {/* Footer Area: User Profile Card (Stitch Terminal Style) */}
+      <div className="pt-3 mt-3 border-t border-[#302840]/60">
         {currentUser ? (
-          <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-3 flex items-center justify-between gap-2 shadow-inner">
+          <div className="bg-[#141422] border border-[#302840] panel-rim rounded-2xl p-2.5 flex items-center justify-between gap-2 shadow-inner">
             <div className="flex items-center space-x-2.5 min-w-0">
               {userAvatar ? (
                 <img
                   src={userAvatar}
                   alt={userName}
-                  className="w-8 h-8 rounded-full border border-sky-500/40 object-cover flex-shrink-0"
+                  className="w-7 h-7 rounded-full border border-[#00FFCC]/40 object-cover flex-shrink-0"
                 />
               ) : (
-                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-sky-500 to-indigo-600 text-white flex items-center justify-center font-bold text-xs flex-shrink-0">
+                <div className="w-7 h-7 rounded-full bg-gradient-to-br from-[#FF2D78] to-[#00FFCC] text-black flex items-center justify-center font-headline font-bold text-xs flex-shrink-0">
                   {userName.charAt(0).toUpperCase()}
                 </div>
               )}
               <div className="min-w-0">
-                <p className="text-xs font-bold text-white truncate leading-tight">
+                <p className="text-xs font-headline font-bold text-[#E8E0F0] truncate leading-tight">
                   {userName}
                 </p>
-                <p className="text-[10px] text-slate-400 truncate leading-tight">
+                <p className="text-[10px] font-mono text-[#A098B0] truncate leading-tight">
                   {currentUser.email}
                 </p>
               </div>
@@ -332,31 +352,31 @@ export const Sidebar: React.FC<SidebarProps> = ({
             <button
               onClick={onSignOut}
               title="Cerrar Sesión"
-              className="text-slate-400 hover:text-rose-400 p-1.5 rounded-lg hover:bg-rose-500/10 transition flex-shrink-0"
+              className="text-[#A098B0] hover:text-rose-400 p-1.5 rounded-lg hover:bg-rose-500/10 transition flex-shrink-0"
             >
               <LogOut className="w-4 h-4" />
             </button>
           </div>
         ) : (
-          <div className="bg-gradient-to-br from-slate-900 to-amber-950/40 border border-amber-500/30 rounded-2xl p-3 space-y-2">
+          <div className="bg-[#141422] border border-[#FFE04A]/30 panel-rim rounded-2xl p-2.5 space-y-2">
             <div className="flex items-center justify-between">
-              <span className="text-[11px] font-bold text-amber-300 flex items-center gap-1.5">
-                <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+              <span className="text-[11px] font-headline font-bold text-[#FFE04A] flex items-center gap-1.5">
+                <Sparkles className="w-3.5 h-3.5 text-[#FFE04A]" />
                 Modo Demo
               </span>
-              <span className="text-[9px] bg-amber-500/20 text-amber-300 font-semibold px-2 py-0.5 rounded-full border border-amber-500/40 uppercase">
+              <span className="text-[9px] bg-[#FFE04A]/10 text-[#FFE04A] font-mono font-semibold px-2 py-0.5 rounded border border-[#FFE04A]/30 uppercase">
                 Invitado
               </span>
             </div>
-            <p className="text-[10px] text-slate-300 leading-tight">
-              Inicia sesión con Google para guardar tus transacciones reales en Supabase.
+            <p className="text-[10px] text-[#A098B0] leading-tight font-sans">
+              Inicia sesión con Google para sincronizar tus transacciones en Supabase.
             </p>
             <button
               onClick={() => {
                 onOpenAuthModal();
                 if (onCloseMobile) onCloseMobile();
               }}
-              className="w-full bg-gradient-to-r from-sky-500 to-indigo-600 hover:from-sky-400 hover:to-indigo-500 text-white text-xs font-bold py-1.5 px-3 rounded-xl shadow-md transition transform hover:scale-[1.02]"
+              className="w-full bg-[#FF2D78] hover:bg-[#ff1a6c] text-white text-xs font-headline font-bold py-1.5 px-3 rounded-xl shadow-md transition transform hover:scale-[1.02]"
             >
               Iniciar Sesión
             </button>
@@ -369,8 +389,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
   return (
     <>
-      {/* Desktop Persistent Sidebar */}
-      <aside className="hidden md:flex w-64 bg-slate-950 border-r border-slate-800/80 flex-col justify-between h-screen sticky top-0 z-40 select-none">
+      {/* Desktop Persistent Sidebar (260px / w-64, #0A0A12) */}
+      <aside className="hidden md:flex w-64 bg-[#0A0A12] border-r border-[#302840]/60 flex-col justify-between h-screen sticky top-0 z-40 select-none">
         {content}
       </aside>
 
@@ -379,11 +399,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
         <div className="fixed inset-0 z-50 md:hidden">
           {/* Backdrop */}
           <div
-            className="fixed inset-0 bg-black/70 backdrop-blur-sm transition-opacity"
+            className="fixed inset-0 bg-black/80 backdrop-blur-sm transition-opacity"
             onClick={onCloseMobile}
           />
           {/* Drawer Panel */}
-          <aside className="fixed inset-y-0 left-0 w-72 bg-slate-950 border-r border-slate-800 shadow-2xl z-50 flex flex-col justify-between h-full animate-in slide-in-from-left duration-200">
+          <aside className="fixed inset-y-0 left-0 w-72 bg-[#0A0A12] border-r border-[#302840] shadow-2xl z-50 flex flex-col justify-between h-full animate-in slide-in-from-left duration-200">
             {content}
           </aside>
         </div>

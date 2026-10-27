@@ -183,6 +183,27 @@ FinanzApp es una plataforma web financiera integral, interactiva y multi-disposi
       * `.panel-rim`: Borde ultrafino con iluminación cenital interna (`box-shadow: inset 0 1px 0 0 rgba(248, 250, 252, 0.06)`).
       * `.glow-primary`: Resplandor magenta difuso (`box-shadow: 0 0 16px -2px rgba(255, 45, 120, 0.25)`).
       * `.glow-secondary`: Resplandor cyan difuso (`box-shadow: 0 0 16px -2px rgba(0, 255, 204, 0.25)`).
+* **RF-32 (Navegación Móvil Ergonómica y Rediseño de Sidebar/TopBar de Escritorio - Fase 2)**:
+  * **Barra de Navegación Móvil Inferior (`BottomNavBar.tsx`)**:
+    * Fijada en la parte inferior de la pantalla (`fixed bottom-0 left-0 right-0 z-50 md:hidden`) con fondo ultra oscuro `#0A0A12`/95 y efecto blur (`backdrop-blur-md`).
+    * 5 accesos directos al alcance del pulgar con altura táctil mínima de 48px y feedback visual activo (`text-primary` magenta `#FF2D78`):
+      1. `🏠 Dashboard`: Acceso directo al panel de control y resumen financiero.
+      2. `📋 Movimientos`: Vista de cartola, transacciones y detalle de gastos.
+      3. `💳 Cuentas`: Gestión de cuentas bancarias y tarjetas de crédito.
+      4. `⚖️ Conciliar`: Herramienta de conciliación con badge numérico ámbar (`duplicateCount`) si existen transacciones con sospecha de duplicidad.
+      5. `☰ Menú`: Action Sheet modal con accesos a Presupuestos y Metas, Créditos y Cuotas, Categorías y Reglas, Bot de Telegram, Google Wallet y Sesión de Usuario.
+    * El área de trabajo principal implementa padding inferior (`pb-24 md:pb-6`) para garantizar que ningún botón ni dato quede cubierto por la barra fija.
+  * **Sidebar Lateral de Escritorio (`Sidebar.tsx`)**:
+    * Ancho fijo de 260px (`w-64`) con fondo `#0A0A12`, borde derecho sutil `#302840` y tipografías Sora/Space Grotesk.
+    * Botón de acción principal destacado `+ Nuevo Movimiento` con resplandor neón magenta (`glow-primary`).
+    * **Indicadores de Estado en Vivo (Live Status)**:
+      * 🤖 *Telegram Bot*: Indicador activo en magenta/verde con punto pulsante (`animate-pulse`).
+      * ⚡ *MacroDroid / Wallet*: Indicador de conexión en cyan menta (`#00FFCC`).
+    * Tarjeta de perfil de usuario en la base con acabado `panel-rim` y opciones de autenticación / cierre de sesión.
+  * **Barra Superior de Escritorio (`TopBar.tsx`)**:
+    * Navegación rápida de meses con botones de paso anterior y siguiente (`< Octubre 2026 >`).
+    * Barra de búsqueda global integrada con atajo de teclado nativo `⌘K` / `Ctrl+K`.
+    * Píldora de estado de sincronización en la nube (`Sync Nube` con spinner dinámico) y badges de notificación.
 
 ---
 

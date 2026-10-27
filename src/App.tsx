@@ -68,6 +68,7 @@ import { CustomizeDashboardModal } from './components/CustomizeDashboardModal';
 import { AuthModal } from './components/AuthModal';
 import { CreditCardBillingModal } from './components/CreditCardBillingModal';
 import { LandingPage } from './components/LandingPage';
+import { BottomNavBar } from './components/BottomNavBar';
 
 const STORAGE_KEY_ACCOUNTS = 'finanzapp_accounts_v1';
 const STORAGE_KEY_TRANSACTIONS = 'finanzapp_transactions_v1';
@@ -606,6 +607,11 @@ export function App() {
   const computedTransactions = useMemo(() => {
     return computeTransactions(normalizedTransactions);
   }, [normalizedTransactions]);
+
+  // Count pending potential duplicates for badge in navigation
+  const duplicateCount = useMemo(() => {
+    return transactions.filter((t) => t.isPotentialDuplicate).length;
+  }, [transactions]);
 
   // Extract available months/periods for filter
   const availableMonths = useMemo(() => {
@@ -1312,7 +1318,7 @@ export function App() {
           </aside>
         )}
 
-        {/* Minimalist TopBar */}
+        {/* Styled TopBar */}
         <TopBar
           accounts={accounts}
           activeAccountId={filters.accountId}
@@ -1323,11 +1329,14 @@ export function App() {
           currentUser={currentUser}
           isCloudLoading={isCloudLoading}
           onToggleMobileMenu={() => setIsMobileSidebarOpen((prev) => !prev)}
+          searchQuery={filters.searchQuery}
+          onSearchChange={(q) => setFilters((prev) => ({ ...prev, searchQuery: q }))}
+          notificationCount={duplicateCount}
         />
 
         {/* Scrollable Main Workspace */}
         <div className="flex-1 overflow-y-auto flex flex-col scrollbar-thin scrollbar-thumb-slate-800">
-          <main className="w-full max-w-7xl mx-auto p-4 sm:p-6 space-y-6 flex-1">
+          <main className="w-full max-w-7xl mx-auto p-4 sm:p-6 space-y-6 flex-1 pb-24 md:pb-6">
             
             {/* 1 & 2. Metric Cards & Filters (Only in Dashboard & Transactions) */}
             {activeTab !== 'categories' && activeTab !== 'budgets' && activeTab !== 'accounts' && activeTab !== 'credits' && (
@@ -1453,6 +1462,23 @@ export function App() {
           </footer>
         </div>
       </div>
+
+      {/* Mobile Fixed Bottom Navigation Bar */}
+      <BottomNavBar
+        activeTab={activeTab}
+        onSelectTab={setActiveTab}
+        duplicateCount={duplicateCount}
+        currentUser={currentUser}
+        isTelegramLinked={Boolean(telegramProfile?.telegram_chat_id)}
+        onOpenImport={() => setIsImportModalOpen(true)}
+        onOpenAutoAllocate={handleAutoAllocate}
+        onOpenTelegramModal={() => (currentUser ? setIsTelegramModalOpen(true) : setIsAuthModalOpen(true))}
+        onOpenWalletModal={() => (currentUser ? setIsWalletModalOpen(true) : setIsAuthModalOpen(true))}
+        onOpenAuthModal={() => setIsAuthModalOpen(true)}
+        onSignOut={handleSignOut}
+        onExport={handleExportExcel}
+        onResetDemo={handleResetDemo}
+      />
 
       {/* Payment Association Modal */}
       {selectedPurchaseForPayment && (
