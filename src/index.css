@@ -43,3 +43,38 @@ body {
   stroke-dasharray: 8 8;
   animation: dashFlow 1.8s linear infinite;
 }
+
+/* ==========================================================================
+   Google Stitch ("Neon Tokyo") Design Tokens & Utilities
+   ========================================================================== */
+
+:root {
+  --stitch-bg: #0A0A12;
+  --stitch-surface-lowest: #0F0F1A;
+  --stitch-surface: #111118;
+  --stitch-surface-card: #141422;
+  --stitch-primary: #FF2D78;
+  --stitch-secondary: #00FFCC;
+  --stitch-tertiary: #FFE04A;
+  --stitch-text-primary: #E8E0F0;
+  --stitch-text-secondary: #A098B0;
+  --stitch-border: #302840;
+  --stitch-border-subtle: rgba(148, 163, 184, 0.08);
+}
+
+/* Borde fino con iluminación sutil interna tipo terminal financiero */
+.panel-rim {
+  border: 1px solid rgba(148, 163, 184, 0.08);
+  box-shadow: inset 0 1px 0 0 rgba(248, 250, 252, 0.06);
+}
+
+/* Brillo neón primario (Magenta) */
+.glow-primary {
+  box-shadow: 0 0 16px -2px rgba(255, 45, 120, 0.25);
+}
+
+/* Brillo neón secundario (Cyan) */
+.glow-secondary {
+  box-shadow: 0 0 16px -2px rgba(0, 255, 204, 0.25);
+}
+

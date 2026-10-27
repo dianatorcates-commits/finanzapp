@@ -164,6 +164,26 @@ FinanzApp es una plataforma web financiera integral, interactiva y multi-disposi
 * **RF-30 (Exportación Consolidada a Excel)**:
   * Descarga en formato `.xlsx` de las transacciones filtradas incluyendo categoría, subcategoría, cuenta, cuotas, abonos asociados y Monto Real Utilizado.
 
+### 4.11. Sistema de Diseño Stitch ("Neon Tokyo" / Terminal Financiero)
+* **RF-31 (Tokens de Diseño, Paleta Neón y Tipografía Tripartita - Fase 1)**:
+  * Base visual fundacional basada en Google Stitch ("Neon Tokyo") configurada en `tailwind.config.js`, `index.html` y `src/index.css`:
+    * **Paleta de Colores de Alto Contraste**:
+      * Fondo Principal: `#0A0A12` (`background.lowest`) y `#0F0F1A` (`background.subtle`).
+      * Contenedores de Tarjetas y Superficies: `#111118` (`surface`) y `#141422` (`surface.card` / `surface.container`).
+      * Primario (Magenta Neón): `#FF2D78` (`primary`).
+      * Secundario (Cyan Neón / Menta): `#00FFCC` (`secondary`).
+      * Terciario (Oro Neón / Amarillo Alerta): `#FFE04A` (`tertiary`) y `#F59E0B` (`tertiary.amber`).
+      * Contenido y Texto: `#E8E0F0` (`content.primary`) y `#A098B0` (`content.secondary`).
+      * Bordes y Contornos: `#302840` (`outline`) y `rgba(148, 163, 184, 0.08)` (`outline.subtle`).
+    * **Tipografía Tripartita Web**:
+      * Encabezados y Títulos: **Sora** (`font-headline`, `font-display`).
+      * Texto General y Tablas: **Inter** (`font-body`, `font-sans`).
+      * Números, Monedas y Códigos: **Space Grotesk** (`font-mono`, `font-label`).
+    * **Efectos de Brillo y Borde Fino**:
+      * `.panel-rim`: Borde ultrafino con iluminación cenital interna (`box-shadow: inset 0 1px 0 0 rgba(248, 250, 252, 0.06)`).
+      * `.glow-primary`: Resplandor magenta difuso (`box-shadow: 0 0 16px -2px rgba(255, 45, 120, 0.25)`).
+      * `.glow-secondary`: Resplandor cyan difuso (`box-shadow: 0 0 16px -2px rgba(0, 255, 204, 0.25)`).
+
 ---
 
 ## 5. Modelo de Datos Normalizado (Supabase PostgreSQL)
