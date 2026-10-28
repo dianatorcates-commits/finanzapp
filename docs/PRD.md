@@ -204,6 +204,22 @@ FinanzApp es una plataforma web financiera integral, interactiva y multi-disposi
     * Navegación rápida de meses con botones de paso anterior y siguiente (`< Octubre 2026 >`).
     * Barra de búsqueda global integrada con atajo de teclado nativo `⌘K` / `Ctrl+K`.
     * Píldora de estado de sincronización en la nube (`Sync Nube` con spinner dinámico) y badges de notificación.
+* **RF-33 (Terminal Financiero: Dashboard Central, 4 KPIs con Micro-Indicadores, Alerta de Duplicidad y Grid de Cuentas - Fase 3)**:
+  * **Banner Superior de Alerta de Duplicidad (RF-09)**:
+    * Componente [`DuplicateAlertBanner.tsx`](file:///Users/EcheverriaTorcates/Documents/Proyectos/FinanzApp/src/components/DuplicateAlertBanner.tsx) renderizado en el Dashboard cuando existen movimientos con `isPotentialDuplicate = true`.
+    * Diseño ámbar discreto (`bg-[#F59E0B]/10 border-l-[4px] border-l-[#F59E0B] rounded-2xl panel-rim`) que contrasta la glosa de la cartola bancaria con la descripción original registrada previamente vía webhook (Google Wallet o Telegram).
+    * Acciones en 1 solo clic: "No es Duplicada / Conservar", "Eliminar Duplicada" y acción en lote "Aceptar Todas".
+  * **4 Tarjetas de Métricas de Estilo Terminal Financiero (`MetricCards.tsx`)**:
+    * Rediseñadas bajo la estética Stitch (fondo `#141422`, borde `#302840`, panel-rim y tipografía Space Grotesk/JetBrains Mono):
+      1. *Saldo Disponible en Cuentas*: Suma de saldos en cuentas vista y corrientes con micro-desglose base `Base: $X | +$Y (Ingresos) | -$Z (Gastos)`.
+      2. *Deuda Utilizada en TC*: Saldo adeudado en tarjetas de crédito con micro-barra de progreso cian (`bg-[#00FFCC]`) que calcula el porcentaje de cupo ocupado y micro-desglose `Cupo: $A | Disp: $B`.
+      3. *Facturación al Corte*: Proyección de facturación mensual al día de corte con badge ámbar indicador del día de cierre bancario, micro-desglose `Ciclo: $A | Cuotas: $B | Sub: $C` y trigger directo para abrir el modal de simulación de facturación.
+      4. *Gasto Neto Real del Mes*: Monto real utilizado (descontando abonos) con barra de progreso magenta (`bg-[#FF2D78]`) respecto al límite global presupuestado y micro-desglose `Límite: $A | Margen: $B`.
+  * **Widget Lateral / Destacado de Facturación en 1 Clic**:
+    * Widget integrado en [`ChartsDashboard.tsx`](file:///Users/EcheverriaTorcates/Documents/Proyectos/FinanzApp/src/components/ChartsDashboard.tsx) que resume de forma compacta las cuotas y suscripciones vigentes del ciclo con botón de acceso rápido `⚡ Generar cargos pendientes (1 clic)`.
+  * **Grid Interactivo de Cuentas y Tarjetas de Crédito**:
+    * Panel de tarjetas bancarias interactivas con branding por entidad (CMR/Falabella, Santander, Banco de Chile, BCI, Tenpo, etc.), barras de cupo dinámicas, días de corte y vencimiento para TC, y saldo estimado para cuentas vista/corrientes.
+    * Permite filtrar todo el dashboard por cuenta con 1 solo clic (`onSelectAccount`).
 
 ---
 

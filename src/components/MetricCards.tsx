@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import {
   TrendingDown,
   TrendingUp,
@@ -7,16 +7,36 @@ import {
   Calendar,
   PiggyBank,
   ShoppingCart,
-  Landmark
+  Landmark,
+  Wallet,
+  ArrowUpRight,
+  ArrowDownRight,
+  Clock,
+  Sparkles,
+  Zap
 } from 'lucide-react';
-import { ComputedTransaction, Account, CustomMetricCard, DEFAULT_DASHBOARD_CONFIG } from '../types';
-import { isPaymentOrIncomeTransaction, isCreditCardPaymentTransaction } from '../utils/paymentAllocation';
+import {
+  ComputedTransaction,
+  Account,
+  CustomMetricCard,
+  Credit,
+  CategoryBudget,
+  DEFAULT_DASHBOARD_CONFIG
+} from '../types';
+import {
+  isPaymentOrIncomeTransaction,
+  isCreditCardPaymentTransaction
+} from '../utils/paymentAllocation';
 
 interface MetricCardsProps {
   computedTransactions: ComputedTransaction[];
   accounts: Account[];
   activeAccountId: string;
   metrics?: CustomMetricCard[];
+  credits?: Credit[];
+  budgets?: CategoryBudget[];
+  currentPeriod?: string;
+  onOpenBillingModal?: () => void;
 }
 
 export function formatCLP(amount: number): string {
@@ -28,223 +48,324 @@ export function formatCLP(amount: number): string {
 }
 
 export const MetricCards: React.FC<MetricCardsProps> = ({
-  computedTransactions,
-  accounts,
-  activeAccountId,
-  metrics = DEFAULT_DASHBOARD_CONFIG.metrics
+  computedTransactions = [],
+  accounts = [],
+  activeAccountId = 'ALL',
+  metrics = DEFAULT_DASHBOARD_CONFIG.metrics,
+  credits = [],
+  budgets = [],
+  currentPeriod,
+  onOpenBillingModal
 }) => {
   const transactions = computedTransactions || [];
+  const selectedPeriod = currentPeriod || new Date().toISOString().slice(0, 7);
 
+  // Active selected account & cycle banner
   const selectedAcc = accounts.find((a) => a.id === activeAccountId);
   const cycleInfo = selectedAcc?.closingDay
     ? `Ciclo de Facturación: Corte el día ${selectedAcc.closingDay}${selectedAcc.dueDay ? ` • Vencimiento el día ${selectedAcc.dueDay}` : ''}`
     : null;
 
-  // Filter only enabled cards
-  const enabledMetrics = (metrics || []).filter((m) => m.enabled);
-  if (enabledMetrics.length === 0) return null;
+  // 1. KPI Calculation: Saldo Disponible en Cuentas (Liquidez real)
+  const liquidityData = useMemo(() => {
+    // Filtrar cuentas no TC (bancarias, débito, vista, ahorro, efectivo)
+    const targetAccounts = activeAccountId !== 'ALL'
+      ? accounts.filter((a) => a.id === activeAccountId && a.type !== 'credit_card')
+      : accounts.filter((a) => a.type !== 'credit_card');
 
-  const getGridColsClass = (count: number) => {
-    switch (count) {
-      case 1:
-        return 'grid-cols-1';
-      case 2:
-        return 'grid-cols-1 sm:grid-cols-2';
-      case 3:
-        return 'grid-cols-1 sm:grid-cols-3';
-      case 4:
-        return 'grid-cols-1 sm:grid-cols-2 xl:grid-cols-4';
-      default:
-        return 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4';
-    }
-  };
+    const baseAmount = targetAccounts.reduce((sum, a) => sum + (a.initialBalance || 0), 0);
+
+    const relevantTxs = transactions.filter((tx) =>
+      targetAccounts.some((a) => a.id === tx.accountId)
+    );
+
+    const incomeAmount = relevantTxs
+      .filter((tx) => isPaymentOrIncomeTransaction(tx) || tx.amount < 0)
+      .reduce((sum, tx) => sum + Math.abs(tx.amount), 0);
+
+    const expensesAmount = relevantTxs
+      .filter((tx) => !isPaymentOrIncomeTransaction(tx) && tx.amount > 0)
+      .reduce((sum, tx) => sum + tx.amount, 0);
+
+    const totalAvailable = baseAmount + incomeAmount - expensesAmount;
+
+    return {
+      total: totalAvailable,
+      base: baseAmount,
+      income: incomeAmount,
+      expenses: expensesAmount
+    };
+  }, [accounts, transactions, activeAccountId]);
+
+  // 2. KPI Calculation: Deuda Utilizada en TC (Cupo y Endeudamiento)
+  const creditCardData = useMemo(() => {
+    const targetCards = activeAccountId !== 'ALL'
+      ? accounts.filter((a) => a.id === activeAccountId && a.type === 'credit_card')
+      : accounts.filter((a) => a.type === 'credit_card');
+
+    const totalLimit = targetCards.reduce((sum, a) => sum + (a.creditLimit || 0), 0);
+
+    const cardTxs = transactions.filter((tx) =>
+      targetCards.some((a) => a.id === tx.accountId) && !isPaymentOrIncomeTransaction(tx) && tx.amount > 0
+    );
+
+    const totalDebt = cardTxs.reduce((sum, tx) => sum + (tx.netAmount !== undefined ? tx.netAmount : tx.amount), 0);
+    const availableCredit = Math.max(0, totalLimit - totalDebt);
+    const usedPercentage = totalLimit > 0 ? Math.min(100, Math.round((totalDebt / totalLimit) * 100)) : 0;
+
+    return {
+      debt: totalDebt,
+      limit: totalLimit,
+      available: availableCredit,
+      percentage: usedPercentage
+    };
+  }, [accounts, transactions, activeAccountId]);
+
+  // 3. KPI Calculation: Facturación Estimada al Corte (TC)
+  const billingProjectionData = useMemo(() => {
+    const targetCards = activeAccountId !== 'ALL'
+      ? accounts.filter((a) => a.id === activeAccountId && a.type === 'credit_card')
+      : accounts.filter((a) => a.type === 'credit_card');
+
+    const cyclePurchases = transactions
+      .filter((tx) => targetCards.some((a) => a.id === tx.accountId) && !isPaymentOrIncomeTransaction(tx) && tx.amount > 0)
+      .reduce((sum, tx) => sum + (tx.netAmount !== undefined ? tx.netAmount : tx.amount), 0);
+
+    // Cuotas vigentes en créditos
+    const activeInstallments = credits
+      .filter((c) => c.type === 'cuotas_tc' && targetCards.some((a) => a.id === c.accountId))
+      .reduce((sum, c) => sum + (c.myShareAmount || c.installmentAmount), 0);
+
+    // Suscripciones activas
+    const activeSubs = credits
+      .filter((c) => c.type === 'suscripcion' && targetCards.some((a) => a.id === c.accountId))
+      .reduce((sum, c) => sum + (c.myShareAmount || c.installmentAmount), 0);
+
+    const grandTotal = cyclePurchases + activeInstallments + activeSubs;
+
+    // Próximo día de corte
+    const nextClosingDay = targetCards[0]?.closingDay || 24;
+
+    return {
+      total: grandTotal,
+      cycle: cyclePurchases,
+      installments: activeInstallments,
+      subs: activeSubs,
+      closingDay: nextClosingDay
+    };
+  }, [accounts, transactions, credits, activeAccountId]);
+
+  // 4. KPI Calculation: Gasto Neto Real del Mes (Presupuesto)
+  const monthlyExpenseData = useMemo(() => {
+    const netSpent = transactions
+      .filter((tx) => !isPaymentOrIncomeTransaction(tx) && tx.amount > 0)
+      .reduce((sum, tx) => sum + (tx.netAmount !== undefined ? tx.netAmount : tx.amount), 0);
+
+    const totalBudgetLimit = budgets.reduce((sum, b) => sum + (b.monthlyLimit || 0), 0);
+    const budgetPct = totalBudgetLimit > 0 ? Math.min(100, Math.round((netSpent / totalBudgetLimit) * 100)) : 0;
+    const marginRemaining = totalBudgetLimit - netSpent;
+
+    return {
+      spent: netSpent,
+      limit: totalBudgetLimit,
+      percentage: budgetPct,
+      margin: marginRemaining
+    };
+  }, [transactions, budgets]);
+
+  // Check if standard 4 Terminal KPIs are enabled or if custom metrics should be rendered
+  const isDefaultTerminalLayout = !metrics || metrics.length <= 4;
 
   return (
-    <div className={`grid ${getGridColsClass(enabledMetrics.length)} gap-4 mb-6`}>
+    <div className="space-y-4 mb-6">
       
       {/* Active Account Billing Cycle Banner */}
       {cycleInfo && (
-        <div className="col-span-full bg-sky-950/40 border border-sky-500/30 px-4 py-2.5 rounded-2xl text-xs text-sky-200 flex flex-col sm:flex-row sm:items-center justify-between gap-1 shadow-md backdrop-blur-md">
+        <div className="bg-[#141422] border border-[#302840] panel-rim px-4 py-2.5 rounded-2xl text-xs text-[#E8E0F0] flex flex-col sm:flex-row sm:items-center justify-between gap-1 shadow-md backdrop-blur-md">
           <div className="flex items-center gap-2">
-            <Calendar className="w-4 h-4 text-sky-400 flex-shrink-0" />
+            <Calendar className="w-4 h-4 text-[#00FFCC] flex-shrink-0" />
             <span>
-              <b className="text-white">{selectedAcc?.name}:</b> {cycleInfo}
+              <b className="text-white font-headline">{selectedAcc?.name}:</b> {cycleInfo}
             </span>
           </div>
-          <span className="text-[11px] text-sky-300 font-medium">
+          <span className="text-[11px] text-[#A098B0] font-sans">
             Gastos posteriores al día {selectedAcc?.closingDay} se asignan al ciclo de facturación del mes siguiente
           </span>
         </div>
       )}
 
-      {/* Render Dynamic Cards */}
-      {enabledMetrics.map((card) => {
-        const { value, subtitle } = calculateMetricValue(card, transactions);
-        const { badgeClass, borderHoverClass, textValClass } = getColorClasses(card.color, card.type === 'net_amount_used');
-
-        return (
-          <div
-            key={card.id}
-            className={`bg-slate-900/80 backdrop-blur-md rounded-2xl p-4 sm:p-4.5 shadow-xl border flex flex-col justify-between transition ${borderHoverClass}`}
-          >
+      {/* 4 Terminal Financial KPI Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+        
+        {/* KPI 1: Saldo Disponible en Cuentas (Liquidez) */}
+        <div className="bg-[#111118] border border-[#302840]/80 panel-rim rounded-2xl p-4 sm:p-5 shadow-xl flex flex-col justify-between transition-all hover:border-[#00FFCC]/40 group">
+          <div>
             <div className="flex items-center justify-between">
-              <span className="text-xs font-bold text-slate-400 uppercase tracking-wider truncate pr-2">
-                {card.title}
+              <span className="text-xs font-headline font-bold text-[#A098B0] uppercase tracking-wider">
+                Saldo en Cuentas
               </span>
-              <div className={`p-2.5 rounded-xl border ${badgeClass}`}>
-                {renderIcon(card.icon)}
+              <div className="p-2 rounded-xl bg-[#00FFCC]/10 text-[#00FFCC] border border-[#00FFCC]/20 shadow-sm">
+                <Wallet className="w-4 h-4" />
               </div>
             </div>
 
-            <div className="mt-4">
-              <p className={`text-xl sm:text-2xl xl:text-[26px] font-black tracking-tight whitespace-nowrap overflow-hidden text-ellipsis ${textValClass}`}>
-                {formatCLP(value)}
+            <div className="mt-3">
+              <p className="text-2xl sm:text-[26px] font-mono font-bold tracking-tight text-white group-hover:text-[#00FFCC] transition-colors">
+                {formatCLP(liquidityData.total)}
               </p>
-              <p className="text-xs text-slate-400 mt-1 truncate">
-                {subtitle}
+              <p className="text-[11px] text-[#A098B0] mt-0.5 font-sans">
+                Liquidez disponible en cuentas vista/corriente
               </p>
             </div>
           </div>
-        );
-      })}
+
+          {/* Micro-Indicadores en el Pie */}
+          <div className="mt-4 pt-3 border-t border-[#302840]/60 flex items-center justify-between text-[10px] font-mono text-[#A098B0]">
+            <span title="Saldo inicial base">Base: {formatCLP(liquidityData.base)}</span>
+            <span className="text-emerald-400 font-bold" title="Ingresos del período">
+              +{formatCLP(liquidityData.income)}
+            </span>
+            <span className="text-rose-400 font-bold" title="Egresos en cuentas">
+              -{formatCLP(liquidityData.expenses)}
+            </span>
+          </div>
+        </div>
+
+        {/* KPI 2: Deuda Utilizada en TC (Cupo y Endeudamiento) */}
+        <div className="bg-[#111118] border border-[#302840]/80 panel-rim rounded-2xl p-4 sm:p-5 shadow-xl flex flex-col justify-between transition-all hover:border-[#00FFCC]/40 group">
+          <div>
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-headline font-bold text-[#A098B0] uppercase tracking-wider">
+                Deuda Utilizada en TC
+              </span>
+              <div className="p-2 rounded-xl bg-[#00FFCC]/10 text-[#00FFCC] border border-[#00FFCC]/20 shadow-sm">
+                <CreditCard className="w-4 h-4" />
+              </div>
+            </div>
+
+            <div className="mt-3">
+              <div className="flex items-baseline gap-2">
+                <p className="text-2xl sm:text-[26px] font-mono font-bold tracking-tight text-white group-hover:text-[#00FFCC] transition-colors">
+                  {formatCLP(creditCardData.debt)}
+                </p>
+                {creditCardData.limit > 0 && (
+                  <span className="text-xs font-mono font-semibold text-[#00FFCC]">
+                    {creditCardData.percentage}% cupo
+                  </span>
+                )}
+              </div>
+              
+              {/* Barra de Progreso Cupo Cian */}
+              {creditCardData.limit > 0 ? (
+                <div className="w-full bg-[#141422] h-1.5 rounded-full overflow-hidden mt-2.5 border border-[#302840]/40">
+                  <div
+                    className="h-full bg-[#00FFCC] rounded-full transition-all duration-500 shadow-sm shadow-[#00FFCC]/50"
+                    style={{ width: `${creditCardData.percentage}%` }}
+                  />
+                </div>
+              ) : (
+                <p className="text-[11px] text-[#A098B0] mt-0.5">Saldo acumulado en tarjetas de crédito</p>
+              )}
+            </div>
+          </div>
+
+          {/* Micro-Indicadores en el Pie */}
+          <div className="mt-4 pt-3 border-t border-[#302840]/60 flex items-center justify-between text-[10px] font-mono text-[#A098B0]">
+            <span>Cupo: {formatCLP(creditCardData.limit)}</span>
+            <span className="text-[#00FFCC] font-bold">
+              Disp: {formatCLP(creditCardData.available)}
+            </span>
+          </div>
+        </div>
+
+        {/* KPI 3: Facturación al Corte (Proyección TC con Acción de 1 Clic) */}
+        <div
+          onClick={onOpenBillingModal}
+          className="bg-[#111118] border border-[#302840]/80 panel-rim rounded-2xl p-4 sm:p-5 shadow-xl flex flex-col justify-between transition-all hover:border-[#FFE04A]/60 cursor-pointer group hover:bg-[#141422]"
+          title="Ver desglose y simular facturación al corte"
+        >
+          <div>
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-headline font-bold text-[#A098B0] uppercase tracking-wider">
+                Facturación al Corte
+              </span>
+              <span className="px-2 py-0.5 rounded-full bg-[#FFE04A]/10 text-[#FFE04A] border border-[#FFE04A]/30 text-[10px] font-mono font-bold flex items-center gap-1">
+                <Clock className="w-2.5 h-2.5" />
+                <span>Corte día {billingProjectionData.closingDay}</span>
+              </span>
+            </div>
+
+            <div className="mt-3">
+              <p className="text-2xl sm:text-[26px] font-mono font-bold tracking-tight text-white group-hover:text-[#FFE04A] transition-colors">
+                {formatCLP(billingProjectionData.total)}
+              </p>
+              <p className="text-[11px] text-[#FFE04A]/80 mt-0.5 flex items-center gap-1 font-sans">
+                <span>⚡ Simular cargos al corte (1 clic)</span>
+              </p>
+            </div>
+          </div>
+
+          {/* Micro-Indicadores en el Pie */}
+          <div className="mt-4 pt-3 border-t border-[#302840]/60 flex items-center justify-between text-[10px] font-mono text-[#A098B0]">
+            <span title="Compras del ciclo">Ciclo: {formatCLP(billingProjectionData.cycle)}</span>
+            <span title="Cuotas vigentes">Cuotas: {formatCLP(billingProjectionData.installments)}</span>
+            <span title="Suscripciones activas">Sub: {formatCLP(billingProjectionData.subs)}</span>
+          </div>
+        </div>
+
+        {/* KPI 4: Gasto Neto Real del Mes (Control de Presupuesto) */}
+        <div className="bg-[#111118] border border-[#302840]/80 panel-rim rounded-2xl p-4 sm:p-5 shadow-xl flex flex-col justify-between transition-all hover:border-[#FF2D78]/40 group">
+          <div>
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-headline font-bold text-[#A098B0] uppercase tracking-wider">
+                Gasto Neto Real
+              </span>
+              <div className="p-2 rounded-xl bg-[#FF2D78]/10 text-[#FF2D78] border border-[#FF2D78]/20 shadow-sm">
+                <TrendingDown className="w-4 h-4" />
+              </div>
+            </div>
+
+            <div className="mt-3">
+              <div className="flex items-baseline gap-2">
+                <p className="text-2xl sm:text-[26px] font-mono font-bold tracking-tight text-white group-hover:text-[#FF2D78] transition-colors">
+                  {formatCLP(monthlyExpenseData.spent)}
+                </p>
+                {monthlyExpenseData.limit > 0 && (
+                  <span className={`text-xs font-mono font-semibold ${monthlyExpenseData.spent > monthlyExpenseData.limit ? 'text-rose-400' : 'text-[#00FFCC]'}`}>
+                    {monthlyExpenseData.percentage}%
+                  </span>
+                )}
+              </div>
+
+              {/* Barra de Progreso Presupuesto Magenta */}
+              {monthlyExpenseData.limit > 0 ? (
+                <div className="w-full bg-[#141422] h-1.5 rounded-full overflow-hidden mt-2.5 border border-[#302840]/40">
+                  <div
+                    className={`h-full rounded-full transition-all duration-500 shadow-sm ${
+                      monthlyExpenseData.spent > monthlyExpenseData.limit
+                        ? 'bg-rose-500 shadow-rose-500/50'
+                        : 'bg-[#FF2D78] shadow-[#FF2D78]/50'
+                    }`}
+                    style={{ width: `${monthlyExpenseData.percentage}%` }}
+                  />
+                </div>
+              ) : (
+                <p className="text-[11px] text-[#A098B0] mt-0.5">Monto neto utilizado deduciendo abonos</p>
+              )}
+            </div>
+          </div>
+
+          {/* Micro-Indicadores en el Pie */}
+          <div className="mt-4 pt-3 border-t border-[#302840]/60 flex items-center justify-between text-[10px] font-mono text-[#A098B0]">
+            <span>Límite: {monthlyExpenseData.limit > 0 ? formatCLP(monthlyExpenseData.limit) : 'No fijado'}</span>
+            <span className={monthlyExpenseData.margin >= 0 ? 'text-[#00FFCC] font-bold' : 'text-rose-400 font-bold'}>
+              Margen: {formatCLP(monthlyExpenseData.margin)}
+            </span>
+          </div>
+        </div>
+
+      </div>
 
     </div>
   );
 };
-
-function calculateMetricValue(card: CustomMetricCard, transactions: ComputedTransaction[]) {
-  switch (card.type) {
-    case 'gross_expenses': {
-      const val = transactions
-        .filter((tx) => !isPaymentOrIncomeTransaction(tx) && tx.amount > 0)
-        .reduce((sum, tx) => sum + tx.amount, 0);
-      return { value: val, subtitle: 'Suma bruta de compras y cargos' };
-    }
-    case 'total_payments': {
-      const val = transactions
-        .filter((tx) => isPaymentOrIncomeTransaction(tx))
-        .reduce((sum, tx) => sum + Math.abs(tx.amount), 0);
-      return { value: val, subtitle: 'Total de abonos y sueldos recibidos' };
-    }
-    case 'net_amount_used': {
-      const val = transactions
-        .filter((tx) => !isPaymentOrIncomeTransaction(tx) && tx.amount > 0)
-        .reduce((sum, tx) => sum + (tx.netAmount || 0), 0);
-      return { value: val, subtitle: 'Gasto neto deduciendo abonos' };
-    }
-    case 'unallocated_tc': {
-      const val = transactions
-        .filter((tx) => isCreditCardPaymentTransaction(tx))
-        .reduce((sum, tx) => sum + (tx.unallocatedPaymentBalance || 0), 0);
-      return { value: val, subtitle: 'Pagos a TC disponibles para asociar' };
-    }
-    case 'net_balance': {
-      const gross = transactions
-        .filter((tx) => !isPaymentOrIncomeTransaction(tx) && tx.amount > 0)
-        .reduce((sum, tx) => sum + tx.amount, 0);
-      const inc = transactions
-        .filter((tx) => isPaymentOrIncomeTransaction(tx))
-        .reduce((sum, tx) => sum + Math.abs(tx.amount), 0);
-      const val = inc - gross;
-      return { value: val, subtitle: val >= 0 ? 'Superávit neto del período' : 'Déficit neto del período' };
-    }
-    case 'compra': {
-      let matching = transactions.filter((tx) => tx.transactionType === 'compra' || (!isPaymentOrIncomeTransaction(tx) && tx.amount > 0));
-      if (card.filterAccountId && card.filterAccountId !== 'ALL') {
-        matching = matching.filter((tx) => tx.accountId === card.filterAccountId);
-      }
-      const val = matching.reduce((sum, tx) => sum + tx.amount, 0);
-      return { value: val, subtitle: `${matching.length} compra${matching.length === 1 ? '' : 's'} realizada${matching.length === 1 ? '' : 's'}` };
-    }
-    case 'pago_tc': {
-      let matching = transactions.filter((tx) => tx.transactionType === 'pago_tc' || tx.category === 'Abonos y Pagos');
-      if (card.filterAccountId && card.filterAccountId !== 'ALL') {
-        matching = matching.filter((tx) => tx.accountId === card.filterAccountId);
-      }
-      const val = matching.reduce((sum, tx) => sum + Math.abs(tx.amount), 0);
-      return { value: val, subtitle: `${matching.length} pago${matching.length === 1 ? '' : 's'} realizado${matching.length === 1 ? '' : 's'}` };
-    }
-    case 'custom': {
-      let filtered = transactions;
-      if (card.filterAccountId && card.filterAccountId !== 'ALL') {
-        filtered = filtered.filter((tx) => tx.accountId === card.filterAccountId);
-      }
-      if (card.filterCategory && card.filterCategory !== 'ALL') {
-        filtered = filtered.filter((tx) => tx.category === card.filterCategory || tx.subcategory === card.filterCategory);
-      }
-      const val = filtered
-        .filter((tx) => !isPaymentOrIncomeTransaction(tx) && tx.amount > 0)
-        .reduce((sum, tx) => sum + tx.amount, 0);
-      return { value: val, subtitle: `${filtered.length} movimiento${filtered.length === 1 ? '' : 's'} coincidentes` };
-    }
-    default:
-      return { value: 0, subtitle: '' };
-  }
-}
-
-function renderIcon(iconName?: string) {
-  switch (iconName) {
-    case 'trending-up': return <TrendingUp className="w-5 h-5" />;
-    case 'shield-check': return <ShieldCheck className="w-5 h-5" />;
-    case 'credit-card': return <CreditCard className="w-5 h-5" />;
-    case 'piggy-bank': return <PiggyBank className="w-5 h-5" />;
-    case 'shopping-cart': return <ShoppingCart className="w-5 h-5" />;
-    case 'landmark': return <Landmark className="w-5 h-5" />;
-    default: return <TrendingDown className="w-5 h-5" />;
-  }
-}
-
-function getColorClasses(color?: string, isHighlighted: boolean = false) {
-  if (isHighlighted) {
-    return {
-      badgeClass: 'bg-sky-500/20 text-sky-300 border-sky-400/30',
-      borderHoverClass: 'border-sky-500/40 hover:border-sky-400/60 shadow-sky-500/10',
-      textValClass: 'text-sky-300',
-    };
-  }
-
-  switch (color) {
-    case 'rose':
-      return {
-        badgeClass: 'bg-rose-500/10 text-rose-400 border-rose-500/20',
-        borderHoverClass: 'border-slate-800/80 hover:border-rose-500/40',
-        textValClass: 'text-white',
-      };
-    case 'emerald':
-      return {
-        badgeClass: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20',
-        borderHoverClass: 'border-slate-800/80 hover:border-emerald-500/40',
-        textValClass: 'text-white',
-      };
-    case 'purple':
-      return {
-        badgeClass: 'bg-purple-500/10 text-purple-400 border-purple-500/20',
-        borderHoverClass: 'border-slate-800/80 hover:border-purple-500/40',
-        textValClass: 'text-white',
-      };
-    case 'teal':
-      return {
-        badgeClass: 'bg-teal-500/10 text-teal-400 border-teal-500/20',
-        borderHoverClass: 'border-slate-800/80 hover:border-teal-500/40',
-        textValClass: 'text-teal-400',
-      };
-    case 'amber':
-      return {
-        badgeClass: 'bg-amber-500/10 text-amber-400 border-amber-500/20',
-        borderHoverClass: 'border-slate-800/80 hover:border-amber-500/40',
-        textValClass: 'text-amber-300',
-      };
-    case 'indigo':
-      return {
-        badgeClass: 'bg-indigo-500/10 text-indigo-400 border-indigo-500/20',
-        borderHoverClass: 'border-slate-800/80 hover:border-indigo-500/40',
-        textValClass: 'text-indigo-300',
-      };
-    default:
-      return {
-        badgeClass: 'bg-sky-500/10 text-sky-400 border-sky-500/20',
-        borderHoverClass: 'border-slate-800/80 hover:border-sky-500/40',
-        textValClass: 'text-white',
-      };
-  }
-}

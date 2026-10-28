@@ -69,6 +69,7 @@ import { AuthModal } from './components/AuthModal';
 import { CreditCardBillingModal } from './components/CreditCardBillingModal';
 import { LandingPage } from './components/LandingPage';
 import { BottomNavBar } from './components/BottomNavBar';
+import { DuplicateAlertBanner } from './components/DuplicateAlertBanner';
 
 const STORAGE_KEY_ACCOUNTS = 'finanzapp_accounts_v1';
 const STORAGE_KEY_TRANSACTIONS = 'finanzapp_transactions_v1';
@@ -608,10 +609,13 @@ export function App() {
     return computeTransactions(normalizedTransactions);
   }, [normalizedTransactions]);
 
-  // Count pending potential duplicates for badge in navigation
-  const duplicateCount = useMemo(() => {
-    return transactions.filter((t) => t.isPotentialDuplicate).length;
+  // Pending potential duplicates
+  const potentialDuplicates = useMemo(() => {
+    return transactions.filter((t) => t.isPotentialDuplicate);
   }, [transactions]);
+
+  // Count pending potential duplicates for badge in navigation
+  const duplicateCount = potentialDuplicates.length;
 
   // Extract available months/periods for filter
   const availableMonths = useMemo(() => {
@@ -1189,6 +1193,29 @@ export function App() {
     setTransactions((prev) => prev.filter((tx) => !ids.includes(tx.id)));
   };
 
+  const handleDismissDuplicate = async (id: string) => {
+    await handleUpdateTransaction(id, {
+      isPotentialDuplicate: false,
+      duplicateOfDescription: undefined,
+      duplicateOfId: undefined
+    });
+  };
+
+  const handleDeleteDuplicate = async (id: string) => {
+    await handleDeleteTransaction(id);
+  };
+
+  const handleResolveAllDuplicates = async () => {
+    const dups = transactions.filter((t) => t.isPotentialDuplicate);
+    for (const tx of dups) {
+      await handleUpdateTransaction(tx.id, {
+        isPotentialDuplicate: false,
+        duplicateOfDescription: undefined,
+        duplicateOfId: undefined
+      });
+    }
+  };
+
   const handleAddManualTransaction = async (newTx: Transaction) => {
     setTransactions((prev) => [newTx, ...prev]);
     if (currentUser) {
@@ -1338,6 +1365,18 @@ export function App() {
         <div className="flex-1 overflow-y-auto flex flex-col scrollbar-thin scrollbar-thumb-slate-800">
           <main className="w-full max-w-7xl mx-auto p-4 sm:p-6 space-y-6 flex-1 pb-24 md:pb-6">
             
+            {/* Duplicate Alert Banner in Dashboard (RF-09 & Issue #23) */}
+            {activeTab === 'dashboard' && potentialDuplicates.length > 0 && (
+              <DuplicateAlertBanner
+                duplicates={potentialDuplicates}
+                accounts={accounts}
+                onDismissDuplicate={handleDismissDuplicate}
+                onDeleteDuplicate={handleDeleteDuplicate}
+                onResolveAll={handleResolveAllDuplicates}
+                onOpenTransactions={() => setActiveTab('transactions')}
+              />
+            )}
+
             {/* 1 & 2. Metric Cards & Filters (Only in Dashboard & Transactions) */}
             {activeTab !== 'categories' && activeTab !== 'budgets' && activeTab !== 'accounts' && activeTab !== 'credits' && (
               <>
@@ -1359,6 +1398,10 @@ export function App() {
                   computedTransactions={filteredTransactions}
                   accounts={accounts}
                   activeAccountId={filters.accountId}
+                  credits={credits}
+                  budgets={budgets}
+                  currentPeriod={filters.month !== 'ALL' ? filters.month : new Date().toISOString().slice(0, 7)}
+                  onOpenBillingModal={() => setIsBillingModalOpen(true)}
                   metrics={dashboardConfig.metrics}
                 />
 
@@ -1390,7 +1433,11 @@ export function App() {
                 computedTransactions={filteredTransactions}
                 accounts={accounts}
                 budgets={budgets}
+                credits={credits}
+                currentPeriod={filters.month !== 'ALL' ? filters.month : new Date().toISOString().slice(0, 7)}
                 onOpenBudgetModal={() => setActiveTab('budgets')}
+                onOpenBillingModal={() => setIsBillingModalOpen(true)}
+                onSelectAccount={(accId) => setFilters((prev) => ({ ...prev, accountId: accId }))}
                 charts={dashboardConfig.charts}
                 onOpenCustomizeModal={() => setIsCustomizeDashboardModalOpen(true)}
               />
