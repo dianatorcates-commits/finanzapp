@@ -17,6 +17,26 @@ export const DEFAULT_AUTO_RULES: AutoCategoryRule[] = [
   { id: 'rule-pago-tc', pattern: 'PAGO TC', category: 'Abonos y Pagos', subcategory: 'Pagos de Tarjeta', transactionType: 'pago_tc' }
 ];
 
+export const POS_GATEWAY_PATTERNS = [
+  'MERPAGO',
+  'MERCADO PAGO',
+  'MERCADOPAGO',
+  'MP *',
+  'TRANSBANK',
+  'TBK',
+  'GETNET',
+  'REDELCOM',
+  'COMPRAQUI',
+  'FLOW',
+  'KLAP',
+  'PAGOFACIL',
+  'PAGO FACIL',
+  'STRIPE',
+  'PAYPAL',
+  'WEBPAY',
+  'SUMUP'
+];
+
 export const DEFAULT_CATEGORY_MAPPINGS: CategoryMapping[] = [
   {
     id: 'cat-abonos',
@@ -226,26 +246,127 @@ export function autoCategorize(
     }
   }
 
-  // 2. Immediate checks for credit card negative amounts or explicit pago_tc
-  if (rawAmount < 0 && accountType === 'credit_card') {
+  // 2. POS Gateway Checks (Issue #35):
+  // MERPAGO, MERCADO PAGO, TRANSBANK, GETNET, KLAP, REDELCOM, COMPRAQUI are POS gateways/processors for merchant purchases,
+  // NEVER credit card debt payments (pago_tc), even if the description contains the substring "PAGO".
+  const isPOSGateway = POS_GATEWAY_PATTERNS.some((gw) => descUpper.includes(gw));
+
+  if (isPOSGateway) {
+    let posCategory = 'Compras y Estilo de Vida';
+    let posSubcategory = 'Ropa, Tecnología y Compras';
+
+    if (
+      descUpper.includes('FARMACIA') ||
+      descUpper.includes('CRUZ VERDE') ||
+      descUpper.includes('SALCOBRAND') ||
+      descUpper.includes('AHUMADA') ||
+      descUpper.includes('DR SIMI') ||
+      descUpper.includes('CLINICA') ||
+      descUpper.includes('DENTAL') ||
+      descUpper.includes('HOSPITAL') ||
+      descUpper.includes('LABORATORIO') ||
+      descUpper.includes('OPTICA')
+    ) {
+      posCategory = 'Salud y Bienestar';
+      posSubcategory = 'Salud y Farmacia';
+    } else if (
+      descUpper.includes('SUPERMERCADO') ||
+      descUpper.includes('MINIMARKET') ||
+      descUpper.includes('ALMACEN') ||
+      descUpper.includes('VERDULERIA') ||
+      descUpper.includes('PANADERIA') ||
+      descUpper.includes('CARNICERIA') ||
+      descUpper.includes('BOTILLERIA') ||
+      descUpper.includes('LIDER') ||
+      descUpper.includes('JUMBO') ||
+      descUpper.includes('UNIMARC') ||
+      descUpper.includes('TOTTUS') ||
+      descUpper.includes('SANTA ISABEL') ||
+      descUpper.includes('OXXO') ||
+      descUpper.includes('OKMARKET')
+    ) {
+      posCategory = 'Alimentación y Gastronomía';
+      posSubcategory = 'Alimentación y Supermercados';
+    } else if (
+      descUpper.includes('BURGER') ||
+      descUpper.includes('CAFE') ||
+      descUpper.includes('RESTAURANT') ||
+      descUpper.includes('REST ') ||
+      descUpper.includes('PIZZA') ||
+      descUpper.includes('SUSHI') ||
+      descUpper.includes('BAR ') ||
+      descUpper.includes('PUB') ||
+      descUpper.includes('SCHOPDOG') ||
+      descUpper.includes('STARBUCKS') ||
+      descUpper.includes('MCDONALDS') ||
+      descUpper.includes('KFC') ||
+      descUpper.includes('SUBWAY') ||
+      descUpper.includes('DUNKIN') ||
+      descUpper.includes('HELADERIA') ||
+      descUpper.includes('EMPANADA') ||
+      descUpper.includes('SANDWICH') ||
+      descUpper.includes('SANGUCH')
+    ) {
+      posCategory = 'Alimentación y Gastronomía';
+      posSubcategory = 'Restaurantes y Bares';
+    } else if (
+      descUpper.includes('COPEC') ||
+      descUpper.includes('SHELL') ||
+      descUpper.includes('PETROBRAS') ||
+      descUpper.includes('UBER') ||
+      descUpper.includes('CABIFY') ||
+      descUpper.includes('ESTACIONAMIENTO')
+    ) {
+      posCategory = 'Transporte y Movilidad';
+      posSubcategory = 'Transporte y Vehículos';
+    } else if (
+      descUpper.includes('ROPA') ||
+      descUpper.includes('TIENDA') ||
+      descUpper.includes('BOUTIQUE') ||
+      descUpper.includes('LIBRERIA') ||
+      descUpper.includes('FERRETERIA') ||
+      descUpper.includes('ZAPATERIA') ||
+      descUpper.includes('TECNOLOGIA') ||
+      descUpper.includes('BAZAR') ||
+      descUpper.includes('FALABELLA') ||
+      descUpper.includes('PARIS') ||
+      descUpper.includes('RIPLEY') ||
+      descUpper.includes('ZARA') ||
+      descUpper.includes('H&M')
+    ) {
+      posCategory = 'Compras y Estilo de Vida';
+      posSubcategory = 'Ropa, Tecnología y Compras';
+    }
+
+    return {
+      category: getParentCategory(posSubcategory, categoryMappings) || posCategory,
+      subcategory: posSubcategory,
+      transactionType: 'compra'
+    };
+  }
+
+  // 3. Immediate checks for credit card negative amounts or explicit pago_tc
+  if (rawAmount < 0 && accountType === 'credit_card' && !isPOSGateway) {
     return { category: 'Abonos y Pagos', subcategory: 'Pagos de Tarjeta', transactionType: 'pago_tc' };
   }
 
-  if (existingTxType === 'pago_tc') {
+  if (existingTxType === 'pago_tc' && !isPOSGateway) {
     return { category: 'Abonos y Pagos', subcategory: 'Pagos de Tarjeta', transactionType: 'pago_tc' };
   }
 
-  // 3. Default Pattern Recognition
+  // 4. Default Pattern Recognition
   if (
-    descUpper.includes('PAGO TC') ||
-    descUpper.includes('ABONO TC') ||
-    descUpper.includes('PAGO TARJETA') ||
-    descUpper.includes('PAGO ESTADO DE CUENTA') ||
-    descUpper.includes('PAGO PESOS TC') ||
-    descUpper.includes('ABONO TARJETA') ||
-    descUpper.includes('PAGO DESDE CTA') ||
-    descUpper.includes('PAGO PAC TC') ||
-    (accountType === 'credit_card' && (descUpper.includes('PAGO') || descUpper.includes('ABONO') || descUpper.includes('TRANSF')))
+    !isPOSGateway && (
+      descUpper.includes('PAGO TC') ||
+      descUpper.includes('ABONO TC') ||
+      descUpper.includes('PAGO TARJETA') ||
+      descUpper.includes('PAGO ESTADO DE CUENTA') ||
+      descUpper.includes('PAGO PESOS TC') ||
+      descUpper.includes('ABONO TARJETA') ||
+      descUpper.includes('PAGO DESDE CTA') ||
+      descUpper.includes('PAGO PAC TC') ||
+      (accountType === 'credit_card' && (descUpper.includes('PAGO') || descUpper.includes('ABONO') || descUpper.includes('TRANSF')))
+    )
   ) {
     subcategory = 'Pagos de Tarjeta';
     return { category: 'Abonos y Pagos', subcategory, transactionType: 'pago_tc' };
@@ -312,6 +433,11 @@ export function autoCategorize(
     descUpper.includes('OXXO') ||
     descUpper.includes('ALIM') ||
     descUpper.includes('MINIMARKET') ||
+    descUpper.includes('ALMACEN') ||
+    descUpper.includes('VERDULERIA') ||
+    descUpper.includes('PANADERIA') ||
+    descUpper.includes('CARNICERIA') ||
+    descUpper.includes('BOTILLERIA') ||
     descUpper.includes('DISTRIBUIDORA')
   ) {
     subcategory = 'Alimentación y Supermercados';

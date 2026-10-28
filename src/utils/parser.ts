@@ -203,6 +203,19 @@ export function parseAmount(val: any): number {
   let str = String(val).trim();
   const isNegative = str.includes('-') || (str.startsWith('(') && str.endsWith(')'));
 
+  // Prevent collapsing space-separated numeric IDs into a single giant number
+  const tokens = str.split(/\s+/).filter(Boolean);
+  if (tokens.length > 1) {
+    const lastToken = tokens[tokens.length - 1];
+    if (
+      /^[-+]?\$?[\d\.,]+$/.test(lastToken) ||
+      /^\$?[-+]?[\d\.,]+$/.test(lastToken) ||
+      /^\(\$?\s*[\d\.,]+\)$/.test(lastToken)
+    ) {
+      str = lastToken;
+    }
+  }
+
   str = str.replace(/[^\d.,]/g, '');
 
   if (!str) return 0;
@@ -361,13 +374,36 @@ export function parseRawText(text: string, accountId: string, accountType: Accou
     const dateStr = normalizeDate(dateMatch[1]);
     const rest = line.replace(dateMatch[0], '').trim();
 
-    const numberMatch = rest.match(/([-\$]?\s*[\d\.,\s]+)$/);
+    // Match potential amount candidate at the end of the line:
+    // Must be a single numeric token, optionally preceded by $, +, -, or surrounded by ()
+    // Crucially: no internal whitespace between digits to prevent swallowing POS/terminal IDs!
+    const numberMatch = rest.match(/(?:^|\s)([-+]?\s*\$?\s*[\d\.,]+|\$?\s*[-+]?\s*[\d\.,]+|\(\$?\s*[\d\.,]+\))$/);
     if (!numberMatch) return;
 
-    const amountStr = numberMatch[1];
-    const description = rest.replace(amountStr, '').trim() || 'Movimiento Importado';
+    const rawCandidate = numberMatch[1].trim();
 
-    const rawAmount = parseAmount(amountStr);
+    // Validate if candidate is a legitimate monetary amount
+    const isExplicitCurrencyOrSign =
+      rawCandidate.includes('$') ||
+      rawCandidate.includes('-') ||
+      rawCandidate.includes('+') ||
+      (rawCandidate.startsWith('(') && rawCandidate.endsWith(')'));
+
+    const hasFormatting = rawCandidate.includes('.') || rawCandidate.includes(',');
+    const numVal = parseInt(rawCandidate.replace(/[^\d]/g, ''), 10);
+
+    // If it's a plain sequence of digits without any $, sign, or separators,
+    // verify it's a reasonable CLP amount (<= 100M). If > 100M without formatting, it is an ID / authorization code.
+    if (!isExplicitCurrencyOrSign && !hasFormatting) {
+      if (isNaN(numVal) || numVal <= 0 || numVal > 100000000) {
+        return;
+      }
+    }
+
+    // Preserve all preceding tokens (including POS IDs, terminal numbers, authorization codes)
+    const description = rest.slice(0, rest.length - numberMatch[1].length).trim() || 'Movimiento Importado';
+
+    const rawAmount = parseAmount(rawCandidate);
     const installments = parseInstallments(description);
     const autoCat = autoCategorize(description, rawAmount, accountType);
 

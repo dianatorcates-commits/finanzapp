@@ -402,6 +402,18 @@ FinanzApp es una plataforma web financiera integral, interactiva y multi-disposi
     * *Centro*: Barra de Búsqueda global `[🔍 Buscar por comercio, glosa o monto... ⌘K]` con amplitud máxima expandida (`max-w-md lg:max-w-xl`), permitiendo lectura completa sin cortes de texto.
     * *Extremo Derecho*: Selector de Período `[< 📅 Mes >]` con navegación paso a paso, píldora de sincronización en la nube (`Sync Nube` / `Demo`) y campana de notificaciones.
 
+* **RF-43 (Blindaje de Procesadores POS y Extracción Anticolapso de Montos Bancarios - Issue #35)**:
+  * **Desambiguación de Pasarelas de Pago POS vs Pagos de Tarjeta (`src/utils/categorizer.ts`)**:
+    * Registro de pasarelas POS chilenas e internacionales (`POS_GATEWAY_PATTERNS`): `MERPAGO`, `MERCADO PAGO`, `MERCADOPAGO`, `TRANSBANK`, `TBK`, `GETNET`, `REDELCOM`, `COMPRAQUI`, `FLOW`, `KLAP`, `PAGOFACIL`, `STRIPE`, `PAYPAL`, `WEBPAY`, `SUMUP`.
+    * Exclusión estricta de procesadores POS de la regla de detección de `pago_tc`: una compra en un comercio con lector Mercado Pago o Transbank nunca se clasifica como pago de deuda de tarjeta de crédito, aun cuando la glosa contenga la subcadena `"PAGO"`.
+    * Categorización inteligente de compras vía POS:
+      * Si la glosa incluye rubros específicos tras el procesador (ej: `FARMACIA`, `ALMACEN`, `MINIMARKET`, `RESTAURANT`, `BURGER`, `CAFE`), se asigna a su respectiva categoría (`Salud y Farmacia`, `Alimentación y Supermercados`, `Restaurantes y Bares`, etc.).
+      * Si la glosa carece de giro reconocible (ej: `MERPAGO*A 761783602 761783602`), se clasifica de forma estándar como gasto comercial en `Compras y Estilo de Vida` -> `Ropa, Tecnología y Compras` con `transactionType: 'compra'`.
+  * **Extracción Blindada de Montos y Preservación de Códigos POS (`src/utils/parser.ts`)**:
+    * Regex de token numérico monetario estricto al final de la línea: prohibición de espacios internos entre dígitos para impedir que identificadores de terminal o autorización (ej: `761783602 761783602`) se fusionen y generen montos artificiales desmedidos.
+    * Validación de candidatos a monto: requerimiento de formato de moneda (`$`, signos, o separadores de miles/decimales), o verificación de rango razonable `<= 100.000.000 CLP` para números planos.
+    * Preservación íntegra de identificadores, códigos de autorización y números de terminal en el campo `description`.
+
 ---
 
 ## 5. Modelo de Datos Normalizado (Supabase PostgreSQL)
