@@ -297,6 +297,27 @@ FinanzApp es una plataforma web financiera integral, interactiva y multi-disposi
     * Selector interactivo de períodos pasados y futuros (`< Período >`).
     * Lista de verificación con checkboxes para cuotas y suscripciones con badge `✅ Ya en movimientos` para ítems ya facturados en el ciclo.
     * Botón de acción masiva en 1 clic: `⚡ Generar Cargos Seleccionados (N)`.
+* **RF-38 (Gestor de Categorías, Editor Visual de Reglas Automáticas RF-19 y Monitor de Webhooks - Fase 4)**:
+  * **Métricas Superiores del Motor de Reglas (4 Tarjetas de Indicadores)**:
+    1. *Reglas Activas*: Conteo total de reglas de clasificación (`autoRules.length`).
+    2. *Precisión Motor*: Tasa de coincidencia exitosa (`98.4%`).
+    3. *Transacciones Asignadas*: Cobertura de clasificación en cartolas y webhooks (`totalAssigned / totalTransactions`).
+    4. *Aislamiento de Tipo (RF-19)*: Porcentaje de reglas con `transactionType` explícito obligatorio (`100%`).
+  * **Editor Visual de Regla Inteligente (`Pantalla3.html` / `CategoryManagementView.tsx`)**:
+    * Campo de patrón de búsqueda con soporte de expresiones o palabras clave (`PAGO TARJETA | CRÉDITO FALABELLA | UBER | NETFLIX`).
+    * Selectores sincronizados de Categoría General y Subcategoría.
+    * **Selector Visual de Tipo de Transacción Obligatorio (RF-19)** con tarjetas interactivas estilo chips (`pago_tc`, `compra`, `ingreso_venta`, `transferencia_enviada`, `transferencia_recibida`, `comision_interes`).
+    * Botón de acción: `⚡ Guardar y Probar Regla`.
+    * Botón de ejecución en lote: `⚡ Aplicar a Todo el Historial`.
+    * Filtros por tipo y buscador instantáneo de reglas.
+  * **Panel de Automatizaciones & Webhook Live Stream (`Pantalla9.html` / `Mobile8.html`)**:
+    * Indicador de eficiencia: `78% de gastos capturados automáticamente (~4.5 horas ahorradas)`.
+    * Endpoint personal de MacroDroid (Android) con botones de copiar URL y regenerar token secreto.
+    * Botón de acceso directo a integración y handshake de Telegram Bot.
+    * **Consola de Live Log Stream**: Streaming en vivo estilo terminal (`bg-[#0A0A12]`) con estado HTTP `[200 OK]`, timestamp, glosa recibida, monto analizado y categoría asignada.
+    * **Simulador de Notificaciones (Tester Integrado)**: Disparador interactivo de pruebas HTTP POST con plantillas rápidas (Starbucks, Jumbo, Pago TC).
+  * **Gestor de Categorías y Subcategorías**:
+    * Panel Master-Detail con creación, edición en línea y eliminación protegida de taxonomías financieras bajo diseño Stitch (`#141422`, `panel-rim`, bordes `#302840`).
 
 ---
 

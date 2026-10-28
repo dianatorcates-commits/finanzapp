@@ -205,19 +205,19 @@ ${webhookUrl}
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-fadeIn">
-      <div className="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-3xl overflow-hidden shadow-2xl flex flex-col max-h-[90vh]">
+      <div className="bg-[#141422] border border-[#302840] panel-rim rounded-3xl w-full max-w-3xl overflow-hidden shadow-2xl flex flex-col max-h-[90vh]">
         {/* Modal Header */}
-        <div className="p-5 sm:p-6 border-b border-slate-800 flex items-center justify-between bg-gradient-to-r from-slate-900 via-slate-900/90 to-sky-950/40">
+        <div className="p-5 sm:p-6 border-b border-[#302840] flex items-center justify-between bg-gradient-to-r from-[#141422] via-[#141422] to-sky-950/30">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-sky-400 to-indigo-600 flex items-center justify-center text-white shadow-lg shadow-sky-500/20">
+            <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-[#00FFCC] to-[#38bdf8] flex items-center justify-center text-[#0A0A12] shadow-lg shadow-[#00FFCC]/20 font-black">
               <Smartphone className="w-5 h-5" />
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h2 className="text-base sm:text-lg font-bold text-white tracking-tight">
+                <h2 className="text-base sm:text-lg font-black text-white tracking-tight">
                   Automatización Android / Google Wallet
                 </h2>
-                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 uppercase tracking-wider">
+                <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-[#00FFCC]/10 text-[#00FFCC] border border-[#00FFCC]/30 uppercase tracking-wider">
                   Webhook
                 </span>
               </div>
@@ -229,7 +229,7 @@ ${webhookUrl}
 
           <button
             onClick={onClose}
-            className="text-slate-400 hover:text-white p-2 rounded-xl hover:bg-slate-800 transition"
+            className="text-slate-400 hover:text-white p-2 rounded-xl hover:bg-[#1C1C30] transition"
             aria-label="Cerrar Modal"
           >
             <X className="w-5 h-5" />
@@ -237,12 +237,12 @@ ${webhookUrl}
         </div>
 
         {/* Navigation Tabs */}
-        <div className="flex border-b border-slate-800 px-6 bg-slate-950/40">
+        <div className="flex border-b border-[#302840] px-6 bg-[#0A0A12]/60">
           <button
             onClick={() => setActiveTab('setup')}
-            className={`py-3 px-4 text-xs font-semibold border-b-2 transition ${
+            className={`py-3 px-4 text-xs font-bold border-b-2 transition ${
               activeTab === 'setup'
-                ? 'border-sky-400 text-sky-400'
+                ? 'border-[#00FFCC] text-[#00FFCC]'
                 : 'border-transparent text-slate-400 hover:text-slate-200'
             }`}
           >
@@ -250,9 +250,9 @@ ${webhookUrl}
           </button>
           <button
             onClick={() => setActiveTab('macrodroid')}
-            className={`py-3 px-4 text-xs font-semibold border-b-2 transition ${
+            className={`py-3 px-4 text-xs font-bold border-b-2 transition ${
               activeTab === 'macrodroid'
-                ? 'border-sky-400 text-sky-400'
+                ? 'border-[#00FFCC] text-[#00FFCC]'
                 : 'border-transparent text-slate-400 hover:text-slate-200'
             }`}
           >
@@ -260,9 +260,9 @@ ${webhookUrl}
           </button>
           <button
             onClick={() => setActiveTab('tester')}
-            className={`py-3 px-4 text-xs font-semibold border-b-2 transition ${
+            className={`py-3 px-4 text-xs font-bold border-b-2 transition ${
               activeTab === 'tester'
-                ? 'border-sky-400 text-sky-400'
+                ? 'border-[#00FFCC] text-[#00FFCC]'
                 : 'border-transparent text-slate-400 hover:text-slate-200'
             }`}
           >
@@ -620,7 +620,7 @@ ${webhookUrl}
                   <button
                     type="submit"
                     disabled={isTesting || !token}
-                    className="flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-sky-500 to-indigo-600 hover:from-sky-400 hover:to-indigo-500 text-white font-semibold text-xs shadow-lg shadow-sky-500/25 transition disabled:opacity-50"
+                    className="flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-[#00FFCC] to-[#38bdf8] hover:shadow-[0_0_20px_rgba(0,255,204,0.4)] text-[#0A0A12] font-black text-xs shadow-lg transition disabled:opacity-50"
                   >
                     <Send className="w-3.5 h-3.5" />
                     <span>{isTesting ? 'Enviando...' : 'Enviar Prueba al Webhook'}</span>

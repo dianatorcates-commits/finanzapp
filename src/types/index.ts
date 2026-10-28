@@ -57,6 +57,7 @@ export interface Transaction {
   isPotentialDuplicate?: boolean;
   duplicateOfDescription?: string;
   duplicateOfId?: string;
+  source?: 'cartola' | 'google_wallet' | 'telegram' | 'manual' | 'wallet' | string;
 }
 
 export interface ComputedTransaction extends Transaction {

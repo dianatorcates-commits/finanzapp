@@ -1457,6 +1457,8 @@ export function App() {
               <CategoryManagementView
                 categoryMappings={categoryMappings}
                 autoRules={autoRules}
+                transactions={transactions}
+                currentUser={currentUser}
                 onAddCategory={handleAddCategory}
                 onAddSubcategory={handleAddSubcategory}
                 onDeleteCategory={handleDeleteCategory}
@@ -1466,6 +1468,8 @@ export function App() {
                 onAddRule={handleAddAutoRule}
                 onDeleteRule={handleDeleteAutoRule}
                 onApplyRulesToExisting={handleApplyRulesToExisting}
+                onOpenWalletModal={() => (currentUser ? setIsWalletModalOpen(true) : setIsAuthModalOpen(true))}
+                onOpenTelegramModal={() => (currentUser ? setIsTelegramModalOpen(true) : setIsAuthModalOpen(true))}
               />
             ) : activeTab === 'budgets' ? (
               <BudgetAndGoalsView

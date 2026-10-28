@@ -177,18 +177,18 @@ Fecha: Hoy`;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm animate-in fade-in duration-200">
-      <div className="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-xl max-h-[92vh] flex flex-col shadow-2xl overflow-hidden text-slate-100">
+      <div className="bg-[#141422] border border-[#302840] panel-rim rounded-3xl w-full max-w-xl max-h-[92vh] flex flex-col shadow-2xl overflow-hidden text-slate-100">
         
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-800 bg-slate-900/90">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-[#302840] bg-[#141422]">
           <div className="flex items-center gap-3">
-            <div className="p-2.5 rounded-xl bg-sky-500/10 border border-sky-500/20 text-sky-400">
+            <div className="p-2.5 rounded-2xl bg-gradient-to-br from-[#00FFCC] to-[#38bdf8] text-[#0A0A12] font-black shadow-lg shadow-[#00FFCC]/20">
               <Send className="w-5 h-5 -rotate-12" />
             </div>
             <div>
-              <h2 className="text-base font-bold text-white flex items-center gap-2">
+              <h2 className="text-base font-black text-white flex items-center gap-2">
                 Integración con Telegram
-                <span className="text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full bg-sky-500/10 border border-sky-500/30 text-sky-300">
+                <span className="text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-[#00FFCC]/10 border border-[#00FFCC]/30 text-[#00FFCC]">
                   Multiusuario
                 </span>
               </h2>
@@ -199,7 +199,7 @@ Fecha: Hoy`;
           </div>
           <button
             onClick={onClose}
-            className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition"
+            className="p-1.5 rounded-xl text-slate-400 hover:text-white hover:bg-[#1C1C30] transition"
           >
             <X className="w-5 h-5" />
           </button>
