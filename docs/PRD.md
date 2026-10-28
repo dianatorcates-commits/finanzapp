@@ -220,6 +220,23 @@ FinanzApp es una plataforma web financiera integral, interactiva y multi-disposi
   * **Grid Interactivo de Cuentas y Tarjetas de Crédito**:
     * Panel de tarjetas bancarias interactivas con branding por entidad (CMR/Falabella, Santander, Banco de Chile, BCI, Tenpo, etc.), barras de cupo dinámicas, días de corte y vencimiento para TC, y saldo estimado para cuentas vista/corrientes.
     * Permite filtrar todo el dashboard por cuenta con 1 solo clic (`onSelectAccount`).
+* **RF-34 (Tabla y Feed de Movimientos con Badges de Origen, Chips de Filtrado y Vista Móvil en Tarjetas - Fase 3)**:
+  * **Barra de Filtros Rápidos (Chips Horizontales)**:
+    * Selectores tipo chip con conteo dinámico: `Todos (N)`, `Solo Pendientes`, `Tarjetas de Crédito`, `Débito / Transferencias` y `Compras en Cuotas`.
+    * Selector de ordenamiento interactivo: `Más recientes primero`, `Mayor monto` y `Por Estado Conciliación` (prioriza movimientos con alerta de duplicidad y compras de TC pendientes de abono).
+  * **Estilo de Filas en Tabla de Escritorio (`Pantalla7.html` / `TransactionTable.tsx`)**:
+    * Contenedor de tabla bajo diseño Stitch (`panel-rim`, borde `#302840`, cabecera `#0E0E18` y texto secundario `#A098B0`).
+    * **Columna 1 (Fecha & Origen)**: Fecha en fuente monoespaciada (`18 Oct 2026`) con selector editable de período contable (`Mes: YYYY-MM`) y badge distintivo de procedencia: `Google Wallet` (ámbar neón `#FFE04A`), `Santander Transfer` (menta `#00FFCC`), `Cartola Falabella` (slate `#A098B0`), `Webhook Telegram` (magenta `#FF2D78`) o `Cartola Bancaria`.
+    * **Columna 2 (Descripción & Comercio)**: Glosa comercial en tipografía Space Grotesk destacada con badge de posible duplicidad (`Doble?`) y nombre de la cuenta bancaria / tarjeta asociada (`CMR Falabella ••4821`).
+    * **Columna 3 (Categoría)**: Píldora redondeada con emoji representativo (`🛒 Supermercado`, `🚗 Transporte`, `📺 Streaming`, etc.) y selector desplegable interactivo para re-categorización instantánea.
+    * **Columna 4 (Tipo & Cuotas)**: Etiqueta de tipo de movimiento y fracción de cuotas con badge dorado (`4 / 12 cuotas`).
+    * **Columna 5 (Monto Facturado / Real)**: Cifras con signo y color diferenciado (+ en cian/menta `#00FFCC` para abonos e ingresos, - en blanco/slate `#E8E0F0` para gastos), desglose de abonos aplicados y monto neto real utilizado o indicador de `Pagada 100%`.
+    * **Columna 6 (Acciones)**: Acceso directo a vinculación FIFO (`Link2`), edición modal (`Pencil`), eliminación segura (`Trash2`) y resolución de duplicidad en 1 clic (`Check`).
+  * **Vista Móvil en Tarjetas Táctiles (`Mobile2.html` / `TransactionTable.tsx`)**:
+    * En pantallas `< 768px` (`md:hidden`), las transacciones se renderizan como tarjetas individuales en un feed vertical de alta ergonomía táctil sin desbordamiento horizontal:
+      * Cabecera con checkbox de selección múltiple, fecha monoespaciada y badge de origen.
+      * Cuerpo con comercio/descripción destacado a la izquierda y monto principal a la derecha en tipografía grande con micro-indicador de saldo neto.
+      * Pie de tarjeta con categoría e ícono, tipo de transacción, fracción de cuotas y botones de acción táctiles de 44px de altura mínima.
 
 ---
 

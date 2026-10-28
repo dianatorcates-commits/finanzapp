@@ -128,15 +128,15 @@ export const Filters: React.FC<FiltersProps> = ({
   const selectedSubcategoryCount = (filters.subcategories || []).length;
 
   return (
-    <div className="bg-slate-900/80 backdrop-blur-md rounded-2xl shadow-xl border border-slate-800/80 p-5 mb-6">
-      <div className="flex items-center justify-between pb-3 mb-4 border-b border-slate-800/80">
-        <div className="flex items-center space-x-2 text-white font-bold text-sm">
-          <Filter className="w-4 h-4 text-sky-400" />
-          <span>Filtros y Búsqueda</span>
+    <div className="bg-[#141422] border border-[#302840] panel-rim rounded-2xl shadow-xl p-4 sm:p-5 mb-6">
+      <div className="flex items-center justify-between pb-3 mb-4 border-b border-[#302840]">
+        <div className="flex items-center space-x-2 text-white font-headline font-bold text-sm">
+          <Filter className="w-4 h-4 text-[#00FFCC]" />
+          <span>Filtros y Búsqueda Avanzada</span>
         </div>
         <button
           onClick={onReset}
-          className="text-xs text-slate-400 hover:text-rose-400 flex items-center gap-1 font-medium transition"
+          className="text-xs text-[#A098B0] hover:text-rose-400 flex items-center gap-1 font-medium transition"
         >
           <XCircle className="w-3.5 h-3.5" />
           <span>Limpiar Filtros</span>
@@ -147,33 +147,33 @@ export const Filters: React.FC<FiltersProps> = ({
         
         {/* Search Input */}
         <div className="relative lg:col-span-1">
-          <label className="block text-xs font-semibold text-slate-400 mb-1">Buscar Detalle</label>
+          <label className="block text-xs font-semibold text-[#A098B0] mb-1">Buscar Detalle</label>
           <div className="relative">
-            <Search className="w-4 h-4 absolute left-3 top-2.5 text-slate-500" />
+            <Search className="w-4 h-4 absolute left-3 top-2.5 text-[#A098B0]" />
             <input
               type="text"
               placeholder="Uber, Jumbo, Pago..."
               value={filters.searchQuery}
               onChange={(e) => handleInputChange('searchQuery', e.target.value)}
-              className="w-full pl-9 pr-3 py-1.5 text-xs bg-slate-950 border border-slate-800 text-slate-100 rounded-xl focus:outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 placeholder-slate-600"
+              className="w-full pl-9 pr-3 py-1.5 text-xs bg-[#0E0E18] border border-[#302840] text-[#E8E0F0] rounded-xl focus:outline-none focus:border-[#00FFCC] placeholder-slate-600"
             />
           </div>
         </div>
 
         {/* Month Selector */}
         <div>
-          <label className="block text-xs font-semibold text-slate-400 mb-1 flex items-center gap-1">
-            <Calendar className="w-3 h-3 text-slate-500" />
+          <label className="block text-xs font-semibold text-[#A098B0] mb-1 flex items-center gap-1">
+            <Calendar className="w-3 h-3 text-[#A098B0]" />
             <span>Mes / Período</span>
           </label>
           <select
             value={filters.month}
             onChange={(e) => handleInputChange('month', e.target.value)}
-            className="w-full py-1.5 px-3 text-xs bg-slate-950 border border-slate-800 text-slate-100 rounded-xl focus:outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 cursor-pointer font-medium"
+            className="w-full py-1.5 px-3 text-xs bg-[#0E0E18] border border-[#302840] text-[#E8E0F0] rounded-xl focus:outline-none focus:border-[#00FFCC] cursor-pointer font-medium"
           >
-            <option value="ALL" className="bg-slate-900 text-white">Todos los Meses</option>
+            <option value="ALL" className="bg-[#141422] text-white">Todos los Meses</option>
             {availableMonths.map((m) => (
-              <option key={m} value={m} className="bg-slate-900 text-white">
+              <option key={m} value={m} className="bg-[#141422] text-white">
                 {m}
               </option>
             ))}
@@ -182,18 +182,18 @@ export const Filters: React.FC<FiltersProps> = ({
 
         {/* Account / Card Selector */}
         <div>
-          <label className="block text-xs font-semibold text-slate-400 mb-1 flex items-center gap-1">
-            <CreditCard className="w-3 h-3 text-slate-500" />
+          <label className="block text-xs font-semibold text-[#A098B0] mb-1 flex items-center gap-1">
+            <CreditCard className="w-3 h-3 text-[#A098B0]" />
             <span>Cuenta / Tarjeta</span>
           </label>
           <select
             value={filters.accountId}
             onChange={(e) => handleInputChange('accountId', e.target.value)}
-            className="w-full py-1.5 px-3 text-xs bg-slate-950 border border-slate-800 text-slate-100 rounded-xl focus:outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 cursor-pointer font-medium"
+            className="w-full py-1.5 px-3 text-xs bg-[#0E0E18] border border-[#302840] text-[#E8E0F0] rounded-xl focus:outline-none focus:border-[#00FFCC] cursor-pointer font-medium"
           >
-            <option value="ALL" className="bg-slate-900 text-white">Todas las Cuentas</option>
+            <option value="ALL" className="bg-[#141422] text-white">Todas las Cuentas</option>
             {accounts.map((acc) => (
-              <option key={acc.id} value={acc.id} className="bg-slate-900 text-white">
+              <option key={acc.id} value={acc.id} className="bg-[#141422] text-white">
                 {acc.name} {acc.closingDay ? `(Corte día ${acc.closingDay})` : ''}
               </option>
             ))}
@@ -202,15 +202,15 @@ export const Filters: React.FC<FiltersProps> = ({
 
         {/* Multi-Select General Categories Dropdown */}
         <div className="relative" ref={categoryDropdownRef}>
-          <label className="block text-xs font-semibold text-slate-400 mb-1 flex items-center gap-1">
-            <Folder className="w-3 h-3 text-slate-500" />
+          <label className="block text-xs font-semibold text-[#A098B0] mb-1 flex items-center gap-1">
+            <Folder className="w-3 h-3 text-[#A098B0]" />
             <span>Categorías (Multi)</span>
           </label>
 
           <button
             type="button"
             onClick={() => setIsCategoryOpen(!isCategoryOpen)}
-            className="w-full py-1.5 px-3 text-xs bg-slate-950 border border-slate-800 rounded-xl text-left flex items-center justify-between font-medium text-slate-200 hover:border-slate-700 transition focus:outline-none focus:ring-2 focus:ring-sky-500/20"
+            className="w-full py-1.5 px-3 text-xs bg-[#0E0E18] border border-[#302840] rounded-xl text-left flex items-center justify-between font-medium text-[#E8E0F0] hover:border-slate-600 transition focus:outline-none focus:border-[#00FFCC]"
           >
             <span className="truncate">
               {selectedCategoryCount === 0
@@ -219,19 +219,19 @@ export const Filters: React.FC<FiltersProps> = ({
                 ? filters.categories[0]
                 : `${selectedCategoryCount} seleccionadas`}
             </span>
-            <ChevronDown className="w-3.5 h-3.5 text-slate-500 flex-shrink-0 ml-1" />
+            <ChevronDown className="w-3.5 h-3.5 text-[#A098B0] flex-shrink-0 ml-1" />
           </button>
 
           {isCategoryOpen && (
-            <div className="absolute top-full left-0 mt-1 w-64 bg-slate-900 rounded-2xl shadow-2xl border border-slate-700/80 z-50 p-2.5 text-xs backdrop-blur-xl">
-              <div className="flex items-center justify-between pb-2 mb-2 border-b border-slate-800 px-1">
-                <span className="font-bold text-slate-300 text-[11px] uppercase tracking-wider">
+            <div className="absolute top-full left-0 mt-1 w-64 bg-[#141422] rounded-2xl shadow-2xl border border-[#302840] z-50 p-2.5 text-xs backdrop-blur-xl">
+              <div className="flex items-center justify-between pb-2 mb-2 border-b border-[#302840] px-1">
+                <span className="font-bold text-[#E8E0F0] text-[11px] uppercase tracking-wider font-headline">
                   Categorías Generales
                 </span>
                 <button
                   type="button"
                   onClick={handleSelectAllCategories}
-                  className="text-[11px] font-semibold text-sky-400 hover:text-sky-300"
+                  className="text-[11px] font-semibold text-[#00FFCC] hover:underline"
                 >
                   Ver Todas
                 </button>
@@ -244,7 +244,7 @@ export const Filters: React.FC<FiltersProps> = ({
                     <label
                       key={cat.id}
                       className={`flex items-center justify-between p-1.5 rounded-lg cursor-pointer transition select-none ${
-                        isChecked ? 'bg-sky-500/15 text-sky-300 font-semibold border border-sky-500/30' : 'hover:bg-slate-800/60 text-slate-300'
+                        isChecked ? 'bg-[#00FFCC]/15 text-[#00FFCC] font-semibold border border-[#00FFCC]/30' : 'hover:bg-slate-800/60 text-[#E8E0F0]'
                       }`}
                     >
                       <div className="flex items-center gap-2 truncate">
@@ -252,11 +252,11 @@ export const Filters: React.FC<FiltersProps> = ({
                           type="checkbox"
                           checked={isChecked}
                           onChange={() => toggleCategory(cat.name)}
-                          className="w-3.5 h-3.5 text-sky-500 rounded border-slate-700 bg-slate-950 focus:ring-sky-500"
+                          className="w-3.5 h-3.5 text-[#00FFCC] rounded border-[#302840] bg-[#0E0E18] focus:ring-[#00FFCC]"
                         />
                         <span className="truncate text-xs">{cat.name}</span>
                       </div>
-                      <span className="text-[10px] text-slate-400 bg-slate-800 px-1.5 py-0.5 rounded-full font-medium ml-1 flex-shrink-0">
+                      <span className="text-[10px] text-[#A098B0] bg-[#0E0E18] px-1.5 py-0.5 rounded-full font-medium ml-1 flex-shrink-0">
                         {cat.subcategories.length} subs
                       </span>
                     </label>
@@ -265,12 +265,12 @@ export const Filters: React.FC<FiltersProps> = ({
               </div>
 
               {selectedCategoryCount > 0 && (
-                <div className="pt-2 mt-2 border-t border-slate-800 flex justify-between items-center text-[11px]">
-                  <span className="text-slate-400 font-medium">{selectedCategoryCount} seleccionadas</span>
+                <div className="pt-2 mt-2 border-t border-[#302840] flex justify-between items-center text-[11px]">
+                  <span className="text-[#A098B0] font-medium">{selectedCategoryCount} seleccionadas</span>
                   <button
                     type="button"
                     onClick={handleSelectAllCategories}
-                    className="font-semibold text-sky-400 hover:text-sky-300"
+                    className="font-semibold text-[#00FFCC] hover:underline"
                   >
                     Mostrar Todas
                   </button>
@@ -282,15 +282,15 @@ export const Filters: React.FC<FiltersProps> = ({
 
         {/* Multi-Select Subcategory Dropdown */}
         <div className="relative" ref={subcategoryDropdownRef}>
-          <label className="block text-xs font-semibold text-slate-400 mb-1 flex items-center gap-1">
-            <Tag className="w-3 h-3 text-slate-500" />
+          <label className="block text-xs font-semibold text-[#A098B0] mb-1 flex items-center gap-1">
+            <Tag className="w-3 h-3 text-[#A098B0]" />
             <span>Subcategorías (Multi)</span>
           </label>
           
           <button
             type="button"
             onClick={() => setIsSubcategoryOpen(!isSubcategoryOpen)}
-            className="w-full py-1.5 px-3 text-xs bg-slate-950 border border-slate-800 rounded-xl text-left flex items-center justify-between font-medium text-slate-200 hover:border-slate-700 transition focus:outline-none focus:ring-2 focus:ring-sky-500/20"
+            className="w-full py-1.5 px-3 text-xs bg-[#0E0E18] border border-[#302840] rounded-xl text-left flex items-center justify-between font-medium text-[#E8E0F0] hover:border-slate-600 transition focus:outline-none focus:border-[#00FFCC]"
           >
             <span className="truncate">
               {selectedSubcategoryCount === 0
@@ -299,19 +299,19 @@ export const Filters: React.FC<FiltersProps> = ({
                 ? filters.subcategories[0]
                 : `${selectedSubcategoryCount} seleccionadas`}
             </span>
-            <ChevronDown className="w-3.5 h-3.5 text-slate-500 flex-shrink-0 ml-1" />
+            <ChevronDown className="w-3.5 h-3.5 text-[#A098B0] flex-shrink-0 ml-1" />
           </button>
 
           {isSubcategoryOpen && (
-            <div className="absolute top-full left-0 mt-1 w-64 bg-slate-900 rounded-2xl shadow-2xl border border-slate-700/80 z-50 p-2.5 text-xs backdrop-blur-xl">
-              <div className="flex items-center justify-between pb-2 mb-2 border-b border-slate-800 px-1">
-                <span className="font-bold text-slate-300 text-[11px] uppercase tracking-wider">
+            <div className="absolute top-full left-0 mt-1 w-64 bg-[#141422] rounded-2xl shadow-2xl border border-[#302840] z-50 p-2.5 text-xs backdrop-blur-xl">
+              <div className="flex items-center justify-between pb-2 mb-2 border-b border-[#302840] px-1">
+                <span className="font-bold text-[#E8E0F0] text-[11px] uppercase tracking-wider font-headline">
                   Subcategorías
                 </span>
                 <button
                   type="button"
                   onClick={handleSelectAllSubcategories}
-                  className="text-[11px] font-semibold text-sky-400 hover:text-sky-300"
+                  className="text-[11px] font-semibold text-[#00FFCC] hover:underline"
                 >
                   Ver Todas
                 </button>
@@ -324,14 +324,14 @@ export const Filters: React.FC<FiltersProps> = ({
                     <label
                       key={sub}
                       className={`flex items-center gap-2 p-1.5 rounded-lg cursor-pointer transition select-none ${
-                        isChecked ? 'bg-sky-500/15 text-sky-300 font-semibold border border-sky-500/30' : 'hover:bg-slate-800/60 text-slate-300'
+                        isChecked ? 'bg-[#00FFCC]/15 text-[#00FFCC] font-semibold border border-[#00FFCC]/30' : 'hover:bg-slate-800/60 text-[#E8E0F0]'
                       }`}
                     >
                       <input
                         type="checkbox"
                         checked={isChecked}
                         onChange={() => toggleSubcategory(sub)}
-                        className="w-3.5 h-3.5 text-sky-500 rounded border-slate-700 bg-slate-950 focus:ring-sky-500"
+                        className="w-3.5 h-3.5 text-[#00FFCC] rounded border-[#302840] bg-[#0E0E18] focus:ring-[#00FFCC]"
                       />
                       <span className="truncate text-xs">{sub}</span>
                     </label>
@@ -340,12 +340,12 @@ export const Filters: React.FC<FiltersProps> = ({
               </div>
 
               {selectedSubcategoryCount > 0 && (
-                <div className="pt-2 mt-2 border-t border-slate-800 flex justify-between items-center text-[11px]">
-                  <span className="text-slate-400 font-medium">{selectedSubcategoryCount} seleccionadas</span>
+                <div className="pt-2 mt-2 border-t border-[#302840] flex justify-between items-center text-[11px]">
+                  <span className="text-[#A098B0] font-medium">{selectedSubcategoryCount} seleccionadas</span>
                   <button
                     type="button"
                     onClick={handleSelectAllSubcategories}
-                    className="font-semibold text-sky-400 hover:text-sky-300"
+                    className="font-semibold text-[#00FFCC] hover:underline"
                   >
                     Mostrar Todas
                   </button>
@@ -357,18 +357,18 @@ export const Filters: React.FC<FiltersProps> = ({
 
         {/* Transaction Type Selector */}
         <div>
-          <label className="block text-xs font-semibold text-slate-400 mb-1 flex items-center gap-1">
-            <Layers className="w-3 h-3 text-slate-500" />
+          <label className="block text-xs font-semibold text-[#A098B0] mb-1 flex items-center gap-1">
+            <Layers className="w-3 h-3 text-[#A098B0]" />
             <span>Tipo Transacción</span>
           </label>
           <select
             value={filters.transactionType}
             onChange={(e) => handleInputChange('transactionType', e.target.value)}
-            className="w-full py-1.5 px-3 text-xs bg-slate-950 border border-slate-800 text-slate-100 rounded-xl focus:outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 cursor-pointer font-medium"
+            className="w-full py-1.5 px-3 text-xs bg-[#0E0E18] border border-[#302840] text-[#E8E0F0] rounded-xl focus:outline-none focus:border-[#00FFCC] cursor-pointer font-medium"
           >
-            <option value="ALL" className="bg-slate-900 text-white">Todos los Tipos</option>
+            <option value="ALL" className="bg-[#141422] text-white">Todos los Tipos</option>
             {TRANSACTION_TYPES.map((t) => (
-              <option key={t.id} value={t.id} className="bg-slate-900 text-white">
+              <option key={t.id} value={t.id} className="bg-[#141422] text-white">
                 {t.label}
               </option>
             ))}
@@ -378,13 +378,13 @@ export const Filters: React.FC<FiltersProps> = ({
       </div>
 
       {/* Credit Card Pending Filter Switch */}
-      <div className="mt-4 pt-3 border-t border-slate-800/80 flex items-center justify-between">
-        <label className="inline-flex items-center gap-2.5 cursor-pointer text-xs font-medium text-slate-300 hover:text-white transition">
+      <div className="mt-4 pt-3 border-t border-[#302840] flex items-center justify-between">
+        <label className="inline-flex items-center gap-2.5 cursor-pointer text-xs font-medium text-[#E8E0F0] hover:text-white transition">
           <input
             type="checkbox"
             checked={filters.onlyPendingTC}
             onChange={(e) => handleInputChange('onlyPendingTC', e.target.checked)}
-            className="w-4 h-4 rounded text-sky-500 focus:ring-sky-500 border-slate-700 bg-slate-950"
+            className="w-4 h-4 rounded text-[#00FFCC] focus:ring-[#00FFCC] border-[#302840] bg-[#0E0E18]"
           />
           <span>Mostrar solo compras de Tarjeta de Crédito con saldo pendiente (Monto Real Utilizado &gt; 0)</span>
         </label>
