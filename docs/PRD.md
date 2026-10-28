@@ -394,6 +394,14 @@ FinanzApp es una plataforma web financiera integral, interactiva y multi-disposi
     * Zona de arrastre (Dropzone) con borde cian punteado (`border-[#00FFCC]/40`), icono de nube y botón de examen local.
     * Tabla de previsualización en tema oscuro con edición in situ de fecha/período, gestión de alertas de duplicidad y botón de confirmación magenta con glow.
 
+* **RF-42 (Descongestión y Arquitectura Limpia de la Barra Superior TopBar - Issue #33)**:
+  * **Centralización de CTAs en Sidebar**: Retiro de los botones de acción rápida de la barra superior (`TopBar.tsx`), concentrando los flujos de creación (`+ Cargar Movimiento` e `📥 Cargar Cartola`) de forma canónica y visible en el panel lateral izquierdo (`Sidebar.tsx`) y en el menú móvil (`BottomNavBar.tsx`).
+  * **Consolidación de la Mascota**: Remoción del mini-avatar comprimido de la cabecera superior, consolidando la experiencia viva de la billetera en el widget flotante interactivo permanente de la esquina inferior derecha (RF-40 / Issue #31) y en el avatar de marca del Sidebar.
+  * **Composición Minimalista de 3 Secciones Desahogadas**:
+    * *Extremo Izquierdo*: Selector de Cuenta activa `[💳 Todas las Cuentas y TC]` con truncado adaptativo y botón de menú táctil en móviles.
+    * *Centro*: Barra de Búsqueda global `[🔍 Buscar por comercio, glosa o monto... ⌘K]` con amplitud máxima expandida (`max-w-md lg:max-w-xl`), permitiendo lectura completa sin cortes de texto.
+    * *Extremo Derecho*: Selector de Período `[< 📅 Mes >]` con navegación paso a paso, píldora de sincronización en la nube (`Sync Nube` / `Demo`) y campana de notificaciones.
+
 ---
 
 ## 5. Modelo de Datos Normalizado (Supabase PostgreSQL)

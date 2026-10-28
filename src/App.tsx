@@ -1366,14 +1366,11 @@ export function App() {
           availableMonths={availableMonths}
           onSelectMonth={(m) => setFilters((prev) => ({ ...prev, month: m }))}
           currentUser={currentUser}
-          transactions={transactions}
           isCloudLoading={isCloudLoading}
           onToggleMobileMenu={() => setIsMobileSidebarOpen((prev) => !prev)}
           searchQuery={filters.searchQuery}
           onSearchChange={(q) => setFilters((prev) => ({ ...prev, searchQuery: q }))}
           notificationCount={duplicateCount}
-          onOpenAddTransaction={() => setIsAddTransactionModalOpen(true)}
-          onOpenImport={() => setIsImportModalOpen(true)}
         />
 
         {/* Scrollable Main Workspace */}

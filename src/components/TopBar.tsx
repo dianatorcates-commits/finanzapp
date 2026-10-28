@@ -9,12 +9,9 @@ import {
   ChevronLeft,
   ChevronRight,
   Bell,
-  Command,
-  Plus,
-  Upload
+  Command
 } from 'lucide-react';
 import { Account, Transaction } from '../types';
-import { WakingMascotWidget } from './WakingMascotWidget';
 
 interface TopBarProps {
   accounts: Account[];
@@ -30,8 +27,6 @@ interface TopBarProps {
   searchQuery?: string;
   onSearchChange?: (query: string) => void;
   notificationCount?: number;
-  onOpenAddTransaction?: () => void;
-  onOpenImport?: () => void;
 }
 
 function formatMonthLabel(monthStr: string): string {
@@ -54,14 +49,11 @@ export const TopBar: React.FC<TopBarProps> = ({
   availableMonths,
   onSelectMonth,
   currentUser,
-  transactions,
   isCloudLoading = false,
   onToggleMobileMenu,
   searchQuery = '',
   onSearchChange,
-  notificationCount = 0,
-  onOpenAddTransaction,
-  onOpenImport
+  notificationCount = 0
 }) => {
   const searchInputRef = useRef<HTMLInputElement>(null);
 
@@ -109,7 +101,7 @@ export const TopBar: React.FC<TopBarProps> = ({
     availableMonths.indexOf(selectedMonth) !== -1;
 
   return (
-    <header className="h-16 bg-[#0A0A12]/90 backdrop-blur-xl border-b border-[#302840]/60 flex items-center justify-between px-3 sm:px-6 w-full sticky top-0 z-30 shadow-sm font-sans">
+    <header className="h-16 bg-[#0A0A12]/90 backdrop-blur-xl border-b border-[#302840]/60 flex items-center justify-between px-3 sm:px-6 w-full sticky top-0 z-30 shadow-sm font-sans gap-3">
       
       {/* Left Section: Mobile Menu Toggle + Account Selector */}
       <div className="flex items-center gap-2 sm:gap-3 shrink-0">
@@ -129,7 +121,7 @@ export const TopBar: React.FC<TopBarProps> = ({
           <select
             value={activeAccountId}
             onChange={(e) => onSelectAccount(e.target.value)}
-            className="bg-transparent text-xs sm:text-sm text-[#E8E0F0] font-headline font-semibold focus:outline-none cursor-pointer pr-1 max-w-[130px] sm:max-w-[220px] md:max-w-[260px] truncate"
+            className="bg-transparent text-xs sm:text-sm text-[#E8E0F0] font-headline font-semibold focus:outline-none cursor-pointer pr-1 max-w-[140px] sm:max-w-[200px] md:max-w-[240px] truncate"
           >
             <option value="ALL" className="bg-[#0F0F1A] text-[#E8E0F0] font-normal">
               Todas las Cuentas y TC
@@ -144,8 +136,8 @@ export const TopBar: React.FC<TopBarProps> = ({
         </div>
       </div>
 
-      {/* Center Section: Global Search Bar with ⌘K Shortcut (Desktop & Tablet) */}
-      <div className="hidden lg:flex items-center flex-1 max-w-md mx-4">
+      {/* Center Section: Global Search Bar with ⌘K Shortcut (Spacious & Comfortable) */}
+      <div className="hidden sm:flex items-center flex-1 max-w-md lg:max-w-xl mx-2 md:mx-4">
         <div className="relative w-full">
           <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-[#A098B0]">
             <Search className="w-4 h-4" />
@@ -164,33 +156,6 @@ export const TopBar: React.FC<TopBarProps> = ({
             </kbd>
           </div>
         </div>
-      </div>
-
-      {/* Center-Right Quick Action Buttons: Cargar Movimiento & Cargar Cartola */}
-      <div className="flex items-center gap-1.5 sm:gap-2">
-        {onOpenAddTransaction && (
-          <button
-            onClick={onOpenAddTransaction}
-            className="flex items-center gap-1.5 bg-[#FF2D78] hover:bg-[#ff1a6c] text-white text-xs font-headline font-bold px-2.5 sm:px-3 py-1.5 rounded-xl shadow-md glow-primary transition transform active:scale-95"
-            title="Cargar movimiento individual manual"
-          >
-            <Plus className="w-3.5 h-3.5 stroke-[3]" />
-            <span className="hidden sm:inline">Cargar Movimiento</span>
-            <span className="sm:hidden text-[11px]">Movimiento</span>
-          </button>
-        )}
-
-        {onOpenImport && (
-          <button
-            onClick={onOpenImport}
-            className="flex items-center gap-1.5 bg-[#141422] hover:bg-[#1C1C2E] text-[#00FFCC] border border-[#00FFCC]/30 hover:border-[#00FFCC] text-xs font-headline font-semibold px-2.5 sm:px-3 py-1.5 rounded-xl transition shadow-sm"
-            title="Cargar estado de cuenta o cartola bancaria"
-          >
-            <Upload className="w-3.5 h-3.5" />
-            <span className="hidden md:inline">Cargar Cartola</span>
-            <span className="md:hidden text-[11px]">Cartola</span>
-          </button>
-        )}
       </div>
 
       {/* Right Section: Month Stepper Navigation + Cloud Sync + Notifications */}
@@ -234,9 +199,6 @@ export const TopBar: React.FC<TopBarProps> = ({
             <ChevronRight className="w-4 h-4" />
           </button>
         </div>
-
-        {/* Waking Mascot Mini Avatar Mood/Energy Indicator */}
-        <WakingMascotWidget variant="mini-badge" transactions={transactions} />
 
         {/* Cloud Sync Status Pill */}
         {currentUser ? (
