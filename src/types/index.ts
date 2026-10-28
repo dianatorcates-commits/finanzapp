@@ -143,6 +143,10 @@ export interface Credit {
 // ==========================================
 
 export type MetricType =
+  | 'liquidity'               // Saldo Disponible en Cuentas (Terminal)
+  | 'credit_card_debt'        // Deuda Utilizada en TC (Terminal)
+  | 'billing_projection'      // Facturación al Corte TC (Terminal)
+  | 'monthly_net_spent'       // Gasto Neto Real del Mes (Terminal)
   | 'gross_expenses'          // Gastos Totales (Original)
   | 'total_payments'          // Abonos, Pagos y Sueldos
   | 'net_amount_used'         // Monto Real Utilizado
@@ -158,8 +162,8 @@ export interface CustomMetricCard {
   type: MetricType;
   filterAccountId?: string;   // 'ALL' o ID de cuenta específica
   filterCategory?: string;    // 'ALL' o Categoría específica
-  color: 'rose' | 'emerald' | 'sky' | 'purple' | 'amber' | 'teal' | 'indigo';
-  icon: string;               // 'trending-down' | 'trending-up' | 'shield-check' | 'credit-card' | 'piggy-bank' | 'shopping-cart' | 'landmark'
+  color: 'rose' | 'emerald' | 'sky' | 'purple' | 'amber' | 'teal' | 'indigo' | 'neon-cyan' | 'neon-magenta' | 'neon-amber' | 'neon-blue' | string;
+  icon: string;               // 'wallet' | 'credit-card' | 'calendar' | 'shield-check' | 'trending-down' | 'trending-up' | 'piggy-bank' | 'shopping-cart' | 'landmark' | string
   enabled: boolean;
   isSystem?: boolean;
 }
@@ -188,12 +192,48 @@ export interface DashboardConfig {
 export const DEFAULT_DASHBOARD_CONFIG: DashboardConfig = {
   metrics: [
     {
+      id: 'm-liquidity',
+      title: 'Saldo en Cuentas',
+      type: 'liquidity',
+      color: 'neon-cyan',
+      icon: 'wallet',
+      enabled: true,
+      isSystem: true
+    },
+    {
+      id: 'm-credit-card-debt',
+      title: 'Deuda Utilizada en TC',
+      type: 'credit_card_debt',
+      color: 'neon-cyan',
+      icon: 'credit-card',
+      enabled: true,
+      isSystem: true
+    },
+    {
+      id: 'm-billing-projection',
+      title: 'Facturación al Corte',
+      type: 'billing_projection',
+      color: 'neon-amber',
+      icon: 'calendar',
+      enabled: true,
+      isSystem: true
+    },
+    {
+      id: 'm-monthly-net-spent',
+      title: 'Gasto Neto Real del Mes',
+      type: 'monthly_net_spent',
+      color: 'neon-magenta',
+      icon: 'shield-check',
+      enabled: true,
+      isSystem: true
+    },
+    {
       id: 'm-gross-expenses',
       title: 'Gastos Totales (Original)',
       type: 'gross_expenses',
       color: 'rose',
       icon: 'trending-down',
-      enabled: true,
+      enabled: false,
       isSystem: true
     },
     {
@@ -202,7 +242,7 @@ export const DEFAULT_DASHBOARD_CONFIG: DashboardConfig = {
       type: 'total_payments',
       color: 'emerald',
       icon: 'trending-up',
-      enabled: true,
+      enabled: false,
       isSystem: true
     },
     {
@@ -211,7 +251,7 @@ export const DEFAULT_DASHBOARD_CONFIG: DashboardConfig = {
       type: 'net_amount_used',
       color: 'sky',
       icon: 'shield-check',
-      enabled: true,
+      enabled: false,
       isSystem: true
     },
     {
@@ -220,7 +260,7 @@ export const DEFAULT_DASHBOARD_CONFIG: DashboardConfig = {
       type: 'unallocated_tc',
       color: 'purple',
       icon: 'credit-card',
-      enabled: true,
+      enabled: false,
       isSystem: true
     },
     {

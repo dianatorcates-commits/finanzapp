@@ -319,6 +319,32 @@ FinanzApp es una plataforma web financiera integral, interactiva y multi-disposi
   * **Gestor de Categorías y Subcategorías**:
     * Panel Master-Detail con creación, edición en línea y eliminación protegida de taxonomías financieras bajo diseño Stitch (`#141422`, `panel-rim`, bordes `#302840`).
 
+* **RF-39 (Personalización Dinámica del Dashboard RF-28, Creador Visual de Métricas y Grid Reordenable Stitch - Fase 4)**:
+  * **Renderizado Dinámico de Grilla de Indicadores (`MetricCards.tsx`)**:
+    * Mapeo dinámico y reactivo basado exclusivamente en las tarjetas activas (`metrics.filter(m => m.enabled)`).
+    * Grilla auto-adaptable según la cantidad de tarjetas visibles:
+      * 1 tarjeta: `grid-cols-1`
+      * 2 tarjetas: `grid-cols-1 sm:grid-cols-2`
+      * 3 tarjetas: `grid-cols-1 sm:grid-cols-3`
+      * 4 tarjetas: `grid-cols-1 sm:grid-cols-2 xl:grid-cols-4`
+      * 5 o más tarjetas: `grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4`
+    * Estética Stitch ("Neon Tokyo"): Fondos `#111118`, borde `#302840`, `panel-rim`, badges temáticos de categoría/tipo, montos numéricos en tipografía monoespaciada (`Space Grotesk`) y micro-indicadores contextuales.
+    * Soporte integral para indicadores del sistema (`liquidity`, `credit_card_debt`, `billing_projection`, `monthly_net_spent`, `gross_expenses`, `total_payments`, `net_amount_used`, `unallocated_tc`, `net_balance`) e indicadores personalizados creados por el usuario con filtrado estricto por cuenta o categoría.
+    * Estado de contingencia accesible cuando el usuario oculta todas las métricas, con llamada directa a la configuración.
+  * **Modal de Personalización de Grilla y Widgets (`CustomizeDashboardModal.tsx` / `Pantalla4.html` & `Mobile10.html`)**:
+    * **3 Pestañas Especializadas**:
+      1. `Tarjetas de Métricas`: Lista de indicadores con interruptores rápidos estilo neón (`#00FFCC`), badges de tipo y selector para abrir el constructor visual.
+      2. `Gráficos por Cuenta`: Activación de módulos gráficos (`budgets_progress`, `category_pie`, `monthly_trend`, `account_breakdown`, `account_specific`) y generador de gráficos exclusivos por tarjeta.
+      3. `Disposición de Grilla (Drag & Drop)`: Reordenador visual intuitivo de tarjetas e indicadores con botones de subir/bajar posición (`ChevronUp`/`ChevronDown`), indicador numérico (#1, #2, ...) y arrastre táctil/desktop con doble barra (`Equal`/`GripVertical`).
+    * **Configurador de Indicador Personalizado (Live Builder)**:
+      * Título y Nombre personalizado.
+      * Tipo de cálculo (`compra`, `pago_tc`, `total_payments`, `gross_expenses`, `net_amount_used`, `net_balance`, `custom`).
+      * Filtro por cuenta específica o global.
+      * Filtro por categoría o global.
+      * Paleta de acentos Stitch: Cian Neón (`#00FFCC`), Rosa Neón (`#FF2D78`), Amarillo Neón (`#FFE04A`), Azul Eléctrico (`#38bdf8`), Púrpura (`#A78BFA`), Esmeralda (`#10B981`) y Carmesí (`#F43F5E`).
+      * **Previsualización en Vivo (Live Preview)**: Renderizado en tiempo real de la tarjeta Stitch con sus badges, colores y monto de demostración antes de confirmar la adición.
+    * **Persistencia Multi-Dispositivo**: Almacenamiento instantáneo y resiliente en `localStorage` y en la columna `dashboard_config` (`JSONB`) de la tabla `user_settings` de Supabase, con normalización retrocompatible de versiones previas.
+
 ---
 
 ## 5. Modelo de Datos Normalizado (Supabase PostgreSQL)

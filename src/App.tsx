@@ -214,12 +214,19 @@ export function App() {
   const [telegramProfile, setTelegramProfile] = useState<TelegramProfile | null>(null);
   const [selectedPurchaseForPayment, setSelectedPurchaseForPayment] = useState<ComputedTransaction | null>(null);
 
-  // Helper to ensure dashboard config conforms to array format
+  // Helper to ensure dashboard config conforms to array format and has all system metrics available
   const normalizeDashboardConfig = (raw: any): DashboardConfig => {
     if (!raw || !Array.isArray(raw.metrics) || !Array.isArray(raw.charts)) {
       return DEFAULT_DASHBOARD_CONFIG;
     }
-    return raw as DashboardConfig;
+    const existingMetricIds = new Set(raw.metrics.map((m: any) => m.id));
+    const missingSystemMetrics = DEFAULT_DASHBOARD_CONFIG.metrics.filter(
+      (defaultM) => !existingMetricIds.has(defaultM.id)
+    );
+    return {
+      metrics: [...raw.metrics, ...missingSystemMetrics],
+      charts: raw.charts
+    };
   };
 
   // Dashboard Customization State (defaults to DEFAULT_DASHBOARD_CONFIG for users without custom config)
