@@ -237,6 +237,33 @@ FinanzApp es una plataforma web financiera integral, interactiva y multi-disposi
       * Cabecera con checkbox de selección múltiple, fecha monoespaciada y badge de origen.
       * Cuerpo con comercio/descripción destacado a la izquierda y monto principal a la derecha en tipografía grande con micro-indicador de saldo neto.
       * Pie de tarjeta con categoría e ícono, tipo de transacción, fracción de cuotas y botones de acción táctiles de 44px de altura mínima.
+* **RF-35 (Gestión de Cuentas & Tarjetas con Panel de Auditoría Matemática y Desglose en Tiempo Real - Fase 3)**:
+  * **Pestañas Superiores de Filtrado de Instrumentos**:
+    * Pestañas interactivas tipo chip con conteo en vivo: `Todas las Cuentas`, `Tarjetas de Crédito`, `Cuentas Vista & Corrientes` y `Prepago / Otras`.
+  * **Grid Principal de Cuentas Interactivas (`Pantalla2.html` / `AccountsManagementView.tsx`)**:
+    * Tarjetas de cuentas con logotipo/avatar institucional por entidad (CMR/Falabella, Santander, Banco de Chile, BCI, Tenpo, BancoEstado, etc.).
+    * **Para Tarjetas de Crédito**: Visualización de deuda utilizada vs cupo disponible con micro-barra de progreso dinámica, fechas clave (Día de corte y Día de pago), y estado de ocupación de línea de crédito.
+    * **Para Cuentas de Débito / Vista / Ahorro**: Saldo estimado actual en cian/verde neón (`#00FFCC`), saldo base inicial y variación del período.
+    * Selección interactiva de tarjeta con borde neón activo (`border-[#00FFCC]`) que actualiza la columna de auditoría en tiempo real.
+  * **Columna Lateral de Auditoría & Desglose en Tiempo Real**:
+    * Panel dedicado en el lateral derecho que audita la fórmula matemática exacta sin ambigüedades:
+      * **Para Cuentas Vista/Corrientes (Fórmula Exacta RF-14)**:
+        * `(+) Saldo Inicial Registrado`
+        * `(+) Ingresos Validados` (Sueldos, transferencias recibidas)
+        * `(-) Egresos de Consumo` (Débitos, compras cotidianas)
+        * `(-) Pagos TC` (Aislados para evitar duplicidad de cargos)
+        * `(=) Saldo Estimado Disponible` (Cifra destacada en 2xl)
+        * Píldora de variación neta del período (`+X% Neto`).
+      * **Para Tarjetas de Crédito (Desglose de Facturación y Deuda del Ciclo)**:
+        * `(+) Compras Directas del Mes`
+        * `(+) Cuotas Imputadas al Período`
+        * `(+) Suscripciones y Recurrentes`
+        * `(-) Abonos y Pagos Aplicados`
+        * `(=) Deuda Utilizada / Facturada`
+        * Barra de progreso de cupo total vs cupo disponible y badges de días de corte/pago.
+    * Botón de acceso directo: "Reconciliar Saldo con Cartola Bancaria" y "Simular Facturación al Corte".
+  * **Modal Unificado de Creación y Edición de Cuentas**:
+    * Drawer modal flotante para configurar nombre descriptivo, entidad financiera, tipo de instrumento, terminación, cupo/saldo inicial y días de corte/vencimiento (1 al 31).
 
 ---
 

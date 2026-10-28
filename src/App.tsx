@@ -1485,9 +1485,13 @@ export function App() {
               <AccountsManagementView
                 accounts={accounts}
                 transactions={transactions}
+                credits={credits}
+                currentPeriod={filters.month !== 'ALL' ? filters.month : new Date().toISOString().slice(0, 7)}
                 onAddAccount={handleAddAccount}
                 onUpdateAccount={handleUpdateAccount}
                 onDeleteAccount={handleDeleteAccount}
+                onOpenImportModal={() => setIsImportModalOpen(true)}
+                onOpenBillingModal={() => setIsBillingModalOpen(true)}
               />
             ) : (
               <CreditsManagementView
