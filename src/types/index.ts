@@ -133,6 +133,8 @@ export interface Credit {
   startDate?: string;           // Fecha o mes de inicio (YYYY-MM)
   lastPaidPeriod?: string;      // Último mes en que se pagó la cuota (YYYY-MM)
   accountId?: string;           // ID de la tarjeta o cuenta bancaria con que se paga
+  interestRate?: number;        // Tasa de interés mensual o CAE (%)
+  isActive?: boolean;           // Estado activo o pausado (ej. suscripciones)
 }
 
 // ==========================================

@@ -284,6 +284,19 @@ FinanzApp es una plataforma web financiera integral, interactiva y multi-disposi
   * **Modales de Creación y Edición**:
     * Modal para crear/editar presupuestos agrupables con selector dinámico de categorías y subcategorías.
     * Modal para crear/editar metas de ahorro con selector de íconos temáticos y fechas objetivo.
+* **RF-37 (Créditos, Compras en Cuotas, Suscripciones y Simulador de Facturación TC Stitch - Fase 4)**:
+  * **Resumen Superior de Deuda & Facturación (Hero Card en `CreditsManagementView.tsx`)**:
+    * **Tarjeta Principal de Próxima Facturación al Corte**: Proyección del monto a liquidar para la tarjeta de crédito activa con badge de entidad bancaria (`getBankBranding`), fecha de corte estimada (`Día X de Mes YYYY`), desglose en tres partes (compras directas del mes, cuotas imputables y suscripciones recurrentes) y botón de acción directa `⚡ Generar cargos al corte (1 clic)`.
+    * **4 Tarjetas de Indicadores Consolidados**: Deuda Total Restante (mi parte por amortizar), Cuotas Activas (compras vigentes y compromiso mensual), Suscripciones Mensuales (costo recurrente activo) y Monto de Gastos Compartidos (porción compartida con terceros).
+  * **Pestañas Especializadas**:
+    * `🏦 Créditos`: Préstamos hipotecarios, de consumo, automotrices y personales con amortización, tasa de interés (CAE/mensual), proyección de fecha de término calculada y registro rápido de cuota pagada.
+    * `🛍️ Compras en Cuotas`: Compras a plazos en tarjetas de crédito con barra de progreso en neón (`#00FFCC` a `#38bdf8`), badge destacado de cuota que toca pagar este mes (ej. `⚡ Cuota 4 de 12`), saldo pendiente y tarjeta vinculada.
+    * `🔄 Suscripciones`: Servicios mensuales recurrentes (streaming, gimnasio, seguros) con interruptor interactivo Activo/Pausado, proyección de costo anual, día del cobro y registro de cobro al día.
+  * **Modal de Simulación de Facturación al Corte (`CreditCardBillingModal.tsx`)**:
+    * Selector dropdown estilizado de tarjeta de crédito con branding bancario (sin scrollbars horizontales).
+    * Selector interactivo de períodos pasados y futuros (`< Período >`).
+    * Lista de verificación con checkboxes para cuotas y suscripciones con badge `✅ Ya en movimientos` para ítems ya facturados en el ciclo.
+    * Botón de acción masiva en 1 clic: `⚡ Generar Cargos Seleccionados (N)`.
 
 ---
 

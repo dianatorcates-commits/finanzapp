@@ -21,6 +21,7 @@ import {
 } from 'lucide-react';
 import { Account, ComputedTransaction, Credit, Transaction } from '../types';
 import { isPaymentOrIncomeTransaction } from '../utils/paymentAllocation';
+import { getBankBranding } from './AccountsManagementView';
 
 export interface CreditCardBillingModalProps {
   isOpen: boolean;
@@ -679,24 +680,24 @@ export const CreditCardBillingModal: React.FC<CreditCardBillingModalProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-950/80 backdrop-blur-md overflow-y-auto animate-fade-in">
-      <div className="bg-slate-900 border border-slate-800 rounded-3xl shadow-2xl w-full max-w-4xl max-h-[92vh] flex flex-col overflow-hidden relative">
-        {/* Header */}
-        <div className="p-5 sm:p-6 bg-slate-950/80 border-b border-slate-800 flex items-center justify-between gap-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/85 backdrop-blur-md overflow-y-auto animate-fadeIn">
+      <div className="bg-[#141422] border border-[#302840] panel-rim rounded-2xl shadow-2xl w-full max-w-4xl max-h-[92vh] flex flex-col overflow-hidden relative">
+        {/* Header Stitch Spec */}
+        <div className="p-5 sm:p-6 bg-[#111118] border-b border-[#302840] flex items-center justify-between gap-4">
           <div className="flex items-center gap-3.5">
-            <div className="p-3 rounded-2xl bg-gradient-to-br from-indigo-500/20 to-purple-500/20 border border-indigo-500/30 text-indigo-400">
-              <CreditCard className="w-6 h-6" />
+            <div className="p-3 rounded-2xl bg-gradient-to-br from-[#00FFCC]/20 via-[#38bdf8]/20 to-[#FF2D78]/20 border border-[#00FFCC]/30 text-[#00FFCC] shadow-inner shrink-0">
+              <CreditCard className="w-6 h-6 stroke-[2.2]" />
             </div>
             <div>
-              <div className="flex items-center gap-2">
-                <h2 className="text-lg sm:text-xl font-bold text-white tracking-tight">
+              <div className="flex items-center gap-2 flex-wrap">
+                <h2 className="text-lg sm:text-xl font-headline font-black text-white tracking-tight">
                   Proyección de Facturación al Corte
                 </h2>
-                <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-indigo-500/10 text-indigo-400 border border-indigo-500/30">
-                  Tarjetas de Crédito
+                <span className="text-[10px] font-mono font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-[#00FFCC]/15 text-[#00FFCC] border border-[#00FFCC]/30">
+                  Fase 4 • Stitch
                 </span>
               </div>
-              <p className="text-xs text-slate-400 mt-0.5">
+              <p className="text-xs text-[#A098B0] mt-0.5 font-sans">
                 Calcula con exactitud cuánto facturará cada tarjeta sumando compras del mes, cuotas y suscripciones.
               </p>
             </div>
@@ -704,14 +705,14 @@ export const CreditCardBillingModal: React.FC<CreditCardBillingModalProps> = ({
 
           <button
             onClick={onClose}
-            className="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition"
+            className="p-2 rounded-xl text-[#A098B0] hover:text-white hover:bg-[#1A1A2E] transition"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
         {/* Period Selector & Card Selection Dropdown / Combo Box */}
-        <div className="p-4 sm:p-5 bg-slate-900/90 border-b border-slate-800/80 flex flex-col sm:flex-row sm:items-end justify-between gap-4">
+        <div className="p-4 sm:p-5 bg-[#0E0E18] border-b border-[#302840] flex flex-col sm:flex-row sm:items-end justify-between gap-4">
           {/* Card Selection Dropdown / Combo Box */}
           {creditCards.length === 0 ? (
             <div className="text-xs text-amber-400 flex items-center gap-2">
@@ -719,63 +720,71 @@ export const CreditCardBillingModal: React.FC<CreditCardBillingModalProps> = ({
               <span>No tienes tarjetas de crédito registradas en tus cuentas.</span>
             </div>
           ) : (
-            <div className="relative w-full sm:w-auto sm:min-w-[340px]" ref={cardDropdownRef}>
-              <label className="block text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
-                <CreditCard className="w-3.5 h-3.5 text-indigo-400" />
-                <span>Tarjeta de Crédito</span>
+            <div className="relative w-full sm:w-auto sm:min-w-[360px]" ref={cardDropdownRef}>
+              <label className="block text-[10px] font-mono font-bold text-[#A098B0] uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
+                <CreditCard className="w-3.5 h-3.5 text-[#00FFCC]" />
+                <span>Tarjeta de Crédito Activa</span>
               </label>
-              <button
-                type="button"
-                onClick={() => setIsCardDropdownOpen(!isCardDropdownOpen)}
-                className={`w-full flex items-center justify-between gap-3 px-3.5 py-2.5 rounded-2xl bg-slate-950 border transition text-left shadow-sm ${
-                  isCardDropdownOpen
-                    ? 'border-indigo-500 ring-2 ring-indigo-500/25 bg-slate-950'
-                    : 'border-slate-800 hover:border-slate-700 bg-slate-950/80 hover:bg-slate-950'
-                }`}
-              >
-                <div className="flex items-center gap-3 min-w-0">
-                  <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-indigo-500/20 to-purple-500/20 border border-indigo-500/30 text-indigo-400 flex items-center justify-center shrink-0">
-                    <CreditCard className="w-4 h-4" />
-                  </div>
-                  <div className="min-w-0">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <span className="text-xs font-bold text-white truncate block">
-                        {activeCard?.name}
-                      </span>
-                      {activeCard?.closingDay && (
-                        <span className="text-[10px] px-1.5 py-0.2 rounded font-semibold bg-indigo-500/15 text-indigo-300 border border-indigo-500/30 shrink-0">
-                          Corte día {activeCard.closingDay}
-                        </span>
-                      )}
-                    </div>
-                    <span className="text-[11px] text-slate-400 block truncate mt-0.5">
-                      {activeCard?.bank}
-                      {activeCard?.creditLimit ? ` • Cupo: ${formatCLP(activeCard.creditLimit)}` : ''}
-                    </span>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-1.5 text-slate-400 shrink-0">
-                  <span className="text-[10px] font-medium hidden sm:inline text-slate-500">
-                    Cambiar
-                  </span>
-                  <ChevronDown
-                    className={`w-4 h-4 transition-transform duration-200 ${
-                      isCardDropdownOpen ? 'rotate-180 text-indigo-400' : ''
+              {(() => {
+                const activeBranding = getBankBranding(activeCard?.bank, activeCard?.name);
+                return (
+                  <button
+                    type="button"
+                    onClick={() => setIsCardDropdownOpen(!isCardDropdownOpen)}
+                    className={`w-full flex items-center justify-between gap-3 px-3.5 py-2.5 rounded-xl bg-[#0A0A12] border transition text-left shadow-sm ${
+                      isCardDropdownOpen
+                        ? 'border-[#00FFCC] ring-2 ring-[#00FFCC]/20 bg-[#0A0A12]'
+                        : 'border-[#302840] hover:border-[#00FFCC]/40 bg-[#0A0A12]'
                     }`}
-                  />
-                </div>
-              </button>
+                  >
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div
+                        className={`w-9 h-9 rounded-xl border flex items-center justify-center font-headline font-bold text-xs shrink-0 ${activeBranding.badgeBg} ${activeBranding.badgeBorder} ${activeBranding.badgeText}`}
+                      >
+                        {activeBranding.tag}
+                      </div>
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="text-xs font-headline font-bold text-white truncate block">
+                            {activeCard?.name}
+                          </span>
+                          {activeCard?.closingDay && (
+                            <span className="text-[10px] font-mono px-2 py-0.5 rounded-full font-bold bg-[#00FFCC]/15 text-[#00FFCC] border border-[#00FFCC]/30 shrink-0">
+                              Corte día {activeCard.closingDay}
+                            </span>
+                          )}
+                        </div>
+                        <span className="text-[11px] text-[#A098B0] block truncate mt-0.5 font-sans">
+                          {activeCard?.bank}
+                          {activeCard?.creditLimit ? ` • Cupo: ${formatCLP(activeCard.creditLimit)}` : ''}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-1.5 text-[#A098B0] shrink-0">
+                      <span className="text-[10px] font-medium hidden sm:inline">
+                        Cambiar
+                      </span>
+                      <ChevronDown
+                        className={`w-4 h-4 transition-transform duration-200 ${
+                          isCardDropdownOpen ? 'rotate-180 text-[#00FFCC]' : ''
+                        }`}
+                      />
+                    </div>
+                  </button>
+                );
+              })()}
 
               {/* Dropdown Menu */}
               {isCardDropdownOpen && (
-                <div className="absolute left-0 top-full mt-1.5 w-full bg-slate-900/98 backdrop-blur-xl border border-slate-700/90 rounded-2xl shadow-2xl p-1.5 z-40 space-y-1 animate-fade-in max-h-72 overflow-y-auto">
-                  <div className="px-3 py-1.5 text-[10px] font-bold text-slate-400 uppercase tracking-wider border-b border-slate-800/80 flex items-center justify-between">
+                <div className="absolute left-0 top-full mt-1.5 w-full bg-[#141422] border border-[#302840] panel-rim rounded-2xl shadow-2xl p-1.5 z-40 space-y-1 animate-fadeIn max-h-72 overflow-y-auto">
+                  <div className="px-3 py-1.5 text-[10px] font-mono font-bold text-[#A098B0] uppercase tracking-wider border-b border-[#302840] flex items-center justify-between">
                     <span>Tus Tarjetas de Crédito</span>
-                    <span className="text-slate-500">{creditCards.length} disponibles</span>
+                    <span className="text-[#00FFCC]">{creditCards.length} disponibles</span>
                   </div>
                   {creditCards.map((card) => {
                     const isSelected = card.id === activeCard?.id;
+                    const branding = getBankBranding(card.bank, card.name);
                     return (
                       <button
                         key={card.id}
@@ -786,32 +795,28 @@ export const CreditCardBillingModal: React.FC<CreditCardBillingModalProps> = ({
                         }}
                         className={`w-full flex items-center justify-between gap-3 p-2.5 rounded-xl text-left transition ${
                           isSelected
-                            ? 'bg-indigo-600/20 text-white border border-indigo-500/40 shadow-sm'
-                            : 'hover:bg-slate-800/80 text-slate-300 hover:text-white'
+                            ? 'bg-[#00FFCC]/15 text-white border border-[#00FFCC]/40 shadow-sm'
+                            : 'hover:bg-[#1A1A2E] text-[#A098B0] hover:text-white'
                         }`}
                       >
                         <div className="flex items-center gap-2.5 min-w-0">
                           <div
-                            className={`w-8 h-8 rounded-lg border flex items-center justify-center shrink-0 ${
-                              isSelected
-                                ? 'bg-indigo-500/30 border-indigo-400 text-indigo-300'
-                                : 'bg-slate-800 border-slate-700 text-slate-400'
-                            }`}
+                            className={`w-8 h-8 rounded-lg border flex items-center justify-center font-headline font-bold text-xs shrink-0 ${branding.badgeBg} ${branding.badgeBorder} ${branding.badgeText}`}
                           >
-                            <CreditCard className="w-4 h-4" />
+                            {branding.tag}
                           </div>
                           <div className="min-w-0">
                             <div className="flex items-center gap-2 flex-wrap">
-                              <span className="text-xs font-bold truncate">
+                              <span className="text-xs font-bold text-white truncate">
                                 {card.name}
                               </span>
                               {card.closingDay && (
-                                <span className="text-[10px] px-1.5 py-0.2 rounded font-semibold bg-slate-800 text-slate-300 border border-slate-700 shrink-0">
+                                <span className="text-[10px] font-mono px-1.5 py-0.2 rounded font-semibold bg-[#141422] text-[#A098B0] border border-[#302840] shrink-0">
                                   Corte día {card.closingDay}
                                 </span>
                               )}
                             </div>
-                            <span className="text-[11px] text-slate-400 block truncate mt-0.5">
+                            <span className="text-[11px] text-[#A098B0] block truncate mt-0.5">
                               {card.bank}
                               {card.creditLimit ? ` • Cupo: ${formatCLP(card.creditLimit)}` : ''}
                             </span>
@@ -819,8 +824,8 @@ export const CreditCardBillingModal: React.FC<CreditCardBillingModalProps> = ({
                         </div>
 
                         {isSelected && (
-                          <div className="w-5 h-5 rounded-full bg-indigo-500/20 text-indigo-400 flex items-center justify-center shrink-0">
-                            <Check className="w-3.5 h-3.5" />
+                          <div className="w-5 h-5 rounded-full bg-[#00FFCC]/20 text-[#00FFCC] flex items-center justify-center shrink-0">
+                            <Check className="w-3.5 h-3.5 stroke-[3]" />
                           </div>
                         )}
                       </button>
@@ -833,13 +838,13 @@ export const CreditCardBillingModal: React.FC<CreditCardBillingModalProps> = ({
 
           {/* Period Selector */}
           <div className="w-full sm:w-auto self-start sm:self-end shrink-0">
-            <label className="block text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1.5 flex items-center justify-between gap-1.5">
+            <label className="block text-[10px] font-mono font-bold text-[#A098B0] uppercase tracking-wider mb-1.5 flex items-center justify-between gap-1.5">
               <span className="flex items-center gap-1.5">
-                <Calendar className="w-3.5 h-3.5 text-indigo-400" />
+                <Calendar className="w-3.5 h-3.5 text-[#00FFCC]" />
                 <span>Período de Facturación</span>
               </span>
               {selectedPeriod > (currentPeriod || new Date().toISOString().slice(0, 7)) && (
-                <span className="text-[9px] px-1.5 py-0.2 rounded bg-sky-500/15 text-sky-400 font-bold border border-sky-500/30">
+                <span className="text-[9px] font-mono px-2 py-0.5 rounded-full bg-[#00FFCC]/15 text-[#00FFCC] font-bold border border-[#00FFCC]/30">
                   Proyección Futura
                 </span>
               )}
@@ -851,7 +856,7 @@ export const CreditCardBillingModal: React.FC<CreditCardBillingModalProps> = ({
                 type="button"
                 onClick={() => setSelectedPeriod((prev) => addMonths(prev, -1))}
                 title="Mes anterior"
-                className="p-2.5 rounded-2xl bg-slate-950 border border-slate-800 hover:border-slate-700 text-slate-300 hover:text-white transition shadow-sm"
+                className="p-2.5 rounded-xl bg-[#0A0A12] border border-[#302840] hover:border-[#00FFCC]/40 text-[#A098B0] hover:text-white transition shadow-sm"
               >
                 <ChevronLeft className="w-4 h-4" />
               </button>
@@ -861,15 +866,15 @@ export const CreditCardBillingModal: React.FC<CreditCardBillingModalProps> = ({
                 <select
                   value={selectedPeriod}
                   onChange={(e) => setSelectedPeriod(e.target.value)}
-                  className="w-full bg-slate-950 border border-slate-800 hover:border-slate-700 rounded-2xl pl-3 pr-8 py-2.5 text-xs text-white font-bold focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition shadow-sm appearance-none cursor-pointer"
+                  className="w-full bg-[#0A0A12] border border-[#302840] hover:border-[#00FFCC]/40 rounded-xl pl-3 pr-8 py-2.5 text-xs text-white font-mono font-bold focus:outline-none focus:border-[#00FFCC] transition shadow-sm appearance-none cursor-pointer"
                 >
                   {availablePeriods.map((period) => (
-                    <option key={period} value={period} className="bg-slate-900 text-white py-1">
+                    <option key={period} value={period} className="bg-[#141422] text-white py-1">
                       {getPeriodOptionLabel(period)}
                     </option>
                   ))}
                 </select>
-                <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                <ChevronDown className="w-4 h-4 text-[#A098B0] absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
               </div>
 
               {/* Next Month Button */}
@@ -877,7 +882,7 @@ export const CreditCardBillingModal: React.FC<CreditCardBillingModalProps> = ({
                 type="button"
                 onClick={() => setSelectedPeriod((prev) => addMonths(prev, 1))}
                 title="Mes siguiente"
-                className="p-2.5 rounded-2xl bg-slate-950 border border-slate-800 hover:border-slate-700 text-slate-300 hover:text-white transition shadow-sm"
+                className="p-2.5 rounded-xl bg-[#0A0A12] border border-[#302840] hover:border-[#00FFCC]/40 text-[#A098B0] hover:text-white transition shadow-sm"
               >
                 <ChevronRight className="w-4 h-4" />
               </button>
@@ -915,24 +920,24 @@ export const CreditCardBillingModal: React.FC<CreditCardBillingModalProps> = ({
             )}
 
             {/* Cycle & Cupo Status Card */}
-            <div className="p-4 sm:p-5 rounded-2xl bg-slate-950/70 border border-slate-800 space-y-4">
+            <div className="p-4 sm:p-5 rounded-2xl bg-[#0A0A12] border border-[#302840] panel-rim space-y-4">
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                 <div className="flex items-center gap-2.5">
-                  <div className="p-2 rounded-xl bg-indigo-500/10 border border-indigo-500/20 text-indigo-400">
+                  <div className="p-2 rounded-xl bg-[#00FFCC]/15 text-[#00FFCC] border border-[#00FFCC]/30">
                     <Calendar className="w-4 h-4" />
                   </div>
                   <div>
-                    <h3 className="text-xs font-bold text-slate-200">
+                    <h3 className="text-xs font-headline font-bold text-white">
                       Ciclo de Facturación: {activeCard?.name} ({activeCard?.bank})
                     </h3>
-                    <p className="text-[11px] text-slate-400 mt-0.5">
+                    <p className="text-[11px] text-[#A098B0] mt-0.5 font-sans">
                       {cycleInfo.closingText} • {cycleInfo.dueText}
                     </p>
                   </div>
                 </div>
 
                 {cycleInfo.daysStatus && (
-                  <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold border self-start sm:self-center ${cycleInfo.daysStatus.badgeColor}`}>
+                  <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-mono font-bold border self-start sm:self-center ${cycleInfo.daysStatus.badgeColor}`}>
                     <Clock className="w-3.5 h-3.5" />
                     <span>{cycleInfo.daysStatus.text}</span>
                   </span>
@@ -941,21 +946,21 @@ export const CreditCardBillingModal: React.FC<CreditCardBillingModalProps> = ({
 
               {/* Cupo Utilizado Bar (if creditLimit is defined) */}
               {creditLimit > 0 && (
-                <div className="pt-3 border-t border-slate-800/80 space-y-1.5">
+                <div className="pt-3 border-t border-[#302840] space-y-1.5">
                   <div className="flex items-center justify-between text-xs">
-                    <span className="text-slate-400 font-medium">Cupo Total: {formatCLP(creditLimit)}</span>
-                    <span className="text-indigo-300 font-bold">
+                    <span className="text-[#A098B0] font-sans">Cupo Total: {formatCLP(creditLimit)}</span>
+                    <span className="text-[#00FFCC] font-mono font-bold">
                       {creditLimitUsagePct}% ocupado al corte • Disponible: {formatCLP(creditAvailable)}
                     </span>
                   </div>
-                  <div className="w-full bg-slate-800 rounded-full h-2 overflow-hidden">
+                  <div className="w-full bg-[#141422] rounded-full h-2 overflow-hidden border border-[#302840]">
                     <div
-                      className={`h-2 rounded-full transition-all duration-500 ${
+                      className={`h-2 rounded-full transition-all duration-700 ${
                         creditLimitUsagePct > 85
-                          ? 'bg-rose-500'
+                          ? 'bg-gradient-to-r from-[#FF2D78] to-rose-600 animate-pulse'
                           : creditLimitUsagePct > 60
-                          ? 'bg-amber-400'
-                          : 'bg-indigo-500'
+                          ? 'bg-gradient-to-r from-amber-400 to-[#FFE04A]'
+                          : 'bg-gradient-to-r from-[#00FFCC] to-[#38bdf8]'
                       }`}
                       style={{ width: `${creditLimitUsagePct}%` }}
                     />
@@ -964,118 +969,118 @@ export const CreditCardBillingModal: React.FC<CreditCardBillingModalProps> = ({
               )}
             </div>
 
-            {/* 4 Grand Summary KPI Cards */}
+            {/* 4 Grand Summary KPI Cards Stitch */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
               {/* Card 1: Gastos del Mes */}
-              <div className="p-4 rounded-2xl bg-slate-950/80 border border-slate-800">
-                <div className="flex items-center justify-between text-xs text-slate-400 font-semibold">
+              <div className="p-4 rounded-2xl bg-[#0A0A12] border border-[#302840] panel-rim relative overflow-hidden group hover:border-[#38bdf8]/40 transition">
+                <div className="flex items-center justify-between text-xs text-[#A098B0] font-mono font-bold">
                   <span>1. Gastos Registrados</span>
-                  <ShoppingBag className="w-4 h-4 text-sky-400" />
+                  <ShoppingBag className="w-4 h-4 text-[#38bdf8]" />
                 </div>
-                <div className="mt-2 text-xl font-bold text-white tracking-tight">
+                <div className="mt-2 text-xl font-headline font-black text-white tracking-tight">
                   {formatCLP(registeredSpendingTotal)}
                 </div>
-                <span className="text-[11px] text-slate-500 mt-1 block">
+                <span className="text-[11px] text-[#A098B0] mt-1 block font-sans">
                   {cardTransactions.length} compra(s) ya en movimientos
                 </span>
               </div>
 
               {/* Card 2: Cuotas por Facturar */}
-              <div className="p-4 rounded-2xl bg-slate-950/80 border border-slate-800">
-                <div className="flex items-center justify-between text-xs text-slate-400 font-semibold">
+              <div className="p-4 rounded-2xl bg-[#0A0A12] border border-[#302840] panel-rim relative overflow-hidden group hover:border-[#00FFCC]/40 transition">
+                <div className="flex items-center justify-between text-xs text-[#A098B0] font-mono font-bold">
                   <span>2. Cuotas por Facturar</span>
-                  <Layers className="w-4 h-4 text-indigo-400" />
+                  <Layers className="w-4 h-4 text-[#00FFCC]" />
                 </div>
-                <div className="mt-2 text-xl font-bold text-indigo-300 tracking-tight">
+                <div className="mt-2 text-xl font-headline font-black text-white tracking-tight">
                   {formatCLP(pendingInstallmentsGross)}
                 </div>
-                <span className="text-[11px] text-slate-500 mt-1 block">
+                <span className="text-[11px] text-[#A098B0] mt-1 block font-sans">
                   {installmentItems.filter((i) => !i.isAlreadyLoaded && !i.isFinished).length} compra(s) a plazo
                 </span>
               </div>
 
               {/* Card 3: Suscripciones por Facturar */}
-              <div className="p-4 rounded-2xl bg-slate-950/80 border border-slate-800">
-                <div className="flex items-center justify-between text-xs text-slate-400 font-semibold">
+              <div className="p-4 rounded-2xl bg-[#0A0A12] border border-[#302840] panel-rim relative overflow-hidden group hover:border-[#FF2D78]/40 transition">
+                <div className="flex items-center justify-between text-xs text-[#A098B0] font-mono font-bold">
                   <span>3. Suscripciones</span>
-                  <Repeat className="w-4 h-4 text-pink-400" />
+                  <Repeat className="w-4 h-4 text-[#FF2D78]" />
                 </div>
-                <div className="mt-2 text-xl font-bold text-pink-300 tracking-tight">
+                <div className="mt-2 text-xl font-headline font-black text-white tracking-tight">
                   {formatCLP(pendingSubscriptionsGross)}
                 </div>
-                <span className="text-[11px] text-slate-500 mt-1 block">
+                <span className="text-[11px] text-[#A098B0] mt-1 block font-sans">
                   {subscriptionItems.filter((i) => !i.isAlreadyLoaded).length} cargo(s) recurrente(s)
                 </span>
               </div>
 
               {/* Card 4: TOTAL ESTIMADO AL CORTE */}
-              <div className="p-4 rounded-2xl bg-gradient-to-br from-indigo-950/80 to-purple-950/80 border border-indigo-500/40 shadow-lg shadow-indigo-500/10">
-                <div className="flex items-center justify-between text-xs text-indigo-300 font-bold uppercase tracking-wider">
+              <div className="p-4 rounded-2xl bg-gradient-to-br from-[#141422] to-[#1A1A2E] border border-[#00FFCC]/40 panel-rim glow-secondary shadow-lg relative overflow-hidden">
+                <div className="flex items-center justify-between text-xs text-[#00FFCC] font-mono font-bold uppercase tracking-wider">
                   <span>Total Facturación</span>
-                  <Sparkles className="w-4 h-4 text-amber-400" />
+                  <Sparkles className="w-4 h-4 text-[#FFE04A]" />
                 </div>
-                <div className="mt-2 text-2xl font-extrabold text-white tracking-tight">
+                <div className="mt-2 text-2xl font-headline font-black text-[#00FFCC] tracking-tight">
                   {formatCLP(totalProjectedGross)}
                 </div>
-                <div className="text-[11px] text-indigo-300/80 mt-1 flex items-center justify-between">
+                <div className="text-[11px] text-[#A098B0] mt-1 flex items-center justify-between font-sans">
                   <span>Mi parte personal:</span>
-                  <b className="text-emerald-300 font-bold">{formatCLP(totalProjectedUserShare)}</b>
+                  <b className="text-white font-mono font-bold">{formatCLP(totalProjectedUserShare)}</b>
                 </div>
               </div>
             </div>
 
             {/* Bloque 1: Gastos Registrados en el Mes (Accordion) */}
-            <div className="rounded-2xl bg-slate-950/60 border border-slate-800 overflow-hidden">
+            <div className="rounded-2xl bg-[#0A0A12] border border-[#302840] panel-rim overflow-hidden">
               <button
                 onClick={() => setShowTransactionsList(!showTransactionsList)}
-                className="w-full p-4 flex items-center justify-between text-left hover:bg-slate-900/60 transition"
+                className="w-full p-4 flex items-center justify-between text-left hover:bg-[#141422] transition"
               >
                 <div className="flex items-center gap-2.5">
-                  <div className="p-2 rounded-xl bg-sky-500/10 border border-sky-500/20 text-sky-400">
+                  <div className="p-2 rounded-xl bg-[#38bdf8]/15 border border-[#38bdf8]/30 text-[#38bdf8]">
                     <ShoppingBag className="w-4 h-4" />
                   </div>
                   <div>
-                    <h4 className="text-xs font-bold text-white flex items-center gap-2">
+                    <h4 className="text-xs font-headline font-bold text-white flex items-center gap-2">
                       <span>1. Gastos y Compras Registradas en este Período</span>
-                      <span className="text-[10px] px-2 py-0.5 rounded-full bg-slate-800 text-slate-400 font-semibold">
+                      <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-[#141422] text-[#00FFCC] border border-[#302840]">
                         {cardTransactions.length}
                       </span>
                     </h4>
-                    <p className="text-[11px] text-slate-400">
-                      Total acumulado hasta hoy: <b className="text-slate-200">{formatCLP(registeredSpendingTotal)}</b>
+                    <p className="text-[11px] text-[#A098B0] font-sans">
+                      Total acumulado hasta hoy: <b className="text-white font-mono">{formatCLP(registeredSpendingTotal)}</b>
                     </p>
                   </div>
                 </div>
 
-                <div className="flex items-center gap-2 text-xs text-slate-400">
+                <div className="flex items-center gap-2 text-xs font-headline font-bold text-[#A098B0]">
                   <span>{showTransactionsList ? 'Ocultar lista' : 'Ver detalle'}</span>
-                  {showTransactionsList ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                  {showTransactionsList ? <ChevronUp className="w-4 h-4 text-[#00FFCC]" /> : <ChevronDown className="w-4 h-4" />}
                 </div>
               </button>
 
               {showTransactionsList && (
-                <div className="p-4 pt-0 border-t border-slate-800/60 space-y-2 max-h-60 overflow-y-auto">
+                <div className="p-4 pt-0 border-t border-[#302840] space-y-2 max-h-60 overflow-y-auto">
                   {cardTransactions.length === 0 ? (
-                    <p className="text-xs text-slate-500 italic py-3 text-center">
+                    <p className="text-xs text-[#A098B0] italic py-3 text-center">
                       No hay compras registradas en los movimientos de este período para esta tarjeta.
                     </p>
                   ) : (
-                    <div className="divide-y divide-slate-800/60">
+                    <div className="divide-y divide-[#302840]">
                       {cardTransactions.map((tx) => (
                         <div key={tx.id} className="py-2.5 flex items-center justify-between text-xs">
                           <div className="min-w-0 pr-2">
                             <span className="text-white font-medium block truncate">{tx.description}</span>
-                            <span className="text-[10px] text-slate-500 block">
+                            <span className="text-[10px] text-[#A098B0] font-mono block">
                               {tx.date} • {tx.category} &gt; {tx.subcategory}
                               {tx.installments && (
-                                <span className="text-indigo-400 ml-1.5 font-semibold">
+                                <span className="text-[#FFE04A] ml-1.5 font-bold font-mono">
                                   (Cuota {tx.installments.current}/{tx.installments.total})
                                 </span>
                               )}
                             </span>
                           </div>
                           <div className="text-right shrink-0">
-                            <span className="font-bold text-slate-200">
+                            <span className="font-mono font-bold text-white">
                               {formatCLP(tx.netAmount !== undefined ? tx.netAmount : tx.amount)}
                             </span>
                           </div>
@@ -1088,20 +1093,20 @@ export const CreditCardBillingModal: React.FC<CreditCardBillingModalProps> = ({
             </div>
 
             {/* Bloque 2: Compras en Cuotas de la Tarjeta */}
-            <div className="rounded-2xl bg-slate-950/60 border border-slate-800 p-4 space-y-3">
+            <div className="rounded-2xl bg-[#0A0A12] border border-[#302840] panel-rim p-4 sm:p-5 space-y-3">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2.5">
-                  <div className="p-2 rounded-xl bg-indigo-500/10 border border-indigo-500/20 text-indigo-400">
+                  <div className="p-2 rounded-xl bg-[#00FFCC]/15 border border-[#00FFCC]/30 text-[#00FFCC]">
                     <Layers className="w-4 h-4" />
                   </div>
                   <div>
-                    <h4 className="text-xs font-bold text-white flex items-center gap-2">
+                    <h4 className="text-xs font-headline font-bold text-white flex items-center gap-2">
                       <span>2. Compras en Cuotas Asociadas a esta Tarjeta</span>
-                      <span className="text-[10px] px-2 py-0.5 rounded-full bg-slate-800 text-slate-400 font-semibold">
+                      <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-[#141422] text-[#00FFCC] border border-[#302840]">
                         {installmentItems.length}
                       </span>
                     </h4>
-                    <p className="text-[11px] text-slate-400">
+                    <p className="text-[11px] text-[#A098B0] font-sans">
                       Cuotas programadas desde el módulo de Créditos y Cuotas.
                     </p>
                   </div>
@@ -1110,11 +1115,11 @@ export const CreditCardBillingModal: React.FC<CreditCardBillingModalProps> = ({
 
               {installmentItems.length === 0 ? (
                 cardInstallments.length === 0 ? (
-                  <p className="text-xs text-slate-500 italic py-2">
+                  <p className="text-xs text-[#A098B0] italic py-2">
                     No tienes compras en cuotas vinculadas a esta tarjeta. Puedes asociarlas al registrar una compra en la pestaña "Compras en Cuotas".
                   </p>
                 ) : (
-                  <p className="text-xs text-emerald-400/90 italic py-2 flex items-center gap-1.5">
+                  <p className="text-xs text-emerald-400 italic py-2 flex items-center gap-1.5">
                     <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
                     <span>🎉 No hay cuotas vigentes para facturar en este período. ¡Todas tus compras en cuotas registradas para esta tarjeta ya habrán finalizado para esta fecha!</span>
                   </p>
@@ -1128,10 +1133,10 @@ export const CreditCardBillingModal: React.FC<CreditCardBillingModalProps> = ({
                         key={credit.id}
                         className={`p-3 rounded-xl border flex items-center justify-between gap-3 text-xs transition ${
                           isAlreadyLoaded
-                            ? 'bg-slate-900/40 border-slate-800/60 opacity-80'
+                            ? 'bg-[#141422]/60 border-[#302840] opacity-80'
                             : isFinished
                             ? 'bg-emerald-950/20 border-emerald-500/30'
-                            : 'bg-slate-900/80 border-slate-800 hover:border-slate-700'
+                            : 'bg-[#141422] border-[#302840] hover:border-[#00FFCC]/40'
                         }`}
                       >
                         <div className="flex items-center gap-3 min-w-0">
@@ -1145,30 +1150,30 @@ export const CreditCardBillingModal: React.FC<CreditCardBillingModalProps> = ({
                                   [credit.id]: e.target.checked
                                 }))
                               }
-                              className="w-4 h-4 rounded text-indigo-600 bg-slate-950 border-slate-700 focus:ring-indigo-500 cursor-pointer shrink-0"
+                              className="w-4 h-4 rounded accent-[#00FFCC] bg-[#0A0A12] border-[#302840] cursor-pointer shrink-0"
                             />
                           ) : (
                             <div className="w-4 h-4 flex items-center justify-center shrink-0">
-                              <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                              <CheckCircle2 className="w-4 h-4 text-[#00FFCC]" />
                             </div>
                           )}
 
                           <div className="min-w-0">
-                            <h5 className="font-bold text-white truncate">{credit.name}</h5>
-                            <div className="flex items-center gap-2 mt-0.5 flex-wrap text-[11px] text-slate-400">
+                            <h5 className="font-headline font-bold text-white truncate">{credit.name}</h5>
+                            <div className="flex items-center gap-2 mt-0.5 flex-wrap text-[11px] text-[#A098B0]">
                               {isFinished ? (
                                 <span className="text-emerald-400 font-semibold">🎉 Liquidado</span>
                               ) : isAlreadyLoaded ? (
-                                <span className="text-emerald-400 font-medium">
+                                <span className="text-[#00FFCC] bg-[#00FFCC]/15 border border-[#00FFCC]/30 font-mono font-bold text-[10px] px-2 py-0.5 rounded-full">
                                   ✅ Ya en movimientos (Cuota {installmentInfo ? `${installmentInfo.current}/${installmentInfo.total}` : `${nextInstallmentNum}/${credit.totalInstallments}`})
                                 </span>
                               ) : (
-                                <span>
-                                  Cuota <b>{nextInstallmentNum}</b> de {credit.totalInstallments}
+                                <span className="font-mono">
+                                  Cuota <b className="text-white font-bold">{nextInstallmentNum}</b> de {credit.totalInstallments}
                                 </span>
                               )}
                               {credit.isShared && (
-                                <span className="px-1.5 py-0.2 rounded bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 text-[10px]">
+                                <span className="px-1.5 py-0.2 rounded bg-indigo-500/15 text-indigo-300 border border-indigo-500/30 text-[10px] font-mono">
                                   Compartido {credit.mySharePercentage || 50}%
                                 </span>
                               )}
@@ -1177,9 +1182,9 @@ export const CreditCardBillingModal: React.FC<CreditCardBillingModalProps> = ({
                         </div>
 
                         <div className="text-right shrink-0">
-                          <span className="font-bold text-white text-xs block">{formatCLP(amount)}</span>
+                          <span className="font-mono font-bold text-white text-xs block">{formatCLP(amount)}</span>
                           {credit.isShared && (
-                            <span className="text-[10px] text-indigo-300 block">Mi parte: {formatCLP(userShare)}</span>
+                            <span className="text-[10px] font-mono text-[#00FFCC] block">Mi parte: {formatCLP(userShare)}</span>
                           )}
                         </div>
                       </div>
@@ -1190,20 +1195,20 @@ export const CreditCardBillingModal: React.FC<CreditCardBillingModalProps> = ({
             </div>
 
             {/* Bloque 3: Suscripciones y Cargos Recurrentes */}
-            <div className="rounded-2xl bg-slate-950/60 border border-slate-800 p-4 space-y-3">
+            <div className="rounded-2xl bg-[#0A0A12] border border-[#302840] panel-rim p-4 sm:p-5 space-y-3">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2.5">
-                  <div className="p-2 rounded-xl bg-pink-500/10 border border-pink-500/20 text-pink-400">
+                  <div className="p-2 rounded-xl bg-[#FF2D78]/15 border border-[#FF2D78]/30 text-[#FF2D78]">
                     <Repeat className="w-4 h-4" />
                   </div>
                   <div>
-                    <h4 className="text-xs font-bold text-white flex items-center gap-2">
+                    <h4 className="text-xs font-headline font-bold text-white flex items-center gap-2">
                       <span>3. Suscripciones y Cargos Recurrentes en esta Tarjeta</span>
-                      <span className="text-[10px] px-2 py-0.5 rounded-full bg-slate-800 text-slate-400 font-semibold">
+                      <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-[#141422] text-[#FF2D78] border border-[#302840]">
                         {cardSubscriptions.length}
                       </span>
                     </h4>
-                    <p className="text-[11px] text-slate-400">
+                    <p className="text-[11px] text-[#A098B0] font-sans">
                       Servicios vinculados que se cobran mensualmente a esta tarjeta.
                     </p>
                   </div>
@@ -1211,7 +1216,7 @@ export const CreditCardBillingModal: React.FC<CreditCardBillingModalProps> = ({
               </div>
 
               {subscriptionItems.length === 0 ? (
-                <p className="text-xs text-slate-500 italic py-2">
+                <p className="text-xs text-[#A098B0] italic py-2">
                   No tienes suscripciones vinculadas a esta tarjeta. Puedes asociarlas al crear o editar una suscripción seleccionando esta tarjeta.
                 </p>
               ) : (
@@ -1223,8 +1228,8 @@ export const CreditCardBillingModal: React.FC<CreditCardBillingModalProps> = ({
                         key={credit.id}
                         className={`p-3 rounded-xl border flex items-center justify-between gap-3 text-xs transition ${
                           isAlreadyLoaded
-                            ? 'bg-slate-900/40 border-slate-800/60 opacity-80'
-                            : 'bg-slate-900/80 border-slate-800 hover:border-slate-700'
+                            ? 'bg-[#141422]/60 border-[#302840] opacity-80'
+                            : 'bg-[#141422] border-[#302840] hover:border-[#FF2D78]/40'
                         }`}
                       >
                         <div className="flex items-center gap-3 min-w-0">
@@ -1238,26 +1243,26 @@ export const CreditCardBillingModal: React.FC<CreditCardBillingModalProps> = ({
                                   [credit.id]: e.target.checked
                                 }))
                               }
-                              className="w-4 h-4 rounded text-pink-600 bg-slate-950 border-slate-700 focus:ring-pink-500 cursor-pointer shrink-0"
+                              className="w-4 h-4 rounded accent-[#FF2D78] bg-[#0A0A12] border-[#302840] cursor-pointer shrink-0"
                             />
                           ) : (
                             <div className="w-4 h-4 flex items-center justify-center shrink-0">
-                              <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                              <CheckCircle2 className="w-4 h-4 text-[#00FFCC]" />
                             </div>
                           )}
 
                           <div className="min-w-0">
-                            <h5 className="font-bold text-white truncate">{credit.name}</h5>
-                            <div className="flex items-center gap-2 mt-0.5 flex-wrap text-[11px] text-slate-400">
+                            <h5 className="font-headline font-bold text-white truncate">{credit.name}</h5>
+                            <div className="flex items-center gap-2 mt-0.5 flex-wrap text-[11px] text-[#A098B0]">
                               {isAlreadyLoaded ? (
-                                <span className="text-emerald-400 font-medium">
+                                <span className="text-[#00FFCC] bg-[#00FFCC]/15 border border-[#00FFCC]/30 font-mono font-bold text-[10px] px-2 py-0.5 rounded-full">
                                   ✅ Ya en movimientos
                                 </span>
                               ) : (
-                                <span>Cobro mensual estimado día {credit.paymentDay || 1}</span>
+                                <span className="font-mono">Cobro mensual estimado día {credit.paymentDay || 1}</span>
                               )}
                               {credit.isShared && (
-                                <span className="px-1.5 py-0.2 rounded bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 text-[10px]">
+                                <span className="px-1.5 py-0.2 rounded bg-indigo-500/15 text-indigo-300 border border-indigo-500/30 text-[10px] font-mono">
                                   Compartido {credit.mySharePercentage || 50}%
                                 </span>
                               )}
@@ -1266,9 +1271,9 @@ export const CreditCardBillingModal: React.FC<CreditCardBillingModalProps> = ({
                         </div>
 
                         <div className="text-right shrink-0">
-                          <span className="font-bold text-white text-xs block">{formatCLP(amount)}</span>
+                          <span className="font-mono font-bold text-white text-xs block">{formatCLP(amount)}</span>
                           {credit.isShared && (
-                            <span className="text-[10px] text-pink-300 block">Mi parte: {formatCLP(userShare)}</span>
+                            <span className="text-[10px] font-mono text-[#FF2D78] block">Mi parte: {formatCLP(userShare)}</span>
                           )}
                         </div>
                       </div>
@@ -1280,13 +1285,13 @@ export const CreditCardBillingModal: React.FC<CreditCardBillingModalProps> = ({
 
             {/* Bloque de Acción: Generar Cuotas y Suscripciones en Movimientos */}
             {pendingGeneratableItems.length > 0 && (
-              <div className="p-4 sm:p-5 rounded-2xl bg-gradient-to-r from-indigo-950/70 via-slate-900 to-purple-950/70 border border-indigo-500/30 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 shadow-xl">
+              <div className="p-4 sm:p-5 rounded-2xl bg-gradient-to-r from-[#141422] via-[#111118] to-[#1A1A2E] border border-[#00FFCC]/30 panel-rim flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 shadow-xl">
                 <div>
-                  <h4 className="text-sm font-bold text-white flex items-center gap-2">
-                    <Sparkles className="w-4 h-4 text-amber-400" />
+                  <h4 className="text-sm font-headline font-bold text-white flex items-center gap-2">
+                    <Sparkles className="w-4 h-4 text-[#FFE04A]" />
                     <span>Cargar Cargos Proyectados en Movimientos del Mes</span>
                   </h4>
-                  <p className="text-xs text-slate-300 mt-0.5 max-w-xl">
+                  <p className="text-xs text-[#A098B0] mt-0.5 max-w-xl font-sans">
                     Inserta automáticamente en tu tabla de movimientos las {pendingGeneratableItems.length} cuota(s) y suscripción(es) seleccionadas para este período y tarjeta.
                   </p>
                 </div>
@@ -1294,9 +1299,9 @@ export const CreditCardBillingModal: React.FC<CreditCardBillingModalProps> = ({
                 <button
                   onClick={handleGeneratePendingItems}
                   disabled={isGenerating || pendingGeneratableItems.filter((i) => selectedPendingIds[i.id] !== false).length === 0}
-                  className="flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-indigo-500 via-indigo-600 to-purple-600 hover:from-indigo-400 hover:to-purple-500 text-white font-bold text-xs shadow-lg shadow-indigo-600/30 transition transform hover:-translate-y-0.5 disabled:opacity-50 whitespace-nowrap shrink-0"
+                  className="flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-[#00FFCC] hover:bg-[#00e6b8] text-black font-headline font-bold text-xs shadow-lg shadow-[#00FFCC]/20 transition transform hover:scale-[1.02] active:scale-95 disabled:opacity-50 whitespace-nowrap shrink-0"
                 >
-                  <Sparkles className="w-4 h-4" />
+                  <Sparkles className="w-4 h-4 text-black" />
                   <span>
                     {isGenerating
                       ? 'Cargando movimientos...'
@@ -1311,13 +1316,13 @@ export const CreditCardBillingModal: React.FC<CreditCardBillingModalProps> = ({
         )}
 
         {/* Footer */}
-        <div className="p-4 sm:p-5 bg-slate-950/90 border-t border-slate-800 flex items-center justify-between">
-          <span className="text-xs text-slate-400">
-            Período seleccionado: <b className="text-white">{formatPeriodLabel(selectedPeriod)}</b>
+        <div className="p-4 sm:p-5 bg-[#111118] border-t border-[#302840] flex items-center justify-between">
+          <span className="text-xs text-[#A098B0] font-sans">
+            Período seleccionado: <b className="text-white font-mono">{formatPeriodLabel(selectedPeriod)}</b>
           </span>
           <button
             onClick={onClose}
-            className="px-5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-white text-xs font-semibold transition"
+            className="px-5 py-2 rounded-xl bg-[#1A1A2E] hover:bg-[#25253E] border border-[#302840] text-white text-xs font-headline font-bold transition"
           >
             Cerrar
           </button>
