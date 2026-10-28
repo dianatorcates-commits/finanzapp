@@ -1302,6 +1302,7 @@ export function App() {
         activeTab={activeTab}
         onSelectTab={setActiveTab}
         currentUser={currentUser}
+        transactions={transactions}
         isTelegramLinked={Boolean(telegramProfile?.telegram_chat_id)}
         onOpenImport={() => setIsImportModalOpen(true)}
         onOpenAccountModal={() => setActiveTab('accounts')}
@@ -1361,6 +1362,7 @@ export function App() {
           availableMonths={availableMonths}
           onSelectMonth={(m) => setFilters((prev) => ({ ...prev, month: m }))}
           currentUser={currentUser}
+          transactions={transactions}
           isCloudLoading={isCloudLoading}
           onToggleMobileMenu={() => setIsMobileSidebarOpen((prev) => !prev)}
           searchQuery={filters.searchQuery}
@@ -1409,6 +1411,7 @@ export function App() {
                   budgets={budgets}
                   currentPeriod={filters.month !== 'ALL' ? filters.month : new Date().toISOString().slice(0, 7)}
                   onOpenBillingModal={() => setIsBillingModalOpen(true)}
+                  onQuickAdd={() => setIsImportModalOpen(true)}
                   metrics={dashboardConfig.metrics}
                 />
 
@@ -1533,6 +1536,7 @@ export function App() {
         onSelectTab={setActiveTab}
         duplicateCount={duplicateCount}
         currentUser={currentUser}
+        transactions={transactions}
         isTelegramLinked={Boolean(telegramProfile?.telegram_chat_id)}
         onOpenImport={() => setIsImportModalOpen(true)}
         onOpenAutoAllocate={handleAutoAllocate}

@@ -31,6 +31,7 @@ import {
   isPaymentOrIncomeTransaction,
   isCreditCardPaymentTransaction
 } from '../utils/paymentAllocation';
+import { WakingMascotWidget } from './WakingMascotWidget';
 
 interface MetricCardsProps {
   computedTransactions: ComputedTransaction[];
@@ -42,6 +43,7 @@ interface MetricCardsProps {
   currentPeriod?: string;
   onOpenBillingModal?: () => void;
   onOpenCustomizeModal?: () => void;
+  onQuickAdd?: () => void;
 }
 
 export function formatCLP(amount: number): string {
@@ -61,7 +63,8 @@ export const MetricCards: React.FC<MetricCardsProps> = ({
   budgets = [],
   currentPeriod,
   onOpenBillingModal,
-  onOpenCustomizeModal
+  onOpenCustomizeModal,
+  onQuickAdd
 }) => {
   const transactions = computedTransactions || [];
   const selectedPeriod = currentPeriod || new Date().toISOString().slice(0, 7);
@@ -360,6 +363,12 @@ export const MetricCards: React.FC<MetricCardsProps> = ({
 
   return (
     <div className="space-y-4 mb-6">
+      {/* Waking Mascot Interactive Dashboard Banner ("Billetera con Vida" - Issue #29) */}
+      <WakingMascotWidget
+        transactions={transactions}
+        onQuickAdd={onQuickAdd}
+      />
+
       {/* Active Account Billing Cycle Banner */}
       {cycleInfo && (
         <div className="bg-[#141422] border border-[#302840] panel-rim px-4 py-2.5 rounded-2xl text-xs text-[#E8E0F0] flex flex-col sm:flex-row sm:items-center justify-between gap-1 shadow-md backdrop-blur-md">

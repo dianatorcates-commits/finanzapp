@@ -11,7 +11,8 @@ import {
   Bell,
   Command
 } from 'lucide-react';
-import { Account } from '../types';
+import { Account, Transaction } from '../types';
+import { WakingMascotWidget } from './WakingMascotWidget';
 
 interface TopBarProps {
   accounts: Account[];
@@ -21,6 +22,7 @@ interface TopBarProps {
   availableMonths: string[];
   onSelectMonth: (month: string) => void;
   currentUser?: any;
+  transactions?: Transaction[];
   isCloudLoading?: boolean;
   onToggleMobileMenu?: () => void;
   searchQuery?: string;
@@ -48,6 +50,7 @@ export const TopBar: React.FC<TopBarProps> = ({
   availableMonths,
   onSelectMonth,
   currentUser,
+  transactions,
   isCloudLoading = false,
   onToggleMobileMenu,
   searchQuery = '',
@@ -198,6 +201,9 @@ export const TopBar: React.FC<TopBarProps> = ({
             <ChevronRight className="w-4 h-4" />
           </button>
         </div>
+
+        {/* Waking Mascot Mini Avatar Mood/Energy Indicator */}
+        <WakingMascotWidget variant="mini-badge" transactions={transactions} />
 
         {/* Cloud Sync Status Pill */}
         {currentUser ? (

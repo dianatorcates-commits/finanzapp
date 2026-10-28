@@ -345,6 +345,27 @@ FinanzApp es una plataforma web financiera integral, interactiva y multi-disposi
       * **Previsualización en Vivo (Live Preview)**: Renderizado en tiempo real de la tarjeta Stitch con sus badges, colores y monto de demostración antes de confirmar la adición.
     * **Persistencia Multi-Dispositivo**: Almacenamiento instantáneo y resiliente en `localStorage` y en la columna `dashboard_config` (`JSONB`) de la tabla `user_settings` de Supabase, con normalización retrocompatible de versiones previas.
 
+* **RF-40 (Mascota Virtual Interactiva "Billetera con Vida" y Mecánica de Estados Waking Mascot)**:
+  * **Motor de Ciclo de Vida en Tiempo Real (`mascotEngine.ts`)**:
+    * Computa dinámicamente en el frontend los indicadores de actividad sin requerir almacenamiento ni scripts DDL en la base de datos:
+      * `txTodayCount`: Cantidad de movimientos registrados en el día de hoy (`date === today`).
+      * `daysInactive`: Días transcurridos desde el último movimiento registrado en la plataforma on or before today.
+    * **5 Estados Progresivos (Tiers)**:
+      * **Tier 0 (Sueño Profundo / Inactiva)**: `daysInactive >= 5` y `txTodayCount === 0`. Imagen `/images/wallet_mascot_sleeping_128x128.png`, animación `mascot-breathe` y mensaje `"Zzz... 5 días inactiva... Anota un gasto para despertarme 💤"`. Energía al 10%.
+      * **Tier 0.5 (Espera Matutina)**: `daysInactive < 5` y `txTodayCount === 0`. Imagen `/images/wallet_mascot_sleepy_128x128.png`, animación `mascot-breathe` y mensaje `"☀️ ¡Buenos días! Esperando tu primer movimiento de hoy."`. Energía al 35%.
+      * **Tier 1 (Desperezándose)**: `txTodayCount === 1` o `2`. Imagen `/images/wallet_mascot_sleepy_128x128.png`, animación `mascot-yawn` y mensaje `"🥱 ¡Buaah! Frotándome los ojitos... Ya casi me levanto."`. Energía al 60%.
+      * **Tier 2 (Despierta & Atenta)**: `txTodayCount === 3` o `4`. Imagen `/images/wallet_mascot_neutral_128x128.png`, animación `mascot-steady` y mensaje `"😐 Listo, ya abrí los ojos. Atento a todos tus movimientos."`. Energía al 80%.
+      * **Tier 3 (Plenamente Activa & Feliz)**: `txTodayCount >= 5`. Imagen `/images/wallet_mascot_logo_128x128.png`, animación `mascot-happy-bounce` y mensaje `"😄🎉 ¡Siiii! ¡Al fin totalmente activa y con las finanzas al día!"`. Energía al 100%.
+  * **Animaciones CSS Dedicadas (`index.css`)**:
+    * `mascot-breathe`: Respiración lenta con escala y sombra pulsante.
+    * `mascot-yawn`: Bostezo con oscilación y estiramiento elástico.
+    * `mascot-steady`: Mirada atenta y micro-elevación rítmica.
+    * `mascot-happy-bounce`: Salto de celebración con rotación festiva estilo Duolingo/Tamagotchi.
+  * **Integración Multi-Dispositivo (`WakingMascotWidget.tsx`)**:
+    * **Sidebar de Escritorio**: Mini-avatar en cabecera junto al logotipo con globo de diálogo flotante interactivo (*speech bubble*) y tarjeta de estado al pasar el cursor o hacer clic.
+    * **Dashboard Central**: Banner interactivo principal con avatar en tamaño completo, globo de diálogo con animación flotante, barra de progreso hacia la meta diaria de 5 gastos y botón de acción rápida para registrar movimiento.
+    * **TopBar & Barra Móvil Inferior**: Mini-avatar con badge de energía en porcentaje y emoji de humor contextual visible permanentemente en smartphones.
+
 ---
 
 ## 5. Modelo de Datos Normalizado (Supabase PostgreSQL)

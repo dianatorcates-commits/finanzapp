@@ -21,11 +21,14 @@ import {
   Zap,
   Bot
 } from 'lucide-react';
+import { Transaction } from '../types';
+import { WakingMascotWidget } from './WakingMascotWidget';
 
 interface SidebarProps {
   activeTab: 'dashboard' | 'transactions' | 'categories' | 'budgets' | 'accounts' | 'credits';
   onSelectTab: (tab: 'dashboard' | 'transactions' | 'categories' | 'budgets' | 'accounts' | 'credits') => void;
   currentUser?: any;
+  transactions?: Transaction[];
   isTelegramLinked?: boolean;
   onOpenImport: () => void;
   onOpenAccountModal?: () => void;
@@ -46,6 +49,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   activeTab,
   onSelectTab,
   currentUser,
+  transactions,
   isTelegramLinked,
   onOpenImport,
   onOpenAccountModal,
@@ -76,14 +80,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
         {/* Brand Header */}
         <div className="flex items-center justify-between pb-3 border-b border-[#302840]/60 px-1">
           <div className="flex items-center space-x-3">
-            <div className="relative">
-              <img
-                src="/images/wallet_mascot_logo_128x128.png"
-                alt="FinanzApp Mascot"
-                className="w-8 h-8 object-contain rounded-xl drop-shadow-md transition-transform hover:scale-105"
-              />
-              <span className="absolute -bottom-1 -right-1 w-2.5 h-2.5 rounded-full bg-[#00FFCC] ring-2 ring-[#0A0A12] animate-pulse" />
-            </div>
+            <WakingMascotWidget variant="sidebar" transactions={transactions} />
             <div className="flex flex-col">
               <div className="flex items-center gap-1.5">
                 <span className="text-sm font-headline font-bold tracking-tight text-[#E8E0F0]">

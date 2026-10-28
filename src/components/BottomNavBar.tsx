@@ -20,12 +20,16 @@ import {
   PlusCircle,
   Link2
 } from 'lucide-react';
+import { Transaction } from '../types';
+import { WakingMascotWidget } from './WakingMascotWidget';
+import { getMascotState } from '../utils/mascotEngine';
 
 export interface BottomNavBarProps {
   activeTab: 'dashboard' | 'transactions' | 'categories' | 'budgets' | 'accounts' | 'credits';
   onSelectTab: (tab: 'dashboard' | 'transactions' | 'categories' | 'budgets' | 'accounts' | 'credits') => void;
   duplicateCount?: number;
   currentUser?: any;
+  transactions?: Transaction[];
   isTelegramLinked?: boolean;
   onOpenImport: () => void;
   onOpenAutoAllocate: () => void;
@@ -42,6 +46,7 @@ export const BottomNavBar: React.FC<BottomNavBarProps> = ({
   onSelectTab,
   duplicateCount = 0,
   currentUser,
+  transactions,
   isTelegramLinked = false,
   onOpenImport,
   onOpenAutoAllocate,
@@ -53,6 +58,7 @@ export const BottomNavBar: React.FC<BottomNavBarProps> = ({
   onResetDemo
 }) => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const mascot = getMascotState(transactions || []);
 
   const userName = currentUser?.user_metadata?.full_name || currentUser?.email?.split('@')[0] || 'Invitado';
 
@@ -77,11 +83,7 @@ export const BottomNavBar: React.FC<BottomNavBarProps> = ({
             {/* Header with Title and Close button */}
             <div className="flex items-center justify-between pb-3 border-b border-[#302840]/60">
               <div className="flex items-center gap-2">
-                <img
-                  src="/images/wallet_mascot_logo_128x128.png"
-                  alt="FinanzApp Logo"
-                  className="w-7 h-7 object-contain rounded-lg"
-                />
+                <WakingMascotWidget variant="sidebar" transactions={transactions} />
                 <span className="font-headline font-bold text-base text-[#E8E0F0]">
                   Menú FinanzApp
                 </span>
@@ -352,7 +354,7 @@ export const BottomNavBar: React.FC<BottomNavBarProps> = ({
             <span className="text-[10px] mt-0.5 tracking-tight">Conciliar</span>
           </button>
 
-          {/* 5. Menú Más Opciones */}
+          {/* 5. Menú Más Opciones con Mini-Mascota */}
           <button
             onClick={() => setIsMenuOpen(true)}
             className={`flex flex-col items-center justify-center flex-1 h-full min-h-[48px] rounded-xl transition-all select-none touch-manipulation ${
@@ -360,9 +362,14 @@ export const BottomNavBar: React.FC<BottomNavBarProps> = ({
                 ? 'text-[#FF2D78] font-bold'
                 : 'text-[#A098B0] hover:text-white'
             }`}
+            title={`Mascota: ${mascot.stateName} (${mascot.energyPercent}% energía)`}
           >
-            <div className={`p-1 rounded-xl transition ${isMenuOpen ? 'bg-[#FF2D78]/10' : ''}`}>
+            <div className={`p-1 rounded-xl transition relative ${isMenuOpen ? 'bg-[#FF2D78]/10' : ''}`}>
               <Menu className="w-5 h-5" />
+              {/* Mini energy indicator */}
+              <span className="absolute -top-1 -right-1 text-[9px] leading-none">
+                {mascot.moodEmoji}
+              </span>
             </div>
             <span className="text-[10px] mt-0.5 tracking-tight">Menú</span>
           </button>
