@@ -264,6 +264,26 @@ FinanzApp es una plataforma web financiera integral, interactiva y multi-disposi
     * Botón de acceso directo: "Reconciliar Saldo con Cartola Bancaria" y "Simular Facturación al Corte".
   * **Modal Unificado de Creación y Edición de Cuentas**:
     * Drawer modal flotante para configurar nombre descriptivo, entidad financiera, tipo de instrumento, terminación, cupo/saldo inicial y días de corte/vencimiento (1 al 31).
+* **RF-36 (Presupuestos Agrupables Multi-Categoría con Radiografía en Vivo y Metas de Ahorro Stitch - Fase 4)**:
+  * **Resumen Superior de Presupuestos (4 Tarjetas de Indicadores)**:
+    1. **Presupuesto Total**: Límite mensual consolidado de todos los presupuestos activos (`formatCLP(totalBudgeted)`).
+    2. **Gasto Ejecutado**: Total consumido con badge de porcentaje del límite (`80% en rango`, `atención` o `excedido`) y margen restante disponible.
+    3. **Ahorro en Metas**: Total acumulado en metas de ahorro activas (`formatCLP(totalSavingsCurrent)`).
+    4. **Aporte Programado del Mes**: Monto destinado al ahorro mensual proyectado según ritmo y fechas de metas activas.
+  * **Presupuestos Agrupables Multi-Categoría (`Pantalla6.html` / `BudgetAndGoalsView.tsx`)**:
+    * Renderizado en tarjetas Stitch (`#141422`, `panel-rim`, bordes `#302840`) con nombre personalizado y etiquetas combinadas de categorías (`📁` en cian `#00FFCC`) y subcategorías (`🏷️` en magenta `#FF2D78`).
+    * Monto gastado vs límite asignado (`$280K / $350K` o `$280.000 / $350.000`) con badge de porcentaje y margen restante (`Quedan $70.000 CLP` o `Excedido por $X`).
+    * Barra de progreso con cambio dinámico de color: verde/cian (<80%), amarillo (80-99%), magenta/rojo (>=100%).
+  * **Panel Desplegable "Radiografía en Vivo (RF-21)"**:
+    * Botón interactivo *"Ver Radiografía en Vivo"* / *"Ocultar Radiografía"* con ícono de microscopio.
+    * Despliega línea por línea el listado de compras, cuotas o suscripciones imputadas exactamente a ese presupuesto, con fecha, comercio, avatar/logo de cuenta bancaria y monto neto real.
+    * Indicador de Presupuesto Diario Sugerido (`$X / día`) para los días restantes del período.
+  * **Metas de Ahorro & Fondos Programados (`Pantalla6.html` / `Mobile7.html`)**:
+    * Tarjetas para cada meta de ahorro con ícono temático, meta objetivo, monto acumulado, fecha límite y barra de progreso porcentual (`from-[#00FFCC] to-[#38bdf8]`).
+    * **Aporte Rápido con 1 Toque**: Selector integrado con chips de aportes preconfigurados (`+$10.000`, `+$20.000`, `+$50.000`, `+$100.000`) o monto manual con feedback instantáneo.
+  * **Modales de Creación y Edición**:
+    * Modal para crear/editar presupuestos agrupables con selector dinámico de categorías y subcategorías.
+    * Modal para crear/editar metas de ahorro con selector de íconos temáticos y fechas objetivo.
 
 ---
 

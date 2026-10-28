@@ -1480,6 +1480,7 @@ export function App() {
                 onUpdateSavingsGoal={handleUpdateSavingsGoal}
                 onDeleteSavingsGoal={handleDeleteSavingsGoal}
                 onContributeToGoal={handleContributeToGoal}
+                accounts={accounts}
               />
             ) : activeTab === 'accounts' ? (
               <AccountsManagementView
