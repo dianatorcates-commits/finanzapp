@@ -70,6 +70,7 @@ import { CreditCardBillingModal } from './components/CreditCardBillingModal';
 import { LandingPage } from './components/LandingPage';
 import { BottomNavBar } from './components/BottomNavBar';
 import { DuplicateAlertBanner } from './components/DuplicateAlertBanner';
+import { WakingMascotWidget } from './components/WakingMascotWidget';
 
 const STORAGE_KEY_ACCOUNTS = 'finanzapp_accounts_v1';
 const STORAGE_KEY_TRANSACTIONS = 'finanzapp_transactions_v1';
@@ -1529,6 +1530,13 @@ export function App() {
           </footer>
         </div>
       </div>
+
+      {/* Permanent Floating Mascot Widget ("Billetera que Despierta" - Issue #31) */}
+      <WakingMascotWidget
+        variant="floating"
+        transactions={transactions}
+        onQuickAdd={() => setIsImportModalOpen(true)}
+      />
 
       {/* Mobile Fixed Bottom Navigation Bar */}
       <BottomNavBar

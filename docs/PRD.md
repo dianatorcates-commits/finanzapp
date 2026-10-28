@@ -361,10 +361,14 @@ FinanzApp es una plataforma web financiera integral, interactiva y multi-disposi
     * `mascot-yawn`: Bostezo con oscilación y estiramiento elástico.
     * `mascot-steady`: Mirada atenta y micro-elevación rítmica.
     * `mascot-happy-bounce`: Salto de celebración con rotación festiva estilo Duolingo/Tamagotchi.
-  * **Integración Multi-Dispositivo (`WakingMascotWidget.tsx`)**:
-    * **Sidebar de Escritorio**: Mini-avatar en cabecera junto al logotipo con globo de diálogo flotante interactivo (*speech bubble*) y tarjeta de estado al pasar el cursor o hacer clic.
-    * **Dashboard Central**: Banner interactivo principal con avatar en tamaño completo, globo de diálogo con animación flotante, barra de progreso hacia la meta diaria de 5 gastos y botón de acción rápida para registrar movimiento.
-    * **TopBar & Barra Móvil Inferior**: Mini-avatar con badge de energía en porcentaje y emoji de humor contextual visible permanentemente en smartphones.
+  * **Integración Multi-Dispositivo & Widget Flotante Fijo (`WakingMascotWidget.tsx` - Issue #31)**:
+    * **Widget Flotante Fijo en Esquina Inferior Derecha**:
+      * *Escritorio*: Fijado permanentemente en la pantalla con `fixed bottom-6 right-6 z-40`, permaneciendo visible e interactivo en todo momento, incluso durante el scroll en tablas extensas de movimientos.
+      * *Móviles*: Ubicado con margen de despeje sobre la Bottom Navigation Bar mediante `fixed bottom-20 right-4 z-40`, sin bloquear las pestañas inferiores de navegación táctil.
+      * *Tamaño Destacado y Expresivo*: Avatar ampliado a 64x64px en móviles y 80x80px en escritorio (`w-16 h-16 sm:w-20 sm:h-20`), permitiendo apreciar nítidamente sus animaciones de respiración, bostezo y salto.
+      * *Globo de Diálogo Flotante (Speech Bubble)*: Flota hacia arriba/izquierda del avatar con flecha direccional, mostrando el mensaje contextual del Tier, nivel de energía, progreso diario (`txTodayCount / 5`) y botón de minimizado.
+      * *Interactividad (Poke & Bounce)*: Al hacer clic o tap sobre la billetera, ejecuta una micro-animación de rebote festivo y alterna la apertura/cierre de la burbuja de diálogo.
+    * **Sidebar de Escritorio & Barra Móvil**: Mini-avatar en cabecera junto al logotipo con tooltip al pasar el cursor y badge de humor/energía en el botón Menú de la barra inferior.
 
 ---
 

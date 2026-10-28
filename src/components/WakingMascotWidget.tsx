@@ -1,12 +1,12 @@
 import React, { useState } from 'react';
-import { Sparkles, Zap, Plus, Info, CheckCircle2, Moon, Sun } from 'lucide-react';
+import { Sparkles, Plus, X, MessageSquare } from 'lucide-react';
 import { Transaction } from '../types';
 import { getMascotState, MascotState } from '../utils/mascotEngine';
 
 interface WakingMascotWidgetProps {
   transactions?: Transaction[];
   mascotState?: MascotState;
-  variant?: 'dashboard' | 'sidebar' | 'compact' | 'mini-badge';
+  variant?: 'floating' | 'dashboard' | 'sidebar' | 'compact' | 'mini-badge';
   onQuickAdd?: () => void;
   className?: string;
 }
@@ -14,18 +14,21 @@ interface WakingMascotWidgetProps {
 export const WakingMascotWidget: React.FC<WakingMascotWidgetProps> = ({
   transactions,
   mascotState: propState,
-  variant = 'dashboard',
+  variant = 'floating',
   onQuickAdd,
   className = '',
 }) => {
   // If mascotState is provided directly use it, otherwise compute from transactions
   const mascot: MascotState = propState || getMascotState(transactions || []);
-  const [isTooltipOpen, setIsTooltipOpen] = useState(false);
+  const [isBubbleOpen, setIsBubbleOpen] = useState(true);
   const [isPoked, setIsPoked] = useState(false);
+  const [isSidebarTooltipOpen, setIsSidebarTooltipOpen] = useState(false);
 
   const handlePoke = () => {
     setIsPoked(true);
-    setTimeout(() => setIsPoked(false), 800);
+    // If speech bubble was closed, poke opens it; if open, poke can toggle or play bounce
+    setIsBubbleOpen((prev) => !prev);
+    setTimeout(() => setIsPoked(false), 700);
   };
 
   // 1. Variant: Compact Sidebar Header Integration
@@ -33,9 +36,9 @@ export const WakingMascotWidget: React.FC<WakingMascotWidgetProps> = ({
     return (
       <div
         className={`relative group cursor-pointer ${className}`}
-        onMouseEnter={() => setIsTooltipOpen(true)}
-        onMouseLeave={() => setIsTooltipOpen(false)}
-        onClick={handlePoke}
+        onMouseEnter={() => setIsSidebarTooltipOpen(true)}
+        onMouseLeave={() => setIsSidebarTooltipOpen(false)}
+        onClick={() => setIsSidebarTooltipOpen((prev) => !prev)}
       >
         <div className="relative">
           <img
@@ -64,12 +67,11 @@ export const WakingMascotWidget: React.FC<WakingMascotWidgetProps> = ({
         {/* Floating Speech Bubble Tooltip on Hover */}
         <div
           className={`absolute left-0 top-12 z-50 w-64 p-3 bg-[#141422] border border-[#302840] panel-rim rounded-2xl shadow-2xl transition-all duration-200 pointer-events-none ${
-            isTooltipOpen
+            isSidebarTooltipOpen
               ? 'opacity-100 scale-100 translate-y-0'
               : 'opacity-0 scale-95 -translate-y-1 pointer-events-none'
           }`}
         >
-          {/* Little triangle arrow pointing up */}
           <div className="absolute -top-1.5 left-4 w-3 h-3 bg-[#141422] border-t border-l border-[#302840] rotate-45" />
 
           <div className="flex items-center justify-between pb-1.5 mb-1.5 border-b border-[#302840]/60">
@@ -97,11 +99,11 @@ export const WakingMascotWidget: React.FC<WakingMascotWidgetProps> = ({
     );
   }
 
-  // 2. Variant: Mini Badge for Mobile Navigation Bar or Mobile TopBar
+  // 2. Variant: Mini Badge for Mobile TopBar or Mobile Header
   if (variant === 'mini-badge') {
     return (
       <div
-        onClick={() => setIsTooltipOpen(!isTooltipOpen)}
+        onClick={() => setIsBubbleOpen(!isBubbleOpen)}
         className={`relative inline-flex items-center gap-1.5 px-2 py-1 bg-[#141422] border border-[#302840] panel-rim rounded-full cursor-pointer hover:border-[#00FFCC]/50 transition ${className}`}
         title={mascot.message}
       >
@@ -128,17 +130,6 @@ export const WakingMascotWidget: React.FC<WakingMascotWidgetProps> = ({
         <span className="text-[10px] font-mono font-bold text-white">
           {mascot.energyPercent}%
         </span>
-
-        {/* Mobile Popover when tapped */}
-        {isTooltipOpen && (
-          <div className="absolute right-0 top-9 z-50 w-56 p-2.5 bg-[#0F0F1A] border border-[#302840] panel-rim rounded-2xl shadow-2xl text-left animate-in fade-in duration-150">
-            <p className="text-[11px] text-white font-medium">"{mascot.message}"</p>
-            <div className="mt-1 pt-1 border-t border-[#302840]/60 flex items-center justify-between text-[9px] font-mono text-[#A098B0]">
-              <span>{mascot.stateName}</span>
-              <span className="text-[#00FFCC] font-bold">{mascot.txTodayCount}/5 hoy</span>
-            </div>
-          </div>
-        )}
       </div>
     );
   }
@@ -179,130 +170,207 @@ export const WakingMascotWidget: React.FC<WakingMascotWidgetProps> = ({
     );
   }
 
-  // 4. Variant: Full Dashboard Interactive Widget ("Billetera con Vida")
-  return (
-    <div
-      className={`bg-gradient-to-r from-[#141422] via-[#111118] to-[#141422] border border-[#302840] panel-rim rounded-2xl p-4 sm:p-5 shadow-xl relative overflow-hidden transition-all hover:border-[#302840]/90 ${className}`}
-    >
-      {/* Decorative neon ambient backlight */}
+  // 4. Variant: Dashboard Banner
+  if (variant === 'dashboard') {
+    return (
       <div
-        className={`absolute -top-12 -right-12 w-32 h-32 rounded-full blur-3xl opacity-20 pointer-events-none ${
-          mascot.tier === 3
-            ? 'bg-[#FF2D78]'
-            : mascot.tier === 2
-            ? 'bg-[#00FFCC]'
-            : mascot.tier === 1
-            ? 'bg-[#38bdf8]'
-            : mascot.tier === 0.5
-            ? 'bg-[#FFE04A]'
-            : 'bg-indigo-600'
-        }`}
-      />
-
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 relative z-10">
-        
-        {/* Mascot Avatar + Speech Bubble */}
-        <div className="flex items-center gap-3.5 sm:gap-4">
-          
-          {/* Avatar Container with Poke Interaction */}
-          <div
-            onClick={handlePoke}
-            className="relative cursor-pointer shrink-0 group select-none"
-            title="¡Tócame para interactuar!"
-          >
-            <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-[#0A0A12] border border-[#302840] flex items-center justify-center p-2 shadow-inner group-hover:border-[#00FFCC]/40 transition">
-              <img
-                src={mascot.image}
-                alt={`Mascota FinanzApp - ${mascot.stateName}`}
-                className={`w-11 h-11 sm:w-12 sm:h-12 object-contain transition-transform duration-300 ${
-                  isPoked ? 'scale-125 rotate-12' : mascot.animationClass
-                }`}
-              />
-            </div>
-
-            {/* Energy Badge Floating */}
-            <span
-              className={`absolute -bottom-1 -right-1 text-[9px] font-mono font-bold px-1.5 py-0.2 rounded-full ring-2 ring-[#0A0A12] border shadow-sm ${
-                mascot.tier === 3
-                  ? 'bg-[#FF2D78] text-white border-[#FF2D78]'
-                  : mascot.tier === 2
-                  ? 'bg-[#00FFCC] text-black border-[#00FFCC]'
-                  : mascot.tier === 1
-                  ? 'bg-[#38bdf8] text-black border-[#38bdf8]'
-                  : mascot.tier === 0.5
-                  ? 'bg-[#FFE04A] text-black border-[#FFE04A]'
-                  : 'bg-slate-700 text-slate-300 border-slate-600'
-              }`}
+        className={`bg-gradient-to-r from-[#141422] via-[#111118] to-[#141422] border border-[#302840] panel-rim rounded-2xl p-4 sm:p-5 shadow-xl relative overflow-hidden transition-all hover:border-[#302840]/90 ${className}`}
+      >
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 relative z-10">
+          <div className="flex items-center gap-3.5 sm:gap-4">
+            <div
+              onClick={handlePoke}
+              className="relative cursor-pointer shrink-0 group select-none"
+              title="¡Tócame para interactuar!"
             >
-              {mascot.energyPercent}%
-            </span>
-          </div>
-
-          {/* Speech Bubble */}
-          <div className="min-w-0 flex-1">
-            <div className="flex items-center gap-2 flex-wrap mb-1">
-              <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-[#00FFCC]/10 text-[#00FFCC] border border-[#00FFCC]/30 uppercase tracking-wider">
-                Billetera con Vida
-              </span>
-              <span className="text-[10px] font-mono text-[#A098B0]">
-                {mascot.stateName}
-              </span>
-            </div>
-
-            {/* Contextual Message Bubble */}
-            <div className="relative inline-block bg-[#0A0A12] border border-[#302840] panel-rim rounded-2xl px-3.5 py-2 shadow-sm animate-speech-bubble">
-              <p className="text-xs sm:text-sm font-semibold text-white tracking-tight">
-                "{mascot.message}"
-              </p>
-            </div>
-          </div>
-        </div>
-
-        {/* Right Section: Activity Progress & Quick Add */}
-        <div className="flex sm:flex-col items-center sm:items-end justify-between sm:justify-center gap-2 border-t sm:border-t-0 pt-2.5 sm:pt-0 border-[#302840]/60 shrink-0">
-          
-          {/* Daily Goal Counter */}
-          <div className="text-left sm:text-right">
-            <div className="flex items-center sm:justify-end gap-1.5 text-xs font-mono font-bold text-white">
-              <span className="text-[#A098B0] font-sans font-normal text-[11px]">Meta Diaria:</span>
-              <span className={mascot.txTodayCount >= 5 ? 'text-[#00FFCC]' : 'text-white'}>
-                {mascot.txTodayCount} / 5 gastos
+              <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-[#0A0A12] border border-[#302840] flex items-center justify-center p-2 shadow-inner group-hover:border-[#00FFCC]/40 transition">
+                <img
+                  src={mascot.image}
+                  alt={`Mascota FinanzApp - ${mascot.stateName}`}
+                  className={`w-11 h-11 sm:w-12 sm:h-12 object-contain transition-transform duration-300 ${
+                    isPoked ? 'scale-125 rotate-12' : mascot.animationClass
+                  }`}
+                />
+              </div>
+              <span className="absolute -bottom-1 -right-1 text-[9px] font-mono font-bold px-1.5 py-0.2 rounded-full ring-2 ring-[#0A0A12] bg-[#00FFCC] text-black">
+                {mascot.energyPercent}%
               </span>
             </div>
 
-            {/* Mini Progress Bar */}
-            <div className="w-28 sm:w-32 bg-[#0A0A12] h-1.5 rounded-full overflow-hidden mt-1.5 border border-[#302840]/60">
-              <div
-                className={`h-full rounded-full transition-all duration-500 ${
-                  mascot.tier === 3
-                    ? 'bg-gradient-to-r from-[#00FFCC] to-[#FF2D78] shadow-[0_0_8px_#FF2D78]'
-                    : mascot.tier === 2
-                    ? 'bg-[#00FFCC]'
-                    : mascot.tier === 1
-                    ? 'bg-[#38bdf8]'
-                    : mascot.tier === 0.5
-                    ? 'bg-[#FFE04A]'
-                    : 'bg-slate-700'
-                }`}
-                style={{ width: `${Math.min(100, (mascot.txTodayCount / 5) * 100)}%` }}
-              />
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-2 flex-wrap mb-1">
+                <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-[#00FFCC]/10 text-[#00FFCC] border border-[#00FFCC]/30 uppercase tracking-wider">
+                  Billetera con Vida
+                </span>
+                <span className="text-[10px] font-mono text-[#A098B0]">
+                  {mascot.stateName}
+                </span>
+              </div>
+              <div className="relative inline-block bg-[#0A0A12] border border-[#302840] panel-rim rounded-2xl px-3.5 py-2 shadow-sm animate-speech-bubble">
+                <p className="text-xs sm:text-sm font-semibold text-white tracking-tight">
+                  "{mascot.message}"
+                </p>
+              </div>
             </div>
           </div>
 
-          {/* Quick Action Button */}
           {onQuickAdd && (
             <button
               onClick={onQuickAdd}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-r from-[#00FFCC] to-[#38bdf8] hover:opacity-90 text-[#0A0A12] text-xs font-black shadow-md shadow-[#00FFCC]/15 transition"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-r from-[#00FFCC] to-[#38bdf8] text-[#0A0A12] text-xs font-black shadow-md transition shrink-0"
             >
               <Plus className="w-3.5 h-3.5 stroke-[3]" />
               <span>Registrar Gasto</span>
             </button>
           )}
-
         </div>
-
       </div>
-    </div>
+    );
+  }
+
+  // 5. Default Primary Variant: Floating Fixed Widget in Bottom-Right Corner (Issue #31)
+  // Position: Desktop: fixed bottom-6 right-6 z-40. Mobile: fixed bottom-20 right-4 z-40.
+  return (
+    <aside
+      aria-label="Mascota Virtual FinanzApp"
+      className={`fixed bottom-20 right-4 md:bottom-6 md:right-6 z-40 select-none flex flex-col items-end pointer-events-auto ${className}`}
+    >
+      {/* Floating Speech Bubble Above/Left of Avatar */}
+      {isBubbleOpen && (
+        <div
+          className="relative mb-2 max-w-[260px] sm:max-w-[290px] p-3.5 bg-[#141422]/95 backdrop-blur-xl border border-[#302840] panel-rim rounded-3xl shadow-[0_12px_36px_rgba(0,0,0,0.6)] animate-in fade-in zoom-in-95 duration-200 text-left"
+          role="status"
+        >
+          {/* Header of speech bubble */}
+          <div className="flex items-center justify-between pb-1.5 mb-1.5 border-b border-[#302840]/60">
+            <div className="flex items-center gap-1.5">
+              <span className="text-sm select-none">{mascot.moodEmoji}</span>
+              <span className="text-[10px] font-mono font-bold text-[#00FFCC] uppercase tracking-wider">
+                {mascot.stateName}
+              </span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <span
+                className={`text-[9px] font-mono font-bold px-1.5 py-0.2 rounded-full border ${
+                  mascot.tier === 3
+                    ? 'bg-[#FF2D78]/20 text-[#FF2D78] border-[#FF2D78]/40'
+                    : mascot.tier === 2
+                    ? 'bg-[#00FFCC]/20 text-[#00FFCC] border-[#00FFCC]/40'
+                    : mascot.tier === 1
+                    ? 'bg-[#38bdf8]/20 text-[#38bdf8] border-[#38bdf8]/40'
+                    : mascot.tier === 0.5
+                    ? 'bg-[#FFE04A]/20 text-[#FFE04A] border-[#FFE04A]/40'
+                    : 'bg-slate-800 text-slate-400 border-slate-700'
+                }`}
+              >
+                {mascot.energyPercent}%
+              </span>
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setIsBubbleOpen(false);
+                }}
+                className="text-slate-400 hover:text-white p-1 rounded-lg hover:bg-[#1e1e2d] transition"
+                aria-label="Minimizar diálogo de la mascota"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          </div>
+
+          {/* Contextual message text */}
+          <p className="text-xs font-semibold text-white tracking-tight leading-snug">
+            "{mascot.message}"
+          </p>
+
+          {/* Progress bar towards 5 daily expenses */}
+          <div className="mt-2.5 pt-2 border-t border-[#302840]/40 flex items-center justify-between text-[10px] font-mono text-[#A098B0]">
+            <span>Meta: {mascot.txTodayCount}/5 hoy</span>
+            <span className={mascot.txTodayCount >= 5 ? 'text-[#00FFCC] font-bold' : 'text-[#FFE04A]'}>
+              {mascot.statusBadge}
+            </span>
+          </div>
+
+          <div className="w-full bg-[#0A0A12] h-1.5 rounded-full overflow-hidden mt-1 border border-[#302840]/60">
+            <div
+              className={`h-full rounded-full transition-all duration-500 ${
+                mascot.tier === 3
+                  ? 'bg-gradient-to-r from-[#00FFCC] to-[#FF2D78] shadow-[0_0_8px_#FF2D78]'
+                  : mascot.tier === 2
+                  ? 'bg-[#00FFCC]'
+                  : mascot.tier === 1
+                  ? 'bg-[#38bdf8]'
+                  : mascot.tier === 0.5
+                  ? 'bg-[#FFE04A]'
+                  : 'bg-slate-700'
+              }`}
+              style={{ width: `${Math.min(100, (mascot.txTodayCount / 5) * 100)}%` }}
+            />
+          </div>
+
+          {/* Downward pointer arrow towards the mascot */}
+          <div className="absolute -bottom-1.5 right-7 w-3 h-3 bg-[#141422] border-b border-r border-[#302840] rotate-45" />
+        </div>
+      )}
+
+      {/* Floating Avatar Container (64px mobile to 80px desktop) */}
+      <div
+        onClick={handlePoke}
+        className="relative group cursor-pointer select-none transition-transform hover:scale-105 active:scale-95"
+        title="¡Toca a la Billetera para interactuar!"
+        role="button"
+        tabIndex={0}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            handlePoke();
+          }
+        }}
+      >
+        {/* Glow halo behind mascot */}
+        <div
+          className={`absolute inset-0 rounded-full blur-xl opacity-40 transition-opacity group-hover:opacity-75 ${
+            mascot.tier === 3
+              ? 'bg-[#FF2D78]'
+              : mascot.tier === 2
+              ? 'bg-[#00FFCC]'
+              : mascot.tier === 1
+              ? 'bg-[#38bdf8]'
+              : mascot.tier === 0.5
+              ? 'bg-[#FFE04A]'
+              : 'bg-slate-500'
+          }`}
+        />
+
+        {/* Mascot Avatar Image: Highlighted 64px–80px Size */}
+        <div className="relative w-16 h-16 sm:w-20 sm:h-20 flex items-center justify-center p-1">
+          <img
+            src={mascot.image}
+            alt={`Mascota FinanzApp - ${mascot.stateName}`}
+            className={`w-full h-full object-contain drop-shadow-2xl transition-transform duration-300 ${
+              isPoked ? 'scale-125 rotate-12' : mascot.animationClass
+            }`}
+          />
+
+          {/* Mood Emoji or Energy Badge floating on corner */}
+          <span
+            className={`absolute -bottom-0.5 -right-0.5 w-6 h-6 rounded-full ring-2 ring-[#0A0A12] flex items-center justify-center text-xs shadow-lg ${
+              mascot.tier === 3
+                ? 'bg-[#FF2D78] text-white shadow-[0_0_10px_#FF2D78]'
+                : mascot.tier === 2
+                ? 'bg-[#00FFCC] text-black shadow-[0_0_10px_#00FFCC]'
+                : mascot.tier === 1
+                ? 'bg-[#38bdf8] text-black shadow-[0_0_8px_#38bdf8]'
+                : mascot.tier === 0.5
+                ? 'bg-[#FFE04A] text-black shadow-[0_0_8px_#FFE04A]'
+                : 'bg-slate-700 text-slate-300'
+            }`}
+          >
+            {mascot.moodEmoji}
+          </span>
+        </div>
+      </div>
+    </aside>
   );
 };

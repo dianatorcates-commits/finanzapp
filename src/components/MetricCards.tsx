@@ -363,12 +363,6 @@ export const MetricCards: React.FC<MetricCardsProps> = ({
 
   return (
     <div className="space-y-4 mb-6">
-      {/* Waking Mascot Interactive Dashboard Banner ("Billetera con Vida" - Issue #29) */}
-      <WakingMascotWidget
-        transactions={transactions}
-        onQuickAdd={onQuickAdd}
-      />
-
       {/* Active Account Billing Cycle Banner */}
       {cycleInfo && (
         <div className="bg-[#141422] border border-[#302840] panel-rim px-4 py-2.5 rounded-2xl text-xs text-[#E8E0F0] flex flex-col sm:flex-row sm:items-center justify-between gap-1 shadow-md backdrop-blur-md">
