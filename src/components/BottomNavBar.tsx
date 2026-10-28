@@ -18,6 +18,7 @@ import {
   Sparkles,
   RefreshCw,
   PlusCircle,
+  Plus,
   Link2
 } from 'lucide-react';
 import { Transaction } from '../types';
@@ -32,6 +33,7 @@ export interface BottomNavBarProps {
   transactions?: Transaction[];
   isTelegramLinked?: boolean;
   onOpenImport: () => void;
+  onOpenAddTransaction?: () => void;
   onOpenAutoAllocate: () => void;
   onOpenTelegramModal: () => void;
   onOpenWalletModal: () => void;
@@ -49,6 +51,7 @@ export const BottomNavBar: React.FC<BottomNavBarProps> = ({
   transactions,
   isTelegramLinked = false,
   onOpenImport,
+  onOpenAddTransaction,
   onOpenAutoAllocate,
   onOpenTelegramModal,
   onOpenWalletModal,
@@ -132,17 +135,30 @@ export const BottomNavBar: React.FC<BottomNavBarProps> = ({
               )}
             </div>
 
-            {/* Quick Action: Import Cartola */}
-            <div>
+            {/* Quick Actions: Cargar Movimiento (Principal) & Importar Cartola (Secundario) */}
+            <div className="space-y-2">
+              {onOpenAddTransaction && (
+                <button
+                  onClick={() => {
+                    onOpenAddTransaction();
+                    setIsMenuOpen(false);
+                  }}
+                  className="w-full flex items-center justify-center gap-2 bg-[#FF2D78] hover:bg-[#ff1a6c] text-white font-headline font-bold text-xs py-2.5 px-4 rounded-xl shadow-lg glow-primary transition transform active:scale-95"
+                >
+                  <Plus className="w-4 h-4 stroke-[3]" />
+                  <span>Cargar Movimiento</span>
+                </button>
+              )}
+
               <button
                 onClick={() => {
                   onOpenImport();
                   setIsMenuOpen(false);
                 }}
-                className="w-full flex items-center justify-center gap-2 bg-[#FF2D78] hover:bg-[#ff1a6c] text-white font-bold text-xs py-3 px-4 rounded-xl shadow-lg shadow-[#FF2D78]/25 transition"
+                className="w-full flex items-center justify-center gap-2 bg-[#141422] hover:bg-[#1C1C2E] text-[#00FFCC] border border-[#00FFCC]/30 hover:border-[#00FFCC] font-headline font-semibold text-xs py-2.5 px-4 rounded-xl transition shadow-sm"
               >
                 <Upload className="w-4 h-4" />
-                <span>Importar Cartola Bancaria</span>
+                <span>Cargar Cartola Bancaria</span>
               </button>
             </div>
 

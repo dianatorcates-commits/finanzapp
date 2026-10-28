@@ -9,7 +9,9 @@ import {
   ChevronLeft,
   ChevronRight,
   Bell,
-  Command
+  Command,
+  Plus,
+  Upload
 } from 'lucide-react';
 import { Account, Transaction } from '../types';
 import { WakingMascotWidget } from './WakingMascotWidget';
@@ -28,6 +30,8 @@ interface TopBarProps {
   searchQuery?: string;
   onSearchChange?: (query: string) => void;
   notificationCount?: number;
+  onOpenAddTransaction?: () => void;
+  onOpenImport?: () => void;
 }
 
 function formatMonthLabel(monthStr: string): string {
@@ -55,7 +59,9 @@ export const TopBar: React.FC<TopBarProps> = ({
   onToggleMobileMenu,
   searchQuery = '',
   onSearchChange,
-  notificationCount = 0
+  notificationCount = 0,
+  onOpenAddTransaction,
+  onOpenImport
 }) => {
   const searchInputRef = useRef<HTMLInputElement>(null);
 
@@ -158,6 +164,33 @@ export const TopBar: React.FC<TopBarProps> = ({
             </kbd>
           </div>
         </div>
+      </div>
+
+      {/* Center-Right Quick Action Buttons: Cargar Movimiento & Cargar Cartola */}
+      <div className="flex items-center gap-1.5 sm:gap-2">
+        {onOpenAddTransaction && (
+          <button
+            onClick={onOpenAddTransaction}
+            className="flex items-center gap-1.5 bg-[#FF2D78] hover:bg-[#ff1a6c] text-white text-xs font-headline font-bold px-2.5 sm:px-3 py-1.5 rounded-xl shadow-md glow-primary transition transform active:scale-95"
+            title="Cargar movimiento individual manual"
+          >
+            <Plus className="w-3.5 h-3.5 stroke-[3]" />
+            <span className="hidden sm:inline">Cargar Movimiento</span>
+            <span className="sm:hidden text-[11px]">Movimiento</span>
+          </button>
+        )}
+
+        {onOpenImport && (
+          <button
+            onClick={onOpenImport}
+            className="flex items-center gap-1.5 bg-[#141422] hover:bg-[#1C1C2E] text-[#00FFCC] border border-[#00FFCC]/30 hover:border-[#00FFCC] text-xs font-headline font-semibold px-2.5 sm:px-3 py-1.5 rounded-xl transition shadow-sm"
+            title="Cargar estado de cuenta o cartola bancaria"
+          >
+            <Upload className="w-3.5 h-3.5" />
+            <span className="hidden md:inline">Cargar Cartola</span>
+            <span className="md:hidden text-[11px]">Cartola</span>
+          </button>
+        )}
       </div>
 
       {/* Right Section: Month Stepper Navigation + Cloud Sync + Notifications */}

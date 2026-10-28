@@ -57,6 +57,7 @@ import { ChartsDashboard } from './components/ChartsDashboard';
 import { TransactionTable } from './components/TransactionTable';
 import { PaymentModal } from './components/PaymentModal';
 import { ImportModal } from './components/ImportModal';
+import { AddTransactionModal } from './components/AddTransactionModal';
 import { AccountsManagementView } from './components/AccountsManagementView';
 import { CategoryManagementView } from './components/CategoryManagementView';
 import { BudgetAndGoalsView } from './components/BudgetAndGoalsView';
@@ -207,6 +208,7 @@ export function App() {
   const hasAutoSelectedMonth = useRef(false);
 
   // Modals state
+  const [isAddTransactionModalOpen, setIsAddTransactionModalOpen] = useState(false);
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [isBudgetModalOpen, setIsBudgetModalOpen] = useState(false);
   const [isTelegramModalOpen, setIsTelegramModalOpen] = useState(false);
@@ -1305,6 +1307,7 @@ export function App() {
         currentUser={currentUser}
         transactions={transactions}
         isTelegramLinked={Boolean(telegramProfile?.telegram_chat_id)}
+        onOpenAddTransaction={() => setIsAddTransactionModalOpen(true)}
         onOpenImport={() => setIsImportModalOpen(true)}
         onOpenAccountModal={() => setActiveTab('accounts')}
         onOpenCategoryModal={() => setActiveTab('categories')}
@@ -1369,6 +1372,8 @@ export function App() {
           searchQuery={filters.searchQuery}
           onSearchChange={(q) => setFilters((prev) => ({ ...prev, searchQuery: q }))}
           notificationCount={duplicateCount}
+          onOpenAddTransaction={() => setIsAddTransactionModalOpen(true)}
+          onOpenImport={() => setIsImportModalOpen(true)}
         />
 
         {/* Scrollable Main Workspace */}
@@ -1412,7 +1417,7 @@ export function App() {
                   budgets={budgets}
                   currentPeriod={filters.month !== 'ALL' ? filters.month : new Date().toISOString().slice(0, 7)}
                   onOpenBillingModal={() => setIsBillingModalOpen(true)}
-                  onQuickAdd={() => setIsImportModalOpen(true)}
+                  onQuickAdd={() => setIsAddTransactionModalOpen(true)}
                   metrics={dashboardConfig.metrics}
                 />
 
@@ -1546,6 +1551,7 @@ export function App() {
         currentUser={currentUser}
         transactions={transactions}
         isTelegramLinked={Boolean(telegramProfile?.telegram_chat_id)}
+        onOpenAddTransaction={() => setIsAddTransactionModalOpen(true)}
         onOpenImport={() => setIsImportModalOpen(true)}
         onOpenAutoAllocate={handleAutoAllocate}
         onOpenTelegramModal={() => (currentUser ? setIsTelegramModalOpen(true) : setIsAuthModalOpen(true))}
@@ -1581,6 +1587,16 @@ export function App() {
           onImport={handleImportTransactions}
         />
       )}
+
+      {/* Global Add Single Transaction Modal (Manual) */}
+      <AddTransactionModal
+        isOpen={isAddTransactionModalOpen}
+        onClose={() => setIsAddTransactionModalOpen(false)}
+        accounts={accounts}
+        categoryMappings={categoryMappings}
+        onAddTransaction={handleAddManualTransaction}
+        initialAccountId={filters.accountId !== 'ALL' ? filters.accountId : accounts[0]?.id}
+      />
 
 
 

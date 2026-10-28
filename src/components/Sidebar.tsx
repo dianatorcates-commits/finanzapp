@@ -31,6 +31,7 @@ interface SidebarProps {
   transactions?: Transaction[];
   isTelegramLinked?: boolean;
   onOpenImport: () => void;
+  onOpenAddTransaction?: () => void;
   onOpenAccountModal?: () => void;
   onOpenCategoryModal?: () => void;
   onOpenBudgetModal?: () => void;
@@ -52,6 +53,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   transactions,
   isTelegramLinked,
   onOpenImport,
+  onOpenAddTransaction,
   onOpenAccountModal,
   onOpenCategoryModal,
   onOpenBudgetModal,
@@ -108,17 +110,30 @@ export const Sidebar: React.FC<SidebarProps> = ({
           )}
         </div>
 
-        {/* Primary Action Button: + Nuevo Movimiento / Importar Cartola con Glow Neón */}
-        <div className="pt-1">
+        {/* Action Buttons: Cargar Movimiento (Principal) & Cargar Cartola (Secundario) */}
+        <div className="pt-1 space-y-2">
+          {/* Botón 1: Cargar Movimiento Individual */}
           <button
             onClick={() => {
-              onOpenImport();
+              if (onOpenAddTransaction) onOpenAddTransaction();
               if (onCloseMobile) onCloseMobile();
             }}
             className="w-full flex items-center justify-center gap-2 bg-[#FF2D78] hover:bg-[#ff1a6c] text-white font-headline font-bold text-xs py-2.5 px-3.5 rounded-xl shadow-lg glow-primary transition-all transform hover:-translate-y-0.5 active:translate-y-0"
           >
             <Plus className="w-4 h-4 stroke-[3]" />
-            <span>+ Nuevo Movimiento</span>
+            <span>Cargar Movimiento</span>
+          </button>
+
+          {/* Botón 2: Cargar Cartola Masiva */}
+          <button
+            onClick={() => {
+              onOpenImport();
+              if (onCloseMobile) onCloseMobile();
+            }}
+            className="w-full flex items-center justify-center gap-2 bg-[#141422] hover:bg-[#1C1C2E] text-[#E8E0F0] hover:text-white border border-[#302840] hover:border-[#00FFCC]/50 font-headline font-semibold text-xs py-2 px-3.5 rounded-xl transition-all shadow-sm"
+          >
+            <Upload className="w-3.5 h-3.5 text-[#00FFCC]" />
+            <span>Cargar Cartola</span>
           </button>
         </div>
 

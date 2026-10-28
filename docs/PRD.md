@@ -370,6 +370,30 @@ FinanzApp es una plataforma web financiera integral, interactiva y multi-disposi
       * *Interactividad (Poke & Bounce)*: Al hacer clic o tap sobre la billetera, ejecuta una micro-animación de rebote festivo y alterna la apertura/cierre de la burbuja de diálogo.
     * **Sidebar de Escritorio & Barra Móvil**: Mini-avatar en cabecera junto al logotipo con tooltip al pasar el cursor y badge de humor/energía en el botón Menú de la barra inferior.
 
+* **RF-41 (Diferenciación de Botones de Carga, Modal Global de Movimiento Manual y Rediseño Stitch de ImportModal)**:
+  * **Diferenciación de Acciones en Sidebar, TopBar y Mobile Drawer**:
+    * **Botón 1 (Principal Magenta Neón)**: `+ Cargar Movimiento`, estilizado en `#FF2D78` con `glow-primary`. Abre el modal global de registro manual individual `AddTransactionModal.tsx`.
+    * **Botón 2 (Secundario / Cartola)**: `📥 Cargar Cartola`, estilizado en panel oscuro `#141422` con borde `#302840` y acento cian `#00FFCC`. Abre el modal de importación masiva de estados de cuenta `ImportModal.tsx`.
+    * Eliminación total de duplicidades de texto (como `+ +Nuevo Movimiento`) y confusión entre cargas individuales y masivas.
+  * **Nuevo Modal Global `AddTransactionModal.tsx`**:
+    * Accesible desde cualquier vista de la aplicación mediante Sidebar, TopBar, MetricCards ("onQuickAdd") y BottomNavBar móvil.
+    * **Campos del Formulario**:
+      * *Cuenta Destino*: Selector desplegable con indicador del día de corte para tarjetas de crédito.
+      * *Fecha del Movimiento*: Campo de fecha (por defecto hoy) con auto-recalculado reactivo del período.
+      * *Período de Facturación (YYYY-MM)*: Auto-computado mediante `calculateTransactionPeriod(date, closingDay)` con botón de restablecimiento `"Auto"` y opción de ajuste manual.
+      * *Descripción / Glosa / Comercio*: Campo de texto obligatorio.
+      * *Monto en CLP*: Entrada numérica validada mayor a 0 CLP.
+      * *Tipo de Transacción (Chips Interactivos)*: Selección visual entre `compra`, `pago_tc`, `ingreso_venta`, `transferencia_enviada` y `transferencia_recibida`.
+      * *Categorías Jerárquicas Sincronizadas*: Categoría principal y subcategoría sincronizadas reactivamente a partir de `categoryMappings`.
+      * *Cuotas Opcionales*: Conmutador para compras en cuotas con especificación de cuota actual y total de cuotas.
+    * **Persistencia Inmediata**: Inyección inmediata en el estado de React y persistencia asíncrona en Supabase (`saveCloudTransaction`).
+  * **Rediseño Estético Stitch de `ImportModal.tsx`**:
+    * Transformación total de la estética clásica clara al tema Stitch "Neon Tokyo" (`#0A0A12`, `#111118`, `#141422`, `#302840`, `#00FFCC`, `#FF2D78`, `#FFE04A`, `panel-rim`).
+    * Cabecera oscura con badge esmeralda (`#10b981`) y títulos de cartola estructurados.
+    * Pestañas estilizadas con borde inferior magenta activo `#FF2D78`.
+    * Zona de arrastre (Dropzone) con borde cian punteado (`border-[#00FFCC]/40`), icono de nube y botón de examen local.
+    * Tabla de previsualización en tema oscuro con edición in situ de fecha/período, gestión de alertas de duplicidad y botón de confirmación magenta con glow.
+
 ---
 
 ## 5. Modelo de Datos Normalizado (Supabase PostgreSQL)
