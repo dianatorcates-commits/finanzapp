@@ -84,11 +84,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
         {/* Brand Header */}
         <div className="flex items-center justify-between pb-3 border-b border-[#302840]/60 px-1">
           <div className="flex items-center space-x-3">
-            <WakingMascotWidget
-              variant="sidebar"
-              transactions={transactions}
-              accounts={accounts}
-              currentUser={currentUser}
+            <img
+              src="/images/wallet_mascot_logo_128x128.png"
+              alt="FinanzApp Logo"
+              className="w-8 h-8 object-contain rounded-lg drop-shadow-sm"
             />
             <div className="flex flex-col">
               <div className="flex items-center gap-1.5">

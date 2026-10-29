@@ -283,7 +283,7 @@ export function getMascotState(
         stateName: 'Plenamente Activa & Feliz',
         txTodayCount,
         daysInactive,
-        image: '/images/wallet_mascot_logo_128x128.png',
+        image: '/images/homologated_stage3_happy_128x128.png',
         animationClass: 'mascot-happy-bounce',
         message: '😄🎉 ¡Siiii! ¡Al fin totalmente activa y con las finanzas al día!',
         energyPercent: 100,

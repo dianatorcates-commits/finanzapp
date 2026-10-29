@@ -13,3 +13,4 @@ self.addEventListener('fetch', (event) => {
   // Let the browser handle standard network requests
   return;
 });
+

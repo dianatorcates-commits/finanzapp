@@ -87,12 +87,11 @@ export const BottomNavBar: React.FC<BottomNavBarProps> = ({
           <div className="relative bg-[#0F0F1A] border-t border-[#302840] rounded-t-3xl p-5 max-h-[85vh] overflow-y-auto space-y-5 shadow-2xl animate-in slide-in-from-bottom duration-200">
             {/* Header with Title and Close button */}
             <div className="flex items-center justify-between pb-3 border-b border-[#302840]/60">
-              <div className="flex items-center gap-2">
-                <WakingMascotWidget
-                  variant="sidebar"
-                  transactions={transactions}
-                  accounts={accounts}
-                  currentUser={currentUser}
+              <div className="flex items-center gap-2.5">
+                <img
+                  src="/images/wallet_mascot_logo_128x128.png"
+                  alt="FinanzApp Logo"
+                  className="w-8 h-8 object-contain rounded-lg drop-shadow-sm"
                 />
                 <span className="font-headline font-bold text-base text-[#E8E0F0]">
                   Menú FinanzApp
