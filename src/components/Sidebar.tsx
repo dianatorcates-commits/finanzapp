@@ -21,7 +21,7 @@ import {
   Zap,
   Bot
 } from 'lucide-react';
-import { Transaction } from '../types';
+import { Transaction, Account } from '../types';
 import { WakingMascotWidget } from './WakingMascotWidget';
 
 interface SidebarProps {
@@ -29,6 +29,7 @@ interface SidebarProps {
   onSelectTab: (tab: 'dashboard' | 'transactions' | 'categories' | 'budgets' | 'accounts' | 'credits') => void;
   currentUser?: any;
   transactions?: Transaction[];
+  accounts?: Account[];
   isTelegramLinked?: boolean;
   onOpenImport: () => void;
   onOpenAddTransaction?: () => void;
@@ -51,6 +52,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onSelectTab,
   currentUser,
   transactions,
+  accounts,
   isTelegramLinked,
   onOpenImport,
   onOpenAddTransaction,
@@ -82,7 +84,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
         {/* Brand Header */}
         <div className="flex items-center justify-between pb-3 border-b border-[#302840]/60 px-1">
           <div className="flex items-center space-x-3">
-            <WakingMascotWidget variant="sidebar" transactions={transactions} />
+            <WakingMascotWidget
+              variant="sidebar"
+              transactions={transactions}
+              accounts={accounts}
+              currentUser={currentUser}
+            />
             <div className="flex flex-col">
               <div className="flex items-center gap-1.5">
                 <span className="text-sm font-headline font-bold tracking-tight text-[#E8E0F0]">

@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import {
   CreditCard,
@@ -71,6 +71,7 @@ interface AccountsManagementViewProps {
   onOpenImportModal?: () => void;
   onOpenBillingModal?: () => void;
   onOpenPayBillingModal?: (card: Account) => void;
+  initialOpenCreateModal?: boolean;
 }
 
 export const CHILEAN_BANKS = [
@@ -236,7 +237,8 @@ export const AccountsManagementView: React.FC<AccountsManagementViewProps> = ({
   onDeleteAccount,
   onOpenImportModal,
   onOpenBillingModal,
-  onOpenPayBillingModal
+  onOpenPayBillingModal,
+  initialOpenCreateModal
 }) => {
   // Category tabs: 'all' | 'credit_card' | 'debit_checking' | 'prepaid_other'
   const [activeTabFilter, setActiveTabFilter] = useState<'all' | 'credit_card' | 'debit_checking' | 'prepaid_other'>('all');
@@ -416,6 +418,13 @@ export const AccountsManagementView: React.FC<AccountsManagementViewProps> = ({
     setFormError(null);
     setIsModalOpen(true);
   };
+
+  // Auto-open create modal if requested (e.g. from Mascot Onboarding CTA)
+  useEffect(() => {
+    if (initialOpenCreateModal) {
+      handleOpenCreateModal();
+    }
+  }, [initialOpenCreateModal]);
 
   // Open Modal to Edit Existing Account
   const handleOpenEditModal = (acc: Account) => {

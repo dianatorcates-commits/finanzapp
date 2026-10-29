@@ -219,6 +219,7 @@ export function App() {
   const [selectedPurchaseForPayment, setSelectedPurchaseForPayment] = useState<ComputedTransaction | null>(null);
   const [payBillingCard, setPayBillingCard] = useState<Account | null>(null);
   const [payBillingPeriod, setPayBillingPeriod] = useState<string | undefined>(undefined);
+  const [accountViewTriggerCreate, setAccountViewTriggerCreate] = useState(false);
 
   // Helper to ensure dashboard config conforms to array format and has all system metrics available
   const normalizeDashboardConfig = (raw: any): DashboardConfig => {
@@ -1372,6 +1373,7 @@ export function App() {
         onSelectTab={setActiveTab}
         currentUser={currentUser}
         transactions={transactions}
+        accounts={accounts}
         isTelegramLinked={Boolean(telegramProfile?.telegram_chat_id)}
         onOpenAddTransaction={() => setIsAddTransactionModalOpen(true)}
         onOpenImport={() => setIsImportModalOpen(true)}
@@ -1580,6 +1582,7 @@ export function App() {
                   setPayBillingCard(card);
                   setPayBillingPeriod(undefined);
                 }}
+                initialOpenCreateModal={accountViewTriggerCreate}
               />
             ) : (
               <CreditsManagementView
@@ -1603,11 +1606,19 @@ export function App() {
         </div>
       </div>
 
-      {/* Permanent Floating Mascot Widget ("Billetera que Despierta" - Issue #31) */}
+      {/* Permanent Floating Mascot Widget ("Billetera que Despierta" - Issue #31 & Issue #42) */}
       <WakingMascotWidget
         variant="floating"
         transactions={transactions}
+        accounts={accounts}
+        currentUser={currentUser}
         onQuickAdd={() => setIsImportModalOpen(true)}
+        onOpenCreateAccount={() => {
+          setActiveTab('accounts');
+          setAccountViewTriggerCreate(true);
+          setTimeout(() => setAccountViewTriggerCreate(false), 800);
+        }}
+        onOpenImportModal={() => setIsImportModalOpen(true)}
       />
 
       {/* Mobile Fixed Bottom Navigation Bar */}
@@ -1617,6 +1628,7 @@ export function App() {
         duplicateCount={duplicateCount}
         currentUser={currentUser}
         transactions={transactions}
+        accounts={accounts}
         isTelegramLinked={Boolean(telegramProfile?.telegram_chat_id)}
         onOpenAddTransaction={() => setIsAddTransactionModalOpen(true)}
         onOpenImport={() => setIsImportModalOpen(true)}

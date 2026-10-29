@@ -1,25 +1,39 @@
 import React, { useState } from 'react';
-import { Sparkles, Plus, X, MessageSquare } from 'lucide-react';
-import { Transaction } from '../types';
+import { Sparkles, Plus, Upload, X, MessageSquare } from 'lucide-react';
+import { Transaction, Account } from '../types';
 import { getMascotState, MascotState } from '../utils/mascotEngine';
 
 interface WakingMascotWidgetProps {
   transactions?: Transaction[];
+  accounts?: Account[];
+  currentUser?: { created_at?: string; id?: string } | null;
   mascotState?: MascotState;
   variant?: 'floating' | 'dashboard' | 'sidebar' | 'compact' | 'mini-badge';
   onQuickAdd?: () => void;
+  onOpenCreateAccount?: () => void;
+  onOpenImportModal?: () => void;
   className?: string;
 }
 
 export const WakingMascotWidget: React.FC<WakingMascotWidgetProps> = ({
   transactions,
+  accounts,
+  currentUser,
   mascotState: propState,
   variant = 'floating',
   onQuickAdd,
+  onOpenCreateAccount,
+  onOpenImportModal,
   className = '',
 }) => {
-  // If mascotState is provided directly use it, otherwise compute from transactions
-  const mascot: MascotState = propState || getMascotState(transactions || []);
+  // If mascotState is provided directly use it, otherwise compute from transactions and user context
+  const mascot: MascotState =
+    propState ||
+    getMascotState(transactions || [], {
+      accountsCount: accounts?.length,
+      userCreatedAt: currentUser?.created_at
+    });
+
   const [isBubbleOpen, setIsBubbleOpen] = useState(true);
   const [isPoked, setIsPoked] = useState(false);
   const [isSidebarTooltipOpen, setIsSidebarTooltipOpen] = useState(false);
@@ -51,7 +65,9 @@ export const WakingMascotWidget: React.FC<WakingMascotWidgetProps> = ({
           {/* Energy Ring / Mood Indicator */}
           <span
             className={`absolute -bottom-1 -right-1 w-3 h-3 rounded-full ring-2 ring-[#0A0A12] flex items-center justify-center text-[7px] font-bold ${
-              mascot.tier === 3
+              mascot.tier === 'welcome'
+                ? 'bg-[#00FFCC] shadow-[0_0_8px_#00FFCC]'
+                : mascot.tier === 3
                 ? 'bg-[#FF2D78] shadow-[0_0_8px_#FF2D78]'
                 : mascot.tier === 2
                 ? 'bg-[#00FFCC] shadow-[0_0_8px_#00FFCC]'
@@ -89,10 +105,19 @@ export const WakingMascotWidget: React.FC<WakingMascotWidgetProps> = ({
           </p>
 
           <div className="mt-2 pt-1.5 border-t border-[#302840]/40 flex items-center justify-between text-[10px] text-[#A098B0] font-mono">
-            <span>Hoy: {mascot.txTodayCount} de 5</span>
-            <span className={mascot.txTodayCount >= 5 ? 'text-[#00FFCC] font-bold' : ''}>
-              {mascot.statusBadge}
-            </span>
+            {mascot.tier === 'welcome' ? (
+              <>
+                <span>Primeros pasos</span>
+                <span className="text-[#00FFCC] font-bold">¡Bienvenido!</span>
+              </>
+            ) : (
+              <>
+                <span>Hoy: {mascot.txTodayCount} de 5</span>
+                <span className={mascot.txTodayCount >= 5 ? 'text-[#00FFCC] font-bold' : ''}>
+                  {mascot.statusBadge}
+                </span>
+              </>
+            )}
           </div>
         </div>
       </div>
@@ -115,7 +140,9 @@ export const WakingMascotWidget: React.FC<WakingMascotWidgetProps> = ({
           />
           <span
             className={`absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full ${
-              mascot.tier === 3
+              mascot.tier === 'welcome'
+                ? 'bg-[#00FFCC]'
+                : mascot.tier === 3
                 ? 'bg-[#FF2D78]'
                 : mascot.tier === 2
                 ? 'bg-[#00FFCC]'
@@ -214,22 +241,44 @@ export const WakingMascotWidget: React.FC<WakingMascotWidgetProps> = ({
             </div>
           </div>
 
-          {onQuickAdd && (
-            <button
-              onClick={onQuickAdd}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-r from-[#00FFCC] to-[#38bdf8] text-[#0A0A12] text-xs font-black shadow-md transition shrink-0"
-            >
-              <Plus className="w-3.5 h-3.5 stroke-[3]" />
-              <span>Registrar Gasto</span>
-            </button>
+          {mascot.tier === 'welcome' ? (
+            <div className="flex items-center gap-2 flex-wrap shrink-0">
+              {onOpenCreateAccount && (
+                <button
+                  onClick={onOpenCreateAccount}
+                  className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-gradient-to-r from-[#00FFCC] to-[#38bdf8] hover:from-[#00e6b8] hover:to-[#0ea5e9] text-[#0A0A12] text-xs font-black shadow-md transition transform hover:scale-[1.02] active:scale-95"
+                >
+                  <Plus className="w-3.5 h-3.5 stroke-[3]" />
+                  <span>Crear Primera Cuenta</span>
+                </button>
+              )}
+              {onOpenImportModal && (
+                <button
+                  onClick={onOpenImportModal}
+                  className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-[#0A0A12] hover:bg-[#1A1A2E] text-white border border-[#302840] hover:border-[#00FFCC]/40 text-xs font-bold transition active:scale-95"
+                >
+                  <Upload className="w-3.5 h-3.5 text-[#00FFCC]" />
+                  <span>Cargar Cartola</span>
+                </button>
+              )}
+            </div>
+          ) : (
+            onQuickAdd && (
+              <button
+                onClick={onQuickAdd}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-r from-[#00FFCC] to-[#38bdf8] text-[#0A0A12] text-xs font-black shadow-md transition shrink-0"
+              >
+                <Plus className="w-3.5 h-3.5 stroke-[3]" />
+                <span>Registrar Gasto</span>
+              </button>
+            )
           )}
         </div>
       </div>
     );
   }
 
-  // 5. Default Primary Variant: Floating Fixed Widget in Bottom-Right Corner (Issue #31)
-  // Position: Desktop: fixed bottom-6 right-6 z-40. Mobile: fixed bottom-20 right-4 z-40.
+  // 5. Default Primary Variant: Floating Fixed Widget in Bottom-Right Corner (Issue #31 & Issue #42)
   return (
     <aside
       aria-label="Mascota Virtual FinanzApp"
@@ -238,7 +287,7 @@ export const WakingMascotWidget: React.FC<WakingMascotWidgetProps> = ({
       {/* Floating Speech Bubble Above/Left of Avatar */}
       {isBubbleOpen && (
         <div
-          className="relative mb-2 max-w-[260px] sm:max-w-[290px] p-3.5 bg-[#141422]/95 backdrop-blur-xl border border-[#302840] panel-rim rounded-3xl shadow-[0_12px_36px_rgba(0,0,0,0.6)] animate-in fade-in zoom-in-95 duration-200 text-left"
+          className="relative mb-2 max-w-[270px] sm:max-w-[310px] p-3.5 bg-[#141422]/95 backdrop-blur-xl border border-[#302840] panel-rim rounded-3xl shadow-[0_12px_36px_rgba(0,0,0,0.6)] animate-in fade-in zoom-in-95 duration-200 text-left"
           role="status"
         >
           {/* Header of speech bubble */}
@@ -252,7 +301,9 @@ export const WakingMascotWidget: React.FC<WakingMascotWidgetProps> = ({
             <div className="flex items-center gap-1.5">
               <span
                 className={`text-[9px] font-mono font-bold px-1.5 py-0.2 rounded-full border ${
-                  mascot.tier === 3
+                  mascot.tier === 'welcome'
+                    ? 'bg-[#00FFCC]/20 text-[#00FFCC] border-[#00FFCC]/40'
+                    : mascot.tier === 3
                     ? 'bg-[#FF2D78]/20 text-[#FF2D78] border-[#FF2D78]/40'
                     : mascot.tier === 2
                     ? 'bg-[#00FFCC]/20 text-[#00FFCC] border-[#00FFCC]/40'
@@ -284,30 +335,73 @@ export const WakingMascotWidget: React.FC<WakingMascotWidgetProps> = ({
             "{mascot.message}"
           </p>
 
-          {/* Progress bar towards 5 daily expenses */}
-          <div className="mt-2.5 pt-2 border-t border-[#302840]/40 flex items-center justify-between text-[10px] font-mono text-[#A098B0]">
-            <span>Meta: {mascot.txTodayCount}/5 hoy</span>
-            <span className={mascot.txTodayCount >= 5 ? 'text-[#00FFCC] font-bold' : 'text-[#FFE04A]'}>
-              {mascot.statusBadge}
-            </span>
-          </div>
+          {/* Welcome Action Buttons (Issue #42) or Progress bar */}
+          {mascot.tier === 'welcome' ? (
+            <div className="mt-2.5 pt-2 border-t border-[#302840]/60 space-y-2">
+              <div className="flex items-center justify-between text-[10px] font-mono">
+                <span className="text-[#00FFCC] font-bold flex items-center gap-1">
+                  <Sparkles className="w-3 h-3 text-[#FFE04A]" />
+                  <span>Primeros Pasos</span>
+                </span>
+                <span className="text-[#A098B0]">0 cuentas</span>
+              </div>
+              <div className="flex flex-col gap-1.5 pt-0.5">
+                {onOpenCreateAccount && (
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onOpenCreateAccount();
+                    }}
+                    className="w-full flex items-center justify-center gap-1.5 py-1.5 px-3 rounded-xl bg-gradient-to-r from-[#00FFCC] to-[#38bdf8] hover:from-[#00e6b8] hover:to-[#0ea5e9] text-black font-headline font-bold text-xs shadow-md transition transform hover:scale-[1.02] active:scale-95"
+                  >
+                    <Plus className="w-3.5 h-3.5 stroke-[2.5]" />
+                    <span>Crear Primera Cuenta</span>
+                  </button>
+                )}
+                {onOpenImportModal && (
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onOpenImportModal();
+                    }}
+                    className="w-full flex items-center justify-center gap-1.5 py-1.5 px-3 rounded-xl bg-[#0A0A12] hover:bg-[#1A1A2E] text-white border border-[#302840] hover:border-[#00FFCC]/40 font-headline font-bold text-xs transition active:scale-95"
+                  >
+                    <Upload className="w-3.5 h-3.5 text-[#00FFCC]" />
+                    <span>Cargar Cartola</span>
+                  </button>
+                )}
+              </div>
+            </div>
+          ) : (
+            <>
+              {/* Progress bar towards 5 daily expenses */}
+              <div className="mt-2.5 pt-2 border-t border-[#302840]/40 flex items-center justify-between text-[10px] font-mono text-[#A098B0]">
+                <span>Meta: {mascot.txTodayCount}/5 hoy</span>
+                <span className={mascot.txTodayCount >= 5 ? 'text-[#00FFCC] font-bold' : 'text-[#FFE04A]'}>
+                  {mascot.statusBadge}
+                </span>
+              </div>
 
-          <div className="w-full bg-[#0A0A12] h-1.5 rounded-full overflow-hidden mt-1 border border-[#302840]/60">
-            <div
-              className={`h-full rounded-full transition-all duration-500 ${
-                mascot.tier === 3
-                  ? 'bg-gradient-to-r from-[#00FFCC] to-[#FF2D78] shadow-[0_0_8px_#FF2D78]'
-                  : mascot.tier === 2
-                  ? 'bg-[#00FFCC]'
-                  : mascot.tier === 1
-                  ? 'bg-[#38bdf8]'
-                  : mascot.tier === 0.5
-                  ? 'bg-[#FFE04A]'
-                  : 'bg-slate-700'
-              }`}
-              style={{ width: `${Math.min(100, (mascot.txTodayCount / 5) * 100)}%` }}
-            />
-          </div>
+              <div className="w-full bg-[#0A0A12] h-1.5 rounded-full overflow-hidden mt-1 border border-[#302840]/60">
+                <div
+                  className={`h-full rounded-full transition-all duration-500 ${
+                    mascot.tier === 3
+                      ? 'bg-gradient-to-r from-[#00FFCC] to-[#FF2D78] shadow-[0_0_8px_#FF2D78]'
+                      : mascot.tier === 2
+                      ? 'bg-[#00FFCC]'
+                      : mascot.tier === 1
+                      ? 'bg-[#38bdf8]'
+                      : mascot.tier === 0.5
+                      ? 'bg-[#FFE04A]'
+                      : 'bg-slate-700'
+                  }`}
+                  style={{ width: `${Math.min(100, (mascot.txTodayCount / 5) * 100)}%` }}
+                />
+              </div>
+            </>
+          )}
 
           {/* Downward pointer arrow towards the mascot */}
           <div className="absolute -bottom-1.5 right-7 w-3 h-3 bg-[#141422] border-b border-r border-[#302840] rotate-45" />
@@ -331,7 +425,9 @@ export const WakingMascotWidget: React.FC<WakingMascotWidgetProps> = ({
         {/* Glow halo behind mascot */}
         <div
           className={`absolute inset-0 rounded-full blur-xl opacity-40 transition-opacity group-hover:opacity-75 ${
-            mascot.tier === 3
+            mascot.tier === 'welcome'
+              ? 'bg-[#00FFCC]'
+              : mascot.tier === 3
               ? 'bg-[#FF2D78]'
               : mascot.tier === 2
               ? 'bg-[#00FFCC]'
@@ -356,7 +452,9 @@ export const WakingMascotWidget: React.FC<WakingMascotWidgetProps> = ({
           {/* Mood Emoji or Energy Badge floating on corner */}
           <span
             className={`absolute -bottom-0.5 -right-0.5 w-6 h-6 rounded-full ring-2 ring-[#0A0A12] flex items-center justify-center text-xs shadow-lg ${
-              mascot.tier === 3
+              mascot.tier === 'welcome'
+                ? 'bg-[#00FFCC] text-black shadow-[0_0_10px_#00FFCC]'
+                : mascot.tier === 3
                 ? 'bg-[#FF2D78] text-white shadow-[0_0_10px_#FF2D78]'
                 : mascot.tier === 2
                 ? 'bg-[#00FFCC] text-black shadow-[0_0_10px_#00FFCC]'

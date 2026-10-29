@@ -1,6 +1,6 @@
 import { Transaction } from '../types';
 
-export type MascotTier = 0 | 0.5 | 1 | 2 | 3;
+export type MascotTier = 'welcome' | 0 | 0.5 | 1 | 2 | 3;
 
 export interface MascotState {
   tier: MascotTier;
@@ -14,6 +14,13 @@ export interface MascotState {
   moodEmoji: string;
   moodLabel: string;
   statusBadge: string;
+}
+
+export interface MascotOptions {
+  explicitToday?: string;
+  userCreatedAt?: string;
+  accountsCount?: number;
+  isWelcome?: boolean;
 }
 
 /**
@@ -56,10 +63,30 @@ export function getTransactionActivityDate(tx: Transaction): string {
 
 /**
  * Calculates days elapsed between today and the latest registered activity on or before today.
- * If no past/present transactions exist, returns 5 (triggering Tier 0 inactivity).
+ * If no past/present transactions exist:
+ * - If user registered today, daysInactive is 0 (not 5).
+ * - Otherwise returns 5 (triggering Tier 0 inactivity).
  */
-export function calculateDaysInactive(transactions: Transaction[], todayStr: string = getTodayDateString()): number {
+export function calculateDaysInactive(
+  transactions: Transaction[],
+  todayStr: string = getTodayDateString(),
+  userCreatedAt?: string
+): number {
   if (!transactions || transactions.length === 0) {
+    if (userCreatedAt) {
+      const regDate = userCreatedAt.slice(0, 10);
+      if (regDate === todayStr) {
+        return 0;
+      }
+      if (/^\d{4}-\d{2}-\d{2}$/.test(regDate) && regDate <= todayStr) {
+        const [tYear, tMonth, tDay] = todayStr.split('-').map(Number);
+        const [rYear, rMonth, rDay] = regDate.split('-').map(Number);
+        const todayMidnight = new Date(tYear, tMonth - 1, tDay).getTime();
+        const regMidnight = new Date(rYear, rMonth - 1, rDay).getTime();
+        const diffDays = Math.max(0, Math.round((todayMidnight - regMidnight) / (1000 * 60 * 60 * 24)));
+        return diffDays;
+      }
+    }
     return 5;
   }
 
@@ -78,6 +105,9 @@ export function calculateDaysInactive(transactions: Transaction[], todayStr: str
   }
 
   if (pastDates.length === 0) {
+    if (userCreatedAt && userCreatedAt.slice(0, 10) === todayStr) {
+      return 0;
+    }
     return 5;
   }
 
@@ -128,16 +158,61 @@ export function computeMascotTier(txTodayCount: number, daysInactive: number): M
 }
 
 /**
- * Core engine: evaluates current transactions and returns full mascot status,
- * animation, message, and mood attributes according to Issue #29 specs.
+ * Core engine: evaluates current transactions and user context, returning full mascot status,
+ * animation, message, and mood attributes according to Issue #29 and Issue #42 specs.
  */
 export function getMascotState(
   transactions: Transaction[] = [],
-  explicitToday?: string
+  optionsOrToday?: string | MascotOptions,
+  legacyOptions?: { userCreatedAt?: string; accountsCount?: number }
 ): MascotState {
-  const todayStr = explicitToday || getTodayDateString();
+  let todayStr: string;
+  let userCreatedAt: string | undefined;
+  let accountsCount: number | undefined;
+  let forceWelcome = false;
+
+  if (typeof optionsOrToday === 'string') {
+    todayStr = optionsOrToday;
+    userCreatedAt = legacyOptions?.userCreatedAt;
+    accountsCount = legacyOptions?.accountsCount;
+  } else if (optionsOrToday && typeof optionsOrToday === 'object') {
+    todayStr = optionsOrToday.explicitToday || getTodayDateString();
+    userCreatedAt = optionsOrToday.userCreatedAt;
+    accountsCount = optionsOrToday.accountsCount;
+    forceWelcome = !!optionsOrToday.isWelcome;
+  } else {
+    todayStr = getTodayDateString();
+  }
+
+  // 1. Welcome / Onboarding Mode for New Users (Issue #42)
+  // Activated if user registered today AND has no accounts AND no transactions
+  const isCreatedToday = !!userCreatedAt && userCreatedAt.slice(0, 10) === todayStr;
+  const hasNoData = (accountsCount === 0 || accountsCount === undefined) && transactions.length === 0;
+
+  const shouldWelcome =
+    forceWelcome ||
+    (isCreatedToday && hasNoData) ||
+    (accountsCount === 0 && transactions.length === 0 && userCreatedAt !== undefined);
+
+  if (shouldWelcome) {
+    return {
+      tier: 'welcome',
+      stateName: '¡Bienvenido/a!',
+      txTodayCount: 0,
+      daysInactive: 0,
+      image: '/images/wallet_mascot_welcome_128x128.png',
+      animationClass: 'mascot-happy-bounce',
+      message: '👋 ¡Hola! Soy tu Billetera Inteligente. ¡Qué alegría tenerte aquí! Agrega tu primera cuenta bancaria o carga una cartola para comenzar a ordenar tus finanzas juntos.',
+      energyPercent: 100,
+      moodEmoji: '👋',
+      moodLabel: '¡Bienvenido!',
+      statusBadge: 'Primeros pasos',
+    };
+  }
+
+  // 2. Regular Daily Lifecycle Calculation (Tiers 0, 0.5, 1, 2, 3)
   const txTodayCount = calculateTodayTxCount(transactions, todayStr);
-  const daysInactive = txTodayCount > 0 ? 0 : calculateDaysInactive(transactions, todayStr);
+  const daysInactive = txTodayCount > 0 ? 0 : calculateDaysInactive(transactions, todayStr, userCreatedAt);
   const tier = computeMascotTier(txTodayCount, daysInactive);
 
   switch (tier) {

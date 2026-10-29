@@ -21,7 +21,7 @@ import {
   Plus,
   Link2
 } from 'lucide-react';
-import { Transaction } from '../types';
+import { Transaction, Account } from '../types';
 import { WakingMascotWidget } from './WakingMascotWidget';
 import { getMascotState } from '../utils/mascotEngine';
 
@@ -31,6 +31,7 @@ export interface BottomNavBarProps {
   duplicateCount?: number;
   currentUser?: any;
   transactions?: Transaction[];
+  accounts?: Account[];
   isTelegramLinked?: boolean;
   onOpenImport: () => void;
   onOpenAddTransaction?: () => void;
@@ -49,6 +50,7 @@ export const BottomNavBar: React.FC<BottomNavBarProps> = ({
   duplicateCount = 0,
   currentUser,
   transactions,
+  accounts,
   isTelegramLinked = false,
   onOpenImport,
   onOpenAddTransaction,
@@ -86,7 +88,12 @@ export const BottomNavBar: React.FC<BottomNavBarProps> = ({
             {/* Header with Title and Close button */}
             <div className="flex items-center justify-between pb-3 border-b border-[#302840]/60">
               <div className="flex items-center gap-2">
-                <WakingMascotWidget variant="sidebar" transactions={transactions} />
+                <WakingMascotWidget
+                  variant="sidebar"
+                  transactions={transactions}
+                  accounts={accounts}
+                  currentUser={currentUser}
+                />
                 <span className="font-headline font-bold text-base text-[#E8E0F0]">
                   Menú FinanzApp
                 </span>
