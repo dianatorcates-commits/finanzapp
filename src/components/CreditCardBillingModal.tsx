@@ -21,6 +21,7 @@ import {
 } from 'lucide-react';
 import { Account, ComputedTransaction, Credit, Transaction } from '../types';
 import { isPaymentOrIncomeTransaction } from '../utils/paymentAllocation';
+import { calculateTransactionPeriod } from '../utils/dateUtils';
 import { getBillingCycleSummary } from '../utils/billingCycleUtils';
 import { getBankBranding } from './AccountsManagementView';
 
@@ -327,20 +328,27 @@ export const CreditCardBillingModal: React.FC<CreditCardBillingModalProps> = ({
     return creditCards.find((c) => c.id === selectedCardId) || creditCards[0] || null;
   }, [creditCards, selectedCardId]);
 
-  // 1. Transactions already registered for this card and period
+  // 1. Transactions already registered for this card and period (using official statement cycle closing day)
   const cardTransactions = useMemo(() => {
     if (!activeCard) return [];
     return transactions.filter((tx) => {
       if (tx.accountId !== activeCard.id) return false;
-      const txPeriod = tx.period || (tx.date ? tx.date.slice(0, 7) : '');
+      const txPeriod = tx.period || calculateTransactionPeriod(tx.date, activeCard.closingDay);
       if (txPeriod !== selectedPeriod) return false;
       if (isPaymentOrIncomeTransaction(tx) || tx.amount <= 0) return false;
       return true;
     });
   }, [transactions, activeCard, selectedPeriod]);
 
-  // Total spent in registered transactions (using netAmount to consider payment allocations)
+  // Total gross billed amount in registered transactions (homologated with billingCycleUtils & statement total)
   const registeredSpendingTotal = useMemo(() => {
+    return cardTransactions.reduce((sum, tx) => {
+      return sum + Math.abs(tx.amount);
+    }, 0);
+  }, [cardTransactions]);
+
+  // Total net pending amount for registered purchases (after deducting payment allocations)
+  const registeredSpendingNet = useMemo(() => {
     return cardTransactions.reduce((sum, tx) => {
       const val = tx.netAmount !== undefined ? tx.netAmount : tx.amount;
       return sum + val;
@@ -1047,51 +1055,56 @@ export const CreditCardBillingModal: React.FC<CreditCardBillingModalProps> = ({
                 <div className="mt-2 text-xl font-headline font-black text-white tracking-tight">
                   {formatCLP(registeredSpendingTotal)}
                 </div>
-                <span className="text-[11px] text-[#A098B0] mt-1 block font-sans">
-                  {cardTransactions.length} compra(s) ya en movimientos
+                <span className="text-[11px] text-[#A098B0] mt-1 flex items-center justify-between font-sans">
+                  <span>{cardTransactions.length} compra(s) en ciclo</span>
+                  {registeredSpendingNet < registeredSpendingTotal && (
+                    <span className="text-emerald-400 font-mono text-[10px]">Neto: {formatCLP(registeredSpendingNet)}</span>
+                  )}
                 </span>
               </div>
 
               {/* Card 2: Cuotas por Facturar */}
               <div className="p-4 rounded-2xl bg-[#0A0A12] border border-[#302840] panel-rim relative overflow-hidden group hover:border-[#00FFCC]/40 transition">
                 <div className="flex items-center justify-between text-xs text-[#A098B0] font-mono font-bold">
-                  <span>2. Cuotas por Facturar</span>
+                  <span>2. Cuotas Proyectadas</span>
                   <Layers className="w-4 h-4 text-[#00FFCC]" />
                 </div>
                 <div className="mt-2 text-xl font-headline font-black text-white tracking-tight">
                   {formatCLP(pendingInstallmentsGross)}
                 </div>
                 <span className="text-[11px] text-[#A098B0] mt-1 block font-sans">
-                  {installmentItems.filter((i) => !i.isAlreadyLoaded && !i.isFinished).length} compra(s) a plazo
+                  {installmentItems.filter((i) => !i.isAlreadyLoaded && !i.isFinished).length} compra(s) a plazo sin cargar
                 </span>
               </div>
 
               {/* Card 3: Suscripciones por Facturar */}
               <div className="p-4 rounded-2xl bg-[#0A0A12] border border-[#302840] panel-rim relative overflow-hidden group hover:border-[#FF2D78]/40 transition">
                 <div className="flex items-center justify-between text-xs text-[#A098B0] font-mono font-bold">
-                  <span>3. Suscripciones</span>
+                  <span>3. Suscripciones Proyectadas</span>
                   <Repeat className="w-4 h-4 text-[#FF2D78]" />
                 </div>
                 <div className="mt-2 text-xl font-headline font-black text-white tracking-tight">
                   {formatCLP(pendingSubscriptionsGross)}
                 </div>
                 <span className="text-[11px] text-[#A098B0] mt-1 block font-sans">
-                  {subscriptionItems.filter((i) => !i.isAlreadyLoaded).length} cargo(s) recurrente(s)
+                  {subscriptionItems.filter((i) => !i.isAlreadyLoaded).length} recurrente(s) sin cargar
                 </span>
               </div>
 
               {/* Card 4: TOTAL ESTIMADO AL CORTE */}
               <div className="p-4 rounded-2xl bg-gradient-to-br from-[#141422] to-[#1A1A2E] border border-[#00FFCC]/40 panel-rim glow-secondary shadow-lg relative overflow-hidden">
                 <div className="flex items-center justify-between text-xs text-[#00FFCC] font-mono font-bold uppercase tracking-wider">
-                  <span>Total Facturación</span>
+                  <span>
+                    {pendingGeneratableItems.length > 0 ? 'Proyección Total al Corte' : 'Total Facturación'}
+                  </span>
                   <Sparkles className="w-4 h-4 text-[#FFE04A]" />
                 </div>
                 <div className="mt-2 text-2xl font-headline font-black text-[#00FFCC] tracking-tight">
                   {formatCLP(totalProjectedGross)}
                 </div>
                 <div className="text-[11px] text-[#A098B0] mt-1 flex items-center justify-between font-sans">
-                  <span>Mi parte personal:</span>
-                  <b className="text-white font-mono font-bold">{formatCLP(totalProjectedUserShare)}</b>
+                  <span>{pendingGeneratableItems.length > 0 ? 'Incluye cuotas futuras' : 'Facturado cartola'}</span>
+                  <span className="text-white font-mono font-bold">Mi parte: {formatCLP(totalProjectedUserShare)}</span>
                 </div>
               </div>
             </div>
@@ -1114,7 +1127,10 @@ export const CreditCardBillingModal: React.FC<CreditCardBillingModalProps> = ({
                       </span>
                     </h4>
                     <p className="text-[11px] text-[#A098B0] font-sans">
-                      Total acumulado hasta hoy: <b className="text-white font-mono">{formatCLP(registeredSpendingTotal)}</b>
+                      Total facturado en cartola: <b className="text-white font-mono">{formatCLP(registeredSpendingTotal)}</b>
+                      {registeredSpendingNet < registeredSpendingTotal && (
+                        <span className="ml-2 text-emerald-400 font-mono text-[10px]">(Saldo neto pendiente: {formatCLP(registeredSpendingNet)})</span>
+                      )}
                     </p>
                   </div>
                 </div>
@@ -1147,9 +1163,14 @@ export const CreditCardBillingModal: React.FC<CreditCardBillingModalProps> = ({
                             </span>
                           </div>
                           <div className="text-right shrink-0">
-                            <span className="font-mono font-bold text-white">
-                              {formatCLP(tx.netAmount !== undefined ? tx.netAmount : tx.amount)}
+                            <span className="font-mono font-bold text-white block">
+                              {formatCLP(Math.abs(tx.amount))}
                             </span>
+                            {tx.netAmount !== undefined && tx.netAmount < Math.abs(tx.amount) && (
+                              <span className="text-[10px] font-mono text-emerald-400 block">
+                                {tx.netAmount === 0 ? '✓ Pagado' : `Pendiente: ${formatCLP(tx.netAmount)}`}
+                              </span>
+                            )}
                           </div>
                         </div>
                       ))}
