@@ -1,5 +1,14 @@
 import { Account, Transaction } from '../types';
 
+export const DEMO_ACCOUNT_IDS = new Set([
+  'acc-tc-santander',
+  'acc-cta-bchile',
+  'acc-vista-bestado'
+]);
+
+export const isDemoAccount = (acc: Account | { id?: string } | null | undefined): boolean =>
+  Boolean(acc?.id && DEMO_ACCOUNT_IDS.has(acc.id));
+
 export const INITIAL_ACCOUNTS: Account[] = [
   {
     id: 'acc-tc-santander',

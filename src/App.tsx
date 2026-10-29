@@ -15,7 +15,7 @@ import {
   DashboardConfig,
   DEFAULT_DASHBOARD_CONFIG
 } from './types';
-import { INITIAL_ACCOUNTS, INITIAL_TRANSACTIONS, DEMO_ACCOUNTS, DEMO_TRANSACTIONS } from './utils/demoData';
+import { INITIAL_ACCOUNTS, INITIAL_TRANSACTIONS, DEMO_ACCOUNTS, DEMO_TRANSACTIONS, isDemoAccount } from './utils/demoData';
 import { DEFAULT_CATEGORY_MAPPINGS, DEFAULT_AUTO_RULES, getParentCategory, autoCategorize, applyAutoRulesToTransaction } from './utils/categorizer';
 import { computeTransactions, autoAllocatePayments, addPaymentAllocation, removePaymentAllocation, isPaymentOrIncomeTransaction } from './utils/paymentAllocation';
 import { supabase } from './utils/supabaseClient';
@@ -329,18 +329,22 @@ export function App() {
       localStorage.setItem(`${STORAGE_KEY_CREDITS}_${userId}`, JSON.stringify(cloudCredits));
 
       if (isCloudSynced || data.accounts.length > 0 || data.transactions.length > 0) {
-        setAccounts(data.accounts);
+        // If a newly registered user profile only has demo accounts and 0 transactions, purge demo accounts (Issue #44)
+        const onlyDemoAccounts = data.accounts.length > 0 && data.accounts.every(isDemoAccount);
+        const effectiveAccounts = (onlyDemoAccounts && data.transactions.length === 0) ? [] : data.accounts;
+
+        setAccounts(effectiveAccounts);
         setCategoryMappings(data.categoryMappings.length > 0 ? data.categoryMappings : DEFAULT_CATEGORY_MAPPINGS);
         setAutoRules(data.autoRules.length > 0 ? data.autoRules : DEFAULT_AUTO_RULES);
         setBudgets(data.budgets);
         setTransactions(data.transactions);
         localStorage.setItem(cloudSyncedKey, 'true');
         // Persist strictly to user-isolated keys
-        localStorage.setItem(`${STORAGE_KEY_ACCOUNTS}_${userId}`, JSON.stringify(data.accounts));
+        localStorage.setItem(`${STORAGE_KEY_ACCOUNTS}_${userId}`, JSON.stringify(effectiveAccounts));
         localStorage.setItem(`${STORAGE_KEY_TRANSACTIONS}_${userId}`, JSON.stringify(data.transactions));
       } else {
-        // First time ever logged in for this brand new user: initialize clean account & empty transactions
-        const initialUserAccounts = INITIAL_ACCOUNTS;
+        // First time ever logged in for this brand new user: initialize clean account & empty transactions (Issue #44)
+        const initialUserAccounts: Account[] = []; // ✅ Clean 0 accounts for new registered users
         const initialUserCategories = DEFAULT_CATEGORY_MAPPINGS;
         const initialUserRules = DEFAULT_AUTO_RULES;
         const initialUserBudgets = [

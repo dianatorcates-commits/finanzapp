@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Sparkles, Plus, Upload, X, MessageSquare } from 'lucide-react';
 import { Transaction, Account } from '../types';
 import { getMascotState, MascotState } from '../utils/mascotEngine';
+import { isDemoAccount } from '../utils/demoData';
 
 interface WakingMascotWidgetProps {
   transactions?: Transaction[];
@@ -26,11 +27,14 @@ export const WakingMascotWidget: React.FC<WakingMascotWidgetProps> = ({
   onOpenImportModal,
   className = '',
 }) => {
+  // If user is authenticated, filter out any demo accounts so they don't block welcome onboarding (Issue #44)
+  const realAccounts = currentUser?.id && accounts ? accounts.filter((a) => !isDemoAccount(a)) : (accounts || []);
+
   // If mascotState is provided directly use it, otherwise compute from transactions and user context
   const mascot: MascotState =
     propState ||
     getMascotState(transactions || [], {
-      accountsCount: accounts?.length,
+      accountsCount: realAccounts.length,
       userCreatedAt: currentUser?.created_at
     });
 
@@ -343,7 +347,7 @@ export const WakingMascotWidget: React.FC<WakingMascotWidgetProps> = ({
                   <Sparkles className="w-3 h-3 text-[#FFE04A]" />
                   <span>Primeros Pasos</span>
                 </span>
-                <span className="text-[#A098B0]">0 cuentas</span>
+                <span className="text-[#A098B0]">{realAccounts.length} cuentas</span>
               </div>
               <div className="flex flex-col gap-1.5 pt-0.5">
                 {onOpenCreateAccount && (

@@ -1,4 +1,5 @@
 import { Transaction } from '../types';
+import { isDemoAccount } from './demoData';
 
 export type MascotTier = 'welcome' | 0 | 0.5 | 1 | 2 | 3;
 
@@ -20,6 +21,7 @@ export interface MascotOptions {
   explicitToday?: string;
   userCreatedAt?: string;
   accountsCount?: number;
+  accounts?: { id?: string }[];
   isWelcome?: boolean;
 }
 
@@ -178,8 +180,17 @@ export function getMascotState(
   } else if (optionsOrToday && typeof optionsOrToday === 'object') {
     todayStr = optionsOrToday.explicitToday || getTodayDateString();
     userCreatedAt = optionsOrToday.userCreatedAt;
-    accountsCount = optionsOrToday.accountsCount;
     forceWelcome = !!optionsOrToday.isWelcome;
+
+    if (optionsOrToday.accounts && accountsCount === undefined) {
+      // Filter out demo accounts if user context is present (Issue #44)
+      const filtered = userCreatedAt
+        ? optionsOrToday.accounts.filter((a) => !isDemoAccount(a))
+        : optionsOrToday.accounts;
+      accountsCount = filtered.length;
+    } else {
+      accountsCount = optionsOrToday.accountsCount;
+    }
   } else {
     todayStr = getTodayDateString();
   }
