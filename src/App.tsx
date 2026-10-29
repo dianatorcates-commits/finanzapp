@@ -83,14 +83,14 @@ const STORAGE_KEY_SAVINGS_GOALS = 'finanzapp_savings_goals_v1';
 const STORAGE_KEY_CREDITS = 'finanzapp_credits';
 
 export function App() {
-  // 1. State for Accounts: always initialize strictly with clean demo accounts (never read generic or private localStorage on startup)
-  const [accounts, setAccounts] = useState<Account[]>(INITIAL_ACCOUNTS);
+  // 1. State for Accounts: default empty array; populated on login by Supabase or on "Modo Demo" (Issue #49)
+  const [accounts, setAccounts] = useState<Account[]>([]);
 
   // 2. State for Category & Subcategory Mappings
   const [categoryMappings, setCategoryMappings] = useState<CategoryMapping[]>(DEFAULT_CATEGORY_MAPPINGS);
 
-  // 3. State for Transactions: always initialize strictly with clean demo transactions (never read generic or private localStorage on startup)
-  const [transactions, setTransactions] = useState<Transaction[]>(INITIAL_TRANSACTIONS);
+  // 3. State for Transactions: default empty array; populated on login by Supabase or on "Modo Demo" (Issue #49)
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
 
   // 4. State for Auto-Categorization Rules
   const [autoRules, setAutoRules] = useState<AutoCategoryRule[]>(DEFAULT_AUTO_RULES);
@@ -496,8 +496,8 @@ export function App() {
       if (event === 'SIGNED_OUT') {
         setCurrentUser(null);
         lastLoadedUserIdRef.current = null;
-        setAccounts(INITIAL_ACCOUNTS);
-        setTransactions(INITIAL_TRANSACTIONS);
+        setAccounts([]);
+        setTransactions([]);
         setCategoryMappings(DEFAULT_CATEGORY_MAPPINGS);
         setAutoRules(DEFAULT_AUTO_RULES);
         setBudgets([
@@ -554,9 +554,9 @@ export function App() {
       onlyPendingTC: false
     });
 
-    // 1. Immediately reset React state to clean demo data before any re-render or async operations
-    setAccounts(INITIAL_ACCOUNTS);
-    setTransactions(INITIAL_TRANSACTIONS);
+    // 1. Immediately reset React state to clean empty data before any re-render or async operations
+    setAccounts([]);
+    setTransactions([]);
     setCategoryMappings(DEFAULT_CATEGORY_MAPPINGS);
     setAutoRules(DEFAULT_AUTO_RULES);
     setBudgets([
@@ -1354,7 +1354,11 @@ export function App() {
       <>
         <LandingPage
           onOpenAuth={() => setIsAuthModalOpen(true)}
-          onTryDemo={() => setViewMode('app')}
+          onTryDemo={() => {
+            setAccounts(INITIAL_ACCOUNTS);
+            setTransactions(INITIAL_TRANSACTIONS);
+            setViewMode('app');
+          }}
         />
 
         {/* Auth Modal */}
@@ -1368,8 +1372,48 @@ export function App() {
     );
   }
 
+  // 2. Render Loading Splash Screen while fetching user data from Supabase Cloud (Issue #49)
+  if (currentUser && isCloudLoading) {
+    return (
+      <div className="min-h-screen bg-[#0A0A12] text-[#E8E0F0] flex flex-col items-center justify-center p-4 relative overflow-hidden select-none">
+        {/* Ambient Glows */}
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-80 h-80 bg-[#00FFCC]/10 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-[#FF2D78]/10 rounded-full blur-3xl pointer-events-none" />
+
+        <div className="relative z-10 flex flex-col items-center text-center space-y-6 max-w-sm animate-in fade-in zoom-in-95 duration-300">
+          {/* Mascot Logo with neon pulse */}
+          <div className="relative">
+            <div className="absolute inset-0 bg-[#00FFCC] rounded-3xl blur-xl opacity-30 animate-pulse" />
+            <div className="w-24 h-24 rounded-3xl bg-[#141422] border border-[#302840] panel-rim flex items-center justify-center p-3 shadow-2xl relative">
+              <img
+                src="/images/wallet_mascot_logo_128x128.png"
+                alt="FinanzApp Logo"
+                className="w-16 h-16 object-contain animate-pulse"
+              />
+            </div>
+            {/* Elegant spinner overlay ring */}
+            <div className="absolute -inset-1.5 border-2 border-transparent border-t-[#00FFCC] border-r-[#00FFCC]/40 rounded-full animate-spin" />
+          </div>
+
+          <div className="space-y-2">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#00FFCC]/10 border border-[#00FFCC]/30 text-[#00FFCC] text-xs font-mono font-bold">
+              <span className="w-2 h-2 rounded-full bg-[#00FFCC] animate-ping" />
+              <span>Bóveda Segura</span>
+            </div>
+            <h2 className="text-base sm:text-lg font-headline font-bold text-white tracking-tight">
+              ⚡ Conectando con tu bóveda financiera segura...
+            </h2>
+            <p className="text-xs text-[#A098B0] font-sans leading-relaxed max-w-xs">
+              Sincronizando cuentas, movimientos y presupuestos en tiempo real
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex overflow-hidden font-sans">
+    <div className="min-h-screen bg-slate-950 text-slate-100 flex overflow-hidden font-sans animate-in fade-in duration-200">
       
       {/* Sidebar for Desktop & Mobile Drawer */}
       <Sidebar
