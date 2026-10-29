@@ -573,9 +573,6 @@ export const CategoryManagementView: React.FC<CategoryManagementViewProps> = ({
             <h1 className="text-2xl sm:text-3xl font-black text-white tracking-tight flex items-center gap-2.5">
               <span>Motor de Reglas & Automatización</span>
             </h1>
-            <span className="text-[10px] font-black uppercase px-2.5 py-0.5 rounded-full bg-[#00FFCC]/10 text-[#00FFCC] border border-[#00FFCC]/30 tracking-widest shadow-[0_0_10px_rgba(0,255,204,0.2)]">
-              RF-19 STITCH
-            </span>
           </div>
           <p className="text-xs sm:text-sm text-slate-400 mt-1">
             Administra tus reglas de auto-clasificación bancaria con tipificación estricta de pagos TC, y monitorea tus webhooks de Android y Telegram en vivo.
@@ -678,7 +675,7 @@ export const CategoryManagementView: React.FC<CategoryManagementViewProps> = ({
         <div className="bg-[#141422] border border-[#302840] panel-rim rounded-2xl p-5 shadow-lg relative overflow-hidden group hover:border-[#FFE04A]/50 transition">
           <div className="flex items-center justify-between">
             <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">
-              Aislamiento Tipo (RF-19)
+              Aislamiento de Tipo
             </span>
             <div className="p-2.5 rounded-xl bg-[#FFE04A]/10 text-[#FFE04A] border border-[#FFE04A]/20">
               <CreditCard className="w-5 h-5" />
@@ -709,7 +706,7 @@ export const CategoryManagementView: React.FC<CategoryManagementViewProps> = ({
           }`}
         >
           <Sparkles className="w-4 h-4" />
-          <span>⚡ Reglas Automáticas (RF-19)</span>
+          <span>⚡ Reglas Automáticas</span>
           <span
             className={`text-[10px] px-2 py-0.5 rounded-full font-black ${
               activeTab === 'rules'
@@ -780,7 +777,7 @@ export const CategoryManagementView: React.FC<CategoryManagementViewProps> = ({
                   <h2 className="text-lg font-black text-white tracking-tight flex items-center gap-2">
                     <span>Editor Visual de Regla Inteligente</span>
                     <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded-full bg-[#00FFCC]/10 text-[#00FFCC] border border-[#00FFCC]/30">
-                      RF-19
+                      Regla Activa
                     </span>
                   </h2>
                   <p className="text-xs text-slate-400">
@@ -868,7 +865,7 @@ export const CategoryManagementView: React.FC<CategoryManagementViewProps> = ({
               {/* Row 3: Selector Visual de Tipo de Transacción Obligatorio (RF-19) */}
               <div>
                 <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-2">
-                  4. Tipo de Transacción Obligatorio (Aislamiento RF-19) *
+                  4. Tipo de Transacción Obligatorio *
                 </label>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                   {TRANSACTION_TYPE_OPTIONS.map((opt) => {

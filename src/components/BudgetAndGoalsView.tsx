@@ -455,12 +455,9 @@ export const BudgetAndGoalsView: React.FC<BudgetAndGoalsViewProps> = ({
               <h2 className="text-xl sm:text-2xl font-headline font-black text-white tracking-tight">
                 Presupuestos & Metas de Ahorro
               </h2>
-              <span className="bg-[#00FFCC]/15 text-[#00FFCC] text-[11px] font-mono font-bold px-2.5 py-0.5 rounded-full border border-[#00FFCC]/30">
-                Fase 4 • Stitch
-              </span>
             </div>
             <p className="text-xs sm:text-sm text-[#A098B0] mt-1 max-w-2xl font-sans">
-              Monitoreo multi-categoría agrupable con radiografía en vivo línea por línea (RF-21) y fondos de ahorro programados.
+              Monitoreo multi-categoría agrupable con radiografía en vivo línea por línea y fondos de ahorro programados.
             </p>
           </div>
         </div>
@@ -906,7 +903,7 @@ export const BudgetAndGoalsView: React.FC<BudgetAndGoalsViewProps> = ({
                             <div className="flex items-center gap-2">
                               <Microscope className="w-4 h-4 text-[#00FFCC]" />
                               <span className="text-xs font-headline font-bold text-white">
-                                Radiografía en Vivo (RF-21)
+                                Radiografía en Vivo
                               </span>
                             </div>
                             {remaining > 0 && daysInfo.daysLeft > 0 && !daysInfo.isPast && (
@@ -1327,7 +1324,7 @@ export const BudgetAndGoalsView: React.FC<BudgetAndGoalsViewProps> = ({
               <div className="space-y-2 pt-2 border-t border-[#302840]">
                 <div className="flex items-center justify-between">
                   <label className="text-xs font-mono font-bold uppercase tracking-wider text-[#A098B0]">
-                    Etiquetas Asociadas (RF-20 / RF-21)
+                    Etiquetas Asociadas
                   </label>
                   <div className="flex items-center gap-1.5">
                     <button

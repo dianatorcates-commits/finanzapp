@@ -694,7 +694,7 @@ export const CreditCardBillingModal: React.FC<CreditCardBillingModalProps> = ({
                   Proyección de Facturación al Corte
                 </h2>
                 <span className="text-[10px] font-mono font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-[#00FFCC]/15 text-[#00FFCC] border border-[#00FFCC]/30">
-                  Fase 4 • Stitch
+                  Proyección Inteligente
                 </span>
               </div>
               <p className="text-xs text-[#A098B0] mt-0.5 font-sans">

@@ -585,9 +585,6 @@ export const CreditsManagementView: React.FC<CreditsManagementViewProps> = ({
             <h1 className="text-2xl sm:text-3xl font-black text-white tracking-tight flex items-center gap-2.5">
               <span>Créditos & Facturación TC</span>
             </h1>
-            <span className="text-[10px] font-black uppercase px-2.5 py-0.5 rounded-full bg-[#00FFCC]/10 text-[#00FFCC] border border-[#00FFCC]/30 tracking-widest shadow-[0_0_10px_rgba(0,255,204,0.2)]">
-              STITCH v4
-            </span>
           </div>
           <p className="text-xs sm:text-sm text-slate-400 mt-1">
             Simula la facturación de tus tarjetas de crédito, amortización de compras en cuotas, préstamos y suscripciones.

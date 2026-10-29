@@ -35,7 +35,7 @@ export const DuplicateAlertBanner: React.FC<DuplicateAlertBannerProps> = ({
           </div>
           <div>
             <h4 className="text-sm font-headline font-bold text-white flex items-center gap-2">
-              <span>Alerta de Posible Duplicidad (RF-09)</span>
+              <span>Alerta de Posible Duplicidad</span>
               <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-[#FFE04A] text-black">
                 {count} {count === 1 ? 'movimiento' : 'movimientos'}
               </span>

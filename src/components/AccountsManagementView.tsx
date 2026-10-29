@@ -540,9 +540,6 @@ export const AccountsManagementView: React.FC<AccountsManagementViewProps> = ({
               <h2 className="text-xl sm:text-2xl font-headline font-bold text-white tracking-tight">
                 Gestión de Cuentas & Tarjetas
               </h2>
-              <span className="bg-[#00FFCC]/15 text-[#00FFCC] text-[11px] font-mono font-bold px-2.5 py-0.5 rounded-full border border-[#00FFCC]/30">
-                Fase 3
-              </span>
             </div>
             <p className="text-xs sm:text-sm text-[#A098B0] mt-1 max-w-2xl font-sans">
               Auditoría aritmética de saldos bancarios en tiempo real, ciclos de facturación TC y conciliación de cartolas.
@@ -934,7 +931,7 @@ export const AccountsManagementView: React.FC<AccountsManagementViewProps> = ({
                   <div className="flex items-center justify-between">
                     <span className="text-xs font-headline font-bold text-white flex items-center gap-1.5">
                       <ShieldCheck className="w-4 h-4 text-[#00FFCC]" />
-                      <span>Fórmula Exacta de Saldo (RF-14)</span>
+                      <span>Fórmula de Saldo Calculado</span>
                     </span>
                     {auditData.percentVariation !== 0 && (
                       <span

@@ -399,9 +399,6 @@ export const CustomizeDashboardModal: React.FC<CustomizeDashboardModalProps> = (
                 <h2 className="text-base sm:text-lg font-headline font-bold text-white tracking-tight">
                   Personalizar Dashboard
                 </h2>
-                <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-[#00FFCC]/10 text-[#00FFCC] border border-[#00FFCC]/30 uppercase tracking-wider">
-                  Stitch Grid
-                </span>
               </div>
               <p className="text-xs text-[#A098B0] mt-0.5">
                 Crea indicadores en vivo, activa widgets y reordena la grilla a tu medida.
@@ -594,7 +591,7 @@ export const CustomizeDashboardModal: React.FC<CustomizeDashboardModalProps> = (
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-1">
                     <div>
                       <label className="block text-[11px] font-semibold text-[#A098B0] mb-1.5">
-                        Color de Acento Stitch
+                        Color de Acento
                       </label>
                       <div className="flex items-center gap-2 flex-wrap">
                         {NEON_PALETTE.map((p) => (
@@ -692,7 +689,7 @@ export const CustomizeDashboardModal: React.FC<CustomizeDashboardModalProps> = (
                       </div>
 
                       <div className="mt-3 pt-2.5 border-t border-[#302840]/60 flex items-center justify-between text-[10px] font-mono text-[#A098B0]">
-                        <span>Indicador Stitch</span>
+                        <span>Indicador Visual</span>
                         <span className="font-bold" style={{ color: selectedColorHex }}>
                           Listo para agregar
                         </span>
