@@ -169,7 +169,8 @@ export const AddTransactionModal: React.FC<AddTransactionModalProps> = ({
       category: finalParent,
       subcategory: finalSub,
       installments: installmentsData,
-      allocations: []
+      allocations: [],
+      created_at: new Date().toISOString()
     };
 
     setIsSubmitting(true);

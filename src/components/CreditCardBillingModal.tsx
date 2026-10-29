@@ -651,7 +651,8 @@ export const CreditCardBillingModal: React.FC<CreditCardBillingModalProps> = ({
               total: c.totalInstallments
             }
           : undefined,
-        allocations: []
+        allocations: [],
+        created_at: new Date().toISOString()
       };
 
       newTxs.push(newTx);

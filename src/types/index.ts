@@ -58,6 +58,8 @@ export interface Transaction {
   duplicateOfDescription?: string;
   duplicateOfId?: string;
   source?: 'cartola' | 'google_wallet' | 'telegram' | 'manual' | 'wallet' | string;
+  created_at?: string;
+  createdAt?: string;
 }
 
 export interface ComputedTransaction extends Transaction {

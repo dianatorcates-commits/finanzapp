@@ -28,7 +28,34 @@ export function getTodayDateString(): string {
 }
 
 /**
- * Calculates days elapsed between today and the latest registered transaction on or before today.
+ * Extracts the effective activity date (YYYY-MM-DD) for a transaction.
+ * Prioritizes the moment of registration (created_at/createdAt) in local time,
+ * with fallback to the historical transaction date (date).
+ */
+export function getTransactionActivityDate(tx: Transaction): string {
+  const rawCreation = tx.created_at || (tx as any).createdAt;
+  if (rawCreation) {
+    try {
+      const parsed = new Date(rawCreation);
+      if (!isNaN(parsed.getTime())) {
+        const year = parsed.getFullYear();
+        const month = String(parsed.getMonth() + 1).padStart(2, '0');
+        const day = String(parsed.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
+      }
+    } catch {
+      // fallback to isoSlice
+    }
+    const isoSlice = String(rawCreation).slice(0, 10);
+    if (/^\d{4}-\d{2}-\d{2}$/.test(isoSlice)) {
+      return isoSlice;
+    }
+  }
+  return (tx.date || '').slice(0, 10);
+}
+
+/**
+ * Calculates days elapsed between today and the latest registered activity on or before today.
  * If no past/present transactions exist, returns 5 (triggering Tier 0 inactivity).
  */
 export function calculateDaysInactive(transactions: Transaction[], todayStr: string = getTodayDateString()): number {
@@ -37,9 +64,18 @@ export function calculateDaysInactive(transactions: Transaction[], todayStr: str
   }
 
   // Filter transactions on or before today to measure real historical activity
-  const pastDates = transactions
-    .map((tx) => (tx.date || '').slice(0, 10))
-    .filter((d) => /^\d{4}-\d{2}-\d{2}$/.test(d) && d <= todayStr);
+  const pastDates: string[] = [];
+  for (const tx of transactions) {
+    const activityDate = getTransactionActivityDate(tx);
+    const txDate = (tx.date || '').slice(0, 10);
+
+    if (/^\d{4}-\d{2}-\d{2}$/.test(activityDate) && activityDate <= todayStr) {
+      pastDates.push(activityDate);
+    }
+    if (/^\d{4}-\d{2}-\d{2}$/.test(txDate) && txDate <= todayStr) {
+      pastDates.push(txDate);
+    }
+  }
 
   if (pastDates.length === 0) {
     return 5;
@@ -50,7 +86,7 @@ export function calculateDaysInactive(transactions: Transaction[], todayStr: str
     return 0;
   }
 
-  // Sort descending to find the latest transaction date
+  // Sort descending to find the latest activity date
   pastDates.sort((a, b) => b.localeCompare(a));
   const latestDateStr = pastDates[0];
 
@@ -68,10 +104,16 @@ export function calculateDaysInactive(transactions: Transaction[], todayStr: str
 
 /**
  * Counts transactions registered on today's date.
+ * Evaluates whether either the registration moment (created_at) or the transaction date (date)
+ * matches today's date.
  */
 export function calculateTodayTxCount(transactions: Transaction[], todayStr: string = getTodayDateString()): number {
   if (!transactions || transactions.length === 0) return 0;
-  return transactions.filter((tx) => (tx.date || '').slice(0, 10) === todayStr).length;
+  return transactions.filter((tx) => {
+    const activityDate = getTransactionActivityDate(tx);
+    const txDate = (tx.date || '').slice(0, 10);
+    return activityDate === todayStr || txDate === todayStr;
+  }).length;
 }
 
 /**

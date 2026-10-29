@@ -193,7 +193,8 @@ export async function fetchUserData(userId: string) {
         notes: t.notes || undefined,
         isPotentialDuplicate: t.is_potential_duplicate ? Boolean(t.is_potential_duplicate) : undefined,
         duplicateOfDescription: t.duplicate_of_description || undefined,
-        duplicateOfId: t.duplicate_of_id || undefined
+        duplicateOfId: t.duplicate_of_id || undefined,
+        created_at: t.created_at || undefined
       };
     });
 
@@ -473,7 +474,8 @@ export async function saveCloudTransaction(userId: string, tx: Transaction): Pro
       notes: tx.notes || null,
       is_potential_duplicate: tx.isPotentialDuplicate || false,
       duplicate_of_description: tx.duplicateOfDescription || null,
-      duplicate_of_id: tx.duplicateOfId || null
+      duplicate_of_id: tx.duplicateOfId || null,
+      ...(tx.created_at || (tx as any).createdAt ? { created_at: tx.created_at || (tx as any).createdAt } : {})
     };
     const { error } = await supabase.from('transactions').upsert(payload, { onConflict: 'id' });
     if (!error) return true;
@@ -542,7 +544,8 @@ export async function saveCloudTransactionsBatch(
       category: t.category || null,
       subcategory: t.subcategory || null,
       installment_current: t.installments?.current || null,
-      installment_total: t.installments?.total || null
+      installment_total: t.installments?.total || null,
+      ...(t.created_at || (t as any).createdAt ? { created_at: t.created_at || (t as any).createdAt } : {})
     };
 
     if (level === 'full') {

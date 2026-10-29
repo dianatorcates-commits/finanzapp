@@ -432,7 +432,8 @@ export function App() {
                 current: newDbTx.installment_current,
                 total: newDbTx.installment_total
               } : undefined,
-              allocations: parsedAllocations
+              allocations: parsedAllocations,
+              created_at: newDbTx.created_at || new Date().toISOString()
             };
             return [mappedTx, ...prev];
           });

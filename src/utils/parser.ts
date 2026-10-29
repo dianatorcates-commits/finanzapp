@@ -431,7 +431,8 @@ export function parseRawText(text: string, accountId: string, accountType: Accou
       category: autoCat.category,
       subcategory: autoCat.subcategory,
       installments,
-      allocations: []
+      allocations: [],
+      created_at: new Date().toISOString()
     });
   });
 
@@ -542,7 +543,8 @@ function mapRawRowsToTransactions(rows: Record<string, any>[], accountId: string
         category: autoCat.category,
         subcategory: autoCat.subcategory,
         installments,
-        allocations: []
+        allocations: [],
+        created_at: new Date().toISOString()
       } as Transaction;
     })
     .filter((t): t is Transaction => t !== null);
