@@ -1,4 +1,5 @@
 import { Transaction, ComputedTransaction, PaymentAllocation } from '../types';
+import { calculateTransactionPeriod } from './dateUtils';
 
 /**
  * Determines whether a transaction is specifically a credit card payment or abono
@@ -338,4 +339,113 @@ export function removePaymentAllocation(
     }
     return tx;
   });
+}
+
+/**
+ * Result returned by allocateExistingPaymentToCycle
+ */
+export interface CycleAllocationResult {
+  updatedTransactions: Transaction[];
+  allocatedAmount: number;
+  touchedTransactionIds: string[];
+}
+
+/**
+ * Directly associates and allocates an existing payment transaction to the unpaid purchases of a credit card billing cycle.
+ * Allocates in FIFO order to purchases belonging to the target card and period.
+ * Guarantees zero duplicate transactions in the database (Issue #48).
+ */
+export function allocateExistingPaymentToCycle(
+  transactions: Transaction[],
+  cardId: string,
+  period: string,
+  paymentTransactionId: string,
+  amountToAllocate: number,
+  cardClosingDay?: number
+): CycleAllocationResult {
+  if (amountToAllocate <= 0) {
+    return {
+      updatedTransactions: transactions,
+      allocatedAmount: 0,
+      touchedTransactionIds: []
+    };
+  }
+
+  const touchedIds = new Set<string>();
+
+  // 1. Deep clone transactions array with cloned allocations
+  const updatedTransactions: Transaction[] = transactions.map((tx) => ({
+    ...tx,
+    allocations: tx.allocations ? [...tx.allocations] : []
+  }));
+
+  // 2. Find payment transaction
+  const paymentTx = updatedTransactions.find((t) => t.id === paymentTransactionId);
+  if (!paymentTx) {
+    return {
+      updatedTransactions: transactions,
+      allocatedAmount: 0,
+      touchedTransactionIds: []
+    };
+  }
+
+  touchedIds.add(paymentTransactionId);
+
+  // 3. Find purchases belonging to this card and billing cycle sorted by date ascending (FIFO)
+  const purchases = updatedTransactions
+    .filter((tx) => {
+      if (tx.accountId !== cardId) return false;
+      if (isPaymentOrIncomeTransaction(tx) || tx.amount <= 0) return false;
+      const txPeriod = tx.period || calculateTransactionPeriod(tx.date, cardClosingDay);
+      return txPeriod === period;
+    })
+    .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+
+  let remaining = amountToAllocate;
+  let totalAllocated = 0;
+
+  for (const purchase of purchases) {
+    if (remaining <= 0) break;
+
+    const currentAllocated = (purchase.allocations || []).reduce((sum, a) => sum + a.amount, 0);
+    const needed = Math.max(0, purchase.amount - currentAllocated);
+
+    if (needed > 0) {
+      const allocAmount = Math.min(remaining, needed);
+      if (!purchase.allocations) purchase.allocations = [];
+
+      const existingAlloc = purchase.allocations.find(
+        (a) => a.paymentTransactionId === paymentTransactionId
+      );
+
+      if (existingAlloc) {
+        existingAlloc.amount += allocAmount;
+      } else {
+        purchase.allocations.push({
+          id: `alloc-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+          paymentTransactionId,
+          amount: allocAmount,
+          allocatedAt: new Date().toISOString()
+        });
+      }
+
+      touchedIds.add(purchase.id);
+      remaining -= allocAmount;
+      totalAllocated += allocAmount;
+    }
+  }
+
+  // 4. Update the payment transaction metadata
+  if (paymentTx.accountId !== cardId) {
+    if (!paymentTx.period) paymentTx.period = period;
+    paymentTx.transactionType = 'pago_tc';
+  } else {
+    if (!paymentTx.period) paymentTx.period = period;
+  }
+
+  return {
+    updatedTransactions,
+    allocatedAmount: totalAllocated,
+    touchedTransactionIds: Array.from(touchedIds)
+  };
 }

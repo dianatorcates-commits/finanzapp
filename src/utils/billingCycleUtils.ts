@@ -124,15 +124,25 @@ export function getBillingCycleSummary(
   );
 
   let totalBilled = 0;
-  let totalPaid = 0;
+  let directCardPaid = 0;
+  let externalAllocatedPaid = 0;
 
   periodTxs.forEach((t) => {
     if (isPaymentOrIncomeTransaction(t)) {
-      totalPaid += Math.abs(t.amount);
+      directCardPaid += Math.abs(t.amount);
     } else if (t.amount > 0) {
       totalBilled += Math.abs(t.amount);
+      // Sum allocations from payments outside this card or period (Issue #48: linked existing cartola payments)
+      (t.allocations || []).forEach((alloc) => {
+        const sourceTx = transactions.find((x) => x.id === alloc.paymentTransactionId);
+        if (!sourceTx || sourceTx.accountId !== card.id || sourceTx.period !== period) {
+          externalAllocatedPaid += alloc.amount;
+        }
+      });
     }
   });
+
+  const totalPaid = directCardPaid + externalAllocatedPaid;
 
   // Calculate minimum payment (10% standard rule, minimum $10.000 or total if total < 10000)
   const minPayment = totalBilled > 0 ? Math.min(totalBilled, Math.max(10000, Math.round(totalBilled * 0.10))) : 0;

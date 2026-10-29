@@ -17,7 +17,7 @@ import {
 } from './types';
 import { INITIAL_ACCOUNTS, INITIAL_TRANSACTIONS, DEMO_ACCOUNTS, DEMO_TRANSACTIONS, isDemoAccount } from './utils/demoData';
 import { DEFAULT_CATEGORY_MAPPINGS, DEFAULT_AUTO_RULES, getParentCategory, autoCategorize, applyAutoRulesToTransaction } from './utils/categorizer';
-import { computeTransactions, autoAllocatePayments, addPaymentAllocation, removePaymentAllocation, isPaymentOrIncomeTransaction } from './utils/paymentAllocation';
+import { computeTransactions, autoAllocatePayments, addPaymentAllocation, removePaymentAllocation, isPaymentOrIncomeTransaction, allocateExistingPaymentToCycle } from './utils/paymentAllocation';
 import { supabase } from './utils/supabaseClient';
 import {
   fetchUserData,
@@ -68,7 +68,7 @@ import { WalletAutomationModal } from './components/WalletAutomationModal';
 import { CustomizeDashboardModal } from './components/CustomizeDashboardModal';
 import { AuthModal } from './components/AuthModal';
 import { CreditCardBillingModal } from './components/CreditCardBillingModal';
-import { PayCreditCardModal, ConfirmBillingPaymentData } from './components/PayCreditCardModal';
+import { PayCreditCardModal, ConfirmBillingPaymentData, LinkExistingPaymentData } from './components/PayCreditCardModal';
 import { LandingPage } from './components/LandingPage';
 import { BottomNavBar } from './components/BottomNavBar';
 import { DuplicateAlertBanner } from './components/DuplicateAlertBanner';
@@ -1312,6 +1312,34 @@ export function App() {
     setPayBillingPeriod(undefined);
   };
 
+  // Link existing cartola/abono payment to credit card billing cycle (Issue #48)
+  const handleLinkExistingPaymentToBilling = async (data: LinkExistingPaymentData) => {
+    const cardAcc = accounts.find((a) => a.id === data.cardId);
+    if (!cardAcc) return;
+
+    const result = allocateExistingPaymentToCycle(
+      transactions,
+      data.cardId,
+      data.period,
+      data.paymentTransactionId,
+      data.amount,
+      cardAcc.closingDay
+    );
+
+    setTransactions(result.updatedTransactions);
+
+    // Persist touched transactions in cloud if authenticated
+    if (currentUser?.id && result.touchedTransactionIds.length > 0) {
+      const touchedTxs = result.updatedTransactions.filter((tx) =>
+        result.touchedTransactionIds.includes(tx.id)
+      );
+      await saveCloudTransactionsBatch(currentUser.id, touchedTxs, accounts);
+    }
+
+    setPayBillingCard(null);
+    setPayBillingPeriod(undefined);
+  };
+
   // Export to Excel
   const handleExportExcel = () => {
     const exportData = filteredTransactions.map((tx) => {
@@ -1793,6 +1821,7 @@ export function App() {
           credits={credits}
           initialPeriod={payBillingPeriod}
           onConfirmPayment={handleConfirmBillingPayment}
+          onLinkExistingPayment={handleLinkExistingPaymentToBilling}
         />
       )}
 
