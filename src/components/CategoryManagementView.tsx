@@ -48,6 +48,7 @@ export interface CategoryManagementViewProps {
   onAddRule?: (newRule: AutoCategoryRule) => void | Promise<void>;
   onDeleteRule?: (ruleId: string) => void | Promise<void>;
   onApplyRulesToExisting?: () => void | Promise<void>;
+  onResetToDefaultCategories?: () => void | Promise<void>;
   onOpenWalletModal?: () => void;
   onOpenTelegramModal?: () => void;
 }
@@ -141,6 +142,7 @@ export const CategoryManagementView: React.FC<CategoryManagementViewProps> = ({
   onAddRule,
   onDeleteRule,
   onApplyRulesToExisting,
+  onResetToDefaultCategories,
   onOpenWalletModal,
   onOpenTelegramModal
 }) => {
@@ -1042,16 +1044,34 @@ export const CategoryManagementView: React.FC<CategoryManagementViewProps> = ({
                 </span>
               </div>
 
-              <button
-                onClick={() => {
-                  setIsAddingCategory(!isAddingCategory);
-                  setCatError(null);
-                }}
-                className="flex items-center gap-1.5 bg-gradient-to-r from-[#00FFCC] to-[#38bdf8] text-[#0A0A12] font-black text-xs py-1.5 px-3 rounded-xl shadow-lg transition"
-              >
-                <Plus className="w-3.5 h-3.5" />
-                <span>Nueva</span>
-              </button>
+              <div className="flex items-center gap-2">
+                {onResetToDefaultCategories && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (window.confirm('¿Deseas restaurar el conjunto oficial de tus 9 categorías y subcategorías? Esto actualizará tu lista en la nube y en Telegram.')) {
+                        onResetToDefaultCategories();
+                      }
+                    }}
+                    title="Restaurar tus categorías oficiales originales"
+                    className="flex items-center gap-1.5 bg-[#0E0E18] hover:bg-[#1C1C30] text-[#A098B0] hover:text-[#00FFCC] border border-[#302840] hover:border-[#00FFCC]/40 font-headline font-bold text-xs py-1.5 px-3 rounded-xl transition"
+                  >
+                    <RefreshCw className="w-3.5 h-3.5" />
+                    <span className="hidden sm:inline">Restaurar Originales</span>
+                  </button>
+                )}
+
+                <button
+                  onClick={() => {
+                    setIsAddingCategory(!isAddingCategory);
+                    setCatError(null);
+                  }}
+                  className="flex items-center gap-1.5 bg-gradient-to-r from-[#00FFCC] to-[#38bdf8] text-[#0A0A12] font-black text-xs py-1.5 px-3 rounded-xl shadow-lg transition"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  <span>Nueva</span>
+                </button>
+              </div>
             </div>
 
             {isAddingCategory && (
