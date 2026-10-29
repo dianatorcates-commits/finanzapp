@@ -1738,6 +1738,8 @@ export function App() {
           accounts={accounts}
           initialAccountId={filters.accountId !== 'ALL' ? filters.accountId : accounts[0]?.id}
           existingTransactions={transactions}
+          autoRules={autoRules}
+          categoryMappings={categoryMappings}
           onClose={() => setIsImportModalOpen(false)}
           onImport={handleImportTransactions}
         />

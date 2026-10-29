@@ -1,7 +1,7 @@
 import Papa from 'papaparse';
 import * as XLSX from 'xlsx';
-import { Transaction, AccountType, TransactionType } from '../types';
-import { autoCategorize } from './categorizer';
+import { Transaction, AccountType, TransactionType, CategoryMapping, AutoCategoryRule } from '../types';
+import { autoCategorize, DEFAULT_CATEGORY_MAPPINGS } from './categorizer';
 
 export interface RawParsedRow {
   date: string;
@@ -265,7 +265,13 @@ export function findHeaderRowIndex(rows: any[][]): number {
 /**
  * Parses CSV string or File into raw transaction objects.
  */
-export async function parseCSVFile(file: File, accountId: string, accountType: AccountType): Promise<Transaction[]> {
+export async function parseCSVFile(
+  file: File,
+  accountId: string,
+  accountType: AccountType,
+  categoryMappings: CategoryMapping[] = DEFAULT_CATEGORY_MAPPINGS,
+  autoRules: AutoCategoryRule[] = []
+): Promise<Transaction[]> {
   return new Promise((resolve, reject) => {
     Papa.parse(file, {
       header: false,
@@ -294,7 +300,7 @@ export async function parseCSVFile(file: File, accountId: string, accountType: A
             return obj;
           });
 
-          const transactions = mapRawRowsToTransactions(rawDataObjects, accountId, accountType);
+          const transactions = mapRawRowsToTransactions(rawDataObjects, accountId, accountType, categoryMappings, autoRules);
           resolve(transactions);
         } catch (err) {
           reject(err);
@@ -308,7 +314,13 @@ export async function parseCSVFile(file: File, accountId: string, accountType: A
 /**
  * Parses Excel file (.xlsx, .xls) into raw transaction objects with multi-line header support.
  */
-export async function parseExcelFile(file: File, accountId: string, accountType: AccountType): Promise<Transaction[]> {
+export async function parseExcelFile(
+  file: File,
+  accountId: string,
+  accountType: AccountType,
+  categoryMappings: CategoryMapping[] = DEFAULT_CATEGORY_MAPPINGS,
+  autoRules: AutoCategoryRule[] = []
+): Promise<Transaction[]> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = (e) => {
@@ -340,7 +352,7 @@ export async function parseExcelFile(file: File, accountId: string, accountType:
           return obj;
         });
 
-        const transactions = mapRawRowsToTransactions(rawDataObjects, accountId, accountType);
+        const transactions = mapRawRowsToTransactions(rawDataObjects, accountId, accountType, categoryMappings, autoRules);
         resolve(transactions);
       } catch (err) {
         reject(err);
@@ -354,7 +366,13 @@ export async function parseExcelFile(file: File, accountId: string, accountType:
 /**
  * Parses raw copy-pasted text from bank statements (e.g. PDF copy paste)
  */
-export function parseRawText(text: string, accountId: string, accountType: AccountType): Transaction[] {
+export function parseRawText(
+  text: string,
+  accountId: string,
+  accountType: AccountType,
+  categoryMappings: CategoryMapping[] = DEFAULT_CATEGORY_MAPPINGS,
+  autoRules: AutoCategoryRule[] = []
+): Transaction[] {
   const lines = text.split('\n').map((l) => l.trim()).filter((l) => l.length > 5);
   const transactions: Transaction[] = [];
 
@@ -405,7 +423,7 @@ export function parseRawText(text: string, accountId: string, accountType: Accou
 
     const rawAmount = parseAmount(rawCandidate);
     const installments = parseInstallments(description);
-    const autoCat = autoCategorize(description, rawAmount, accountType);
+    const autoCat = autoCategorize(description, rawAmount, accountType, categoryMappings, autoRules);
 
     let effectiveAmount = Math.abs(rawAmount);
     let originalTotalAmount: number | undefined = undefined;
@@ -443,7 +461,13 @@ export function parseRawText(text: string, accountId: string, accountType: Accou
  * Intelligent mapping of dynamic table headers to standardized transaction fields.
  * Supports Chilean bank terminology (Banco de Chile, Santander, BCI, Scotiabank, Falabella, BancoEstado, Itaú).
  */
-function mapRawRowsToTransactions(rows: Record<string, any>[], accountId: string, accountType: AccountType): Transaction[] {
+function mapRawRowsToTransactions(
+  rows: Record<string, any>[],
+  accountId: string,
+  accountType: AccountType,
+  categoryMappings: CategoryMapping[] = DEFAULT_CATEGORY_MAPPINGS,
+  autoRules: AutoCategoryRule[] = []
+): Transaction[] {
   return rows
     .map((row, idx) => {
       const keys = Object.keys(row);
@@ -509,7 +533,13 @@ function mapRawRowsToTransactions(rows: Record<string, any>[], accountId: string
         }
       }
 
-      const autoCat = autoCategorize(description || 'Movimiento Importado', isIncomeOrPayment ? -amount : amount, accountType);
+      const autoCat = autoCategorize(
+        description || 'Movimiento Importado',
+        isIncomeOrPayment ? -amount : amount,
+        accountType,
+        categoryMappings,
+        autoRules
+      );
 
       let effectiveAmount = amount;
       let originalTotalAmount: number | undefined = undefined;

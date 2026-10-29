@@ -13,15 +13,18 @@ import {
   CheckCircle,
   Loader2
 } from 'lucide-react';
-import { Account, Transaction } from '../types';
+import { Account, Transaction, AutoCategoryRule, CategoryMapping } from '../types';
 import { parseCSVFile, parseExcelFile, parseRawText, analyzeCartolaDuplicates } from '../utils/parser';
 import { calculateTransactionPeriod } from '../utils/dateUtils';
+import { DEFAULT_CATEGORY_MAPPINGS } from '../utils/categorizer';
 import { formatCLP } from './MetricCards';
 
 interface ImportModalProps {
   accounts: Account[];
   initialAccountId?: string;
   existingTransactions?: Transaction[];
+  autoRules?: AutoCategoryRule[];
+  categoryMappings?: CategoryMapping[];
   onClose: () => void;
   onImport: (newTransactions: Transaction[]) => Promise<void> | void;
 }
@@ -30,6 +33,8 @@ export const ImportModal: React.FC<ImportModalProps> = ({
   accounts,
   initialAccountId,
   existingTransactions = [],
+  autoRules = [],
+  categoryMappings = DEFAULT_CATEGORY_MAPPINGS,
   onClose,
   onImport
 }) => {
@@ -92,13 +97,13 @@ export const ImportModal: React.FC<ImportModalProps> = ({
     try {
       let txs: Transaction[] = [];
       if (file.name.endsWith('.csv')) {
-        txs = await parseCSVFile(file, selectedAccountId, targetAccount.type);
+        txs = await parseCSVFile(file, selectedAccountId, targetAccount.type, categoryMappings, autoRules);
       } else if (file.name.endsWith('.xlsx') || file.name.endsWith('.xls')) {
-        txs = await parseExcelFile(file, selectedAccountId, targetAccount.type);
+        txs = await parseExcelFile(file, selectedAccountId, targetAccount.type, categoryMappings, autoRules);
       } else {
         // Fallback text read
         const text = await file.text();
-        txs = parseRawText(text, selectedAccountId, targetAccount.type);
+        txs = parseRawText(text, selectedAccountId, targetAccount.type, categoryMappings, autoRules);
       }
       processIncomingTransactions(txs, selectedAccountId, targetAccount.closingDay);
     } catch (err) {
@@ -111,7 +116,7 @@ export const ImportModal: React.FC<ImportModalProps> = ({
 
   const handleParseText = () => {
     if (!rawText.trim() || !selectedAccountId || !targetAccount) return;
-    const txs = parseRawText(rawText, selectedAccountId, targetAccount.type);
+    const txs = parseRawText(rawText, selectedAccountId, targetAccount.type, categoryMappings, autoRules);
     processIncomingTransactions(txs, selectedAccountId, targetAccount.closingDay);
   };
 
@@ -503,9 +508,16 @@ export const ImportModal: React.FC<ImportModalProps> = ({
                         </td>
 
                         <td className="px-3 py-2">
-                          <span className="bg-[#1C1C2E] border border-[#302840] px-2 py-0.5 rounded text-[10px] text-[#A098B0] font-medium">
-                            {tx.category}
-                          </span>
+                          <div className="flex flex-col gap-0.5">
+                            <span className="bg-[#1C1C2E] border border-[#302840] px-2 py-0.5 rounded text-[10px] text-[#A098B0] font-medium w-fit">
+                              {tx.category}
+                            </span>
+                            {tx.subcategory && tx.subcategory !== tx.category && (
+                              <span className="text-[10px] text-[#00FFCC] font-mono px-0.5">
+                                {tx.subcategory}
+                              </span>
+                            )}
+                          </div>
                         </td>
 
                         <td
