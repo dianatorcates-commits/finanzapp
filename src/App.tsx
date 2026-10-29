@@ -334,7 +334,33 @@ export function App() {
         const effectiveAccounts = (onlyDemoAccounts && data.transactions.length === 0) ? [] : data.accounts;
 
         setAccounts(effectiveAccounts);
-        setCategoryMappings(data.categoryMappings.length > 0 ? data.categoryMappings : DEFAULT_CATEGORY_MAPPINGS);
+
+        // Check if categories in cloud are obsolete mock demo categories ("Alimentación y Gastronomía")
+        const hasObsoleteDemoCategories = data.categoryMappings.length > 0 &&
+          data.categoryMappings.some((c) => c.name === 'Alimentación y Gastronomía' || c.name === 'Compras y Estilo de Vida');
+
+        if (hasObsoleteDemoCategories || data.categoryMappings.length === 0) {
+          setCategoryMappings(DEFAULT_CATEGORY_MAPPINGS);
+          localStorage.setItem(`${STORAGE_KEY_CATEGORY_MAPPINGS}_${userId}`, JSON.stringify(DEFAULT_CATEGORY_MAPPINGS));
+          (async () => {
+            try {
+              await supabase.from('category_mappings').delete().eq('user_id', userId);
+              const categoriesPayload = DEFAULT_CATEGORY_MAPPINGS.map((c) => ({
+                id: c.id,
+                user_id: userId,
+                name: c.name,
+                subcategories: c.subcategories
+              }));
+              await supabase.from('category_mappings').upsert(categoriesPayload, { onConflict: 'id' });
+            } catch (err) {
+              console.error('Error auto-reparando categorias originales:', err);
+            }
+          })();
+        } else {
+          setCategoryMappings(data.categoryMappings);
+          localStorage.setItem(`${STORAGE_KEY_CATEGORY_MAPPINGS}_${userId}`, JSON.stringify(data.categoryMappings));
+        }
+
         setAutoRules(data.autoRules.length > 0 ? data.autoRules : DEFAULT_AUTO_RULES);
         setBudgets(data.budgets);
         setTransactions(data.transactions);
@@ -348,9 +374,9 @@ export function App() {
         const initialUserCategories = DEFAULT_CATEGORY_MAPPINGS;
         const initialUserRules = DEFAULT_AUTO_RULES;
         const initialUserBudgets = [
-          { id: 'b-1', categoryName: 'Alimentación y Gastronomía', monthlyLimit: 350000 },
-          { id: 'b-2', categoryName: 'Transporte y Movilidad', monthlyLimit: 120000 },
-          { id: 'b-3', categoryName: 'Compras y Estilo de Vida', monthlyLimit: 200000 }
+          { id: 'b-1', categoryName: 'Alimentación', monthlyLimit: 350000 },
+          { id: 'b-2', categoryName: 'Transporte', monthlyLimit: 120000 },
+          { id: 'b-3', categoryName: 'Compras', monthlyLimit: 200000 }
         ];
         const initialUserTransactions: Transaction[] = []; // CLEAN START FOR NEW USERS!
 
@@ -501,9 +527,9 @@ export function App() {
         setCategoryMappings(DEFAULT_CATEGORY_MAPPINGS);
         setAutoRules(DEFAULT_AUTO_RULES);
         setBudgets([
-          { id: 'b-1', categoryName: 'Alimentación y Gastronomía', monthlyLimit: 350000 },
-          { id: 'b-2', categoryName: 'Transporte y Movilidad', monthlyLimit: 120000 },
-          { id: 'b-3', categoryName: 'Compras y Estilo de Vida', monthlyLimit: 200000 }
+          { id: 'b-1', categoryName: 'Alimentación', monthlyLimit: 350000 },
+          { id: 'b-2', categoryName: 'Transporte', monthlyLimit: 120000 },
+          { id: 'b-3', categoryName: 'Compras', monthlyLimit: 200000 }
         ]);
         setSavingsGoals([]);
         setTelegramProfile(null);
@@ -560,9 +586,9 @@ export function App() {
     setCategoryMappings(DEFAULT_CATEGORY_MAPPINGS);
     setAutoRules(DEFAULT_AUTO_RULES);
     setBudgets([
-      { id: 'b-1', categoryName: 'Alimentación y Gastronomía', monthlyLimit: 350000 },
-      { id: 'b-2', categoryName: 'Transporte y Movilidad', monthlyLimit: 120000 },
-      { id: 'b-3', categoryName: 'Compras y Estilo de Vida', monthlyLimit: 200000 }
+      { id: 'b-1', categoryName: 'Alimentación', monthlyLimit: 350000 },
+      { id: 'b-2', categoryName: 'Transporte', monthlyLimit: 120000 },
+      { id: 'b-3', categoryName: 'Compras', monthlyLimit: 200000 }
     ]);
     setSavingsGoals([]);
     setCredits([]);
@@ -946,6 +972,26 @@ export function App() {
 
     if (currentUser && updatedCat) {
       await saveCloudCategory(currentUser.id, updatedCat);
+    }
+  };
+
+  const handleResetToDefaultCategories = async () => {
+    setCategoryMappings(DEFAULT_CATEGORY_MAPPINGS);
+    localStorage.setItem(STORAGE_KEY_CATEGORY_MAPPINGS, JSON.stringify(DEFAULT_CATEGORY_MAPPINGS));
+    if (currentUser?.id) {
+      localStorage.setItem(`${STORAGE_KEY_CATEGORY_MAPPINGS}_${currentUser.id}`, JSON.stringify(DEFAULT_CATEGORY_MAPPINGS));
+      try {
+        await supabase.from('category_mappings').delete().eq('user_id', currentUser.id);
+        const categoriesPayload = DEFAULT_CATEGORY_MAPPINGS.map((c) => ({
+          id: c.id,
+          user_id: currentUser.id,
+          name: c.name,
+          subcategories: c.subcategories
+        }));
+        await supabase.from('category_mappings').upsert(categoriesPayload, { onConflict: 'id' });
+      } catch (err) {
+        console.error('Error restaurando categorias originales en Supabase:', err);
+      }
     }
   };
 
@@ -1625,6 +1671,7 @@ export function App() {
                 onAddRule={handleAddAutoRule}
                 onDeleteRule={handleDeleteAutoRule}
                 onApplyRulesToExisting={handleApplyRulesToExisting}
+                onResetToDefaultCategories={handleResetToDefaultCategories}
                 onOpenWalletModal={() => (currentUser ? setIsWalletModalOpen(true) : setIsAuthModalOpen(true))}
                 onOpenTelegramModal={() => (currentUser ? setIsTelegramModalOpen(true) : setIsAuthModalOpen(true))}
               />

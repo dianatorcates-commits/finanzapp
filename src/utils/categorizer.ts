@@ -8,12 +8,12 @@ export interface CategorizationResult {
 }
 
 export const DEFAULT_AUTO_RULES: AutoCategoryRule[] = [
-  { id: 'rule-jumbo', pattern: 'JUMBO', category: 'Alimentación y Gastronomía', subcategory: 'Alimentación y Supermercados', transactionType: 'compra' },
-  { id: 'rule-lider', pattern: 'LIDER', category: 'Alimentación y Gastronomía', subcategory: 'Alimentación y Supermercados', transactionType: 'compra' },
-  { id: 'rule-uber', pattern: 'UBER', category: 'Transporte y Movilidad', subcategory: 'Transporte y Vehículos', transactionType: 'compra' },
-  { id: 'rule-netflix', pattern: 'NETFLIX', category: 'Vivienda y Servicios', subcategory: 'Suscripciones y Streaming', transactionType: 'compra' },
-  { id: 'rule-spotify', pattern: 'SPOTIFY', category: 'Vivienda y Servicios', subcategory: 'Suscripciones y Streaming', transactionType: 'compra' },
-  { id: 'rule-starbucks', pattern: 'STARBUCKS', category: 'Alimentación y Gastronomía', subcategory: 'Restaurantes y Bares', transactionType: 'compra' },
+  { id: 'rule-jumbo', pattern: 'JUMBO', category: 'Alimentación', subcategory: 'Supermercados', transactionType: 'compra' },
+  { id: 'rule-lider', pattern: 'LIDER', category: 'Alimentación', subcategory: 'Supermercados', transactionType: 'compra' },
+  { id: 'rule-uber', pattern: 'UBER', category: 'Transporte', subcategory: 'Transporte', transactionType: 'compra' },
+  { id: 'rule-netflix', pattern: 'NETFLIX', category: 'Servicios', subcategory: 'Suscripciones', transactionType: 'compra' },
+  { id: 'rule-spotify', pattern: 'SPOTIFY', category: 'Servicios', subcategory: 'Suscripciones', transactionType: 'compra' },
+  { id: 'rule-starbucks', pattern: 'STARBUCKS', category: 'Alimentación', subcategory: 'Cafe-Snacks', transactionType: 'compra' },
   { id: 'rule-pago-tc', pattern: 'PAGO TC', category: 'Abonos y Pagos', subcategory: 'Pagos de Tarjeta', transactionType: 'pago_tc' }
 ];
 
@@ -39,44 +39,93 @@ export const POS_GATEWAY_PATTERNS = [
 
 export const DEFAULT_CATEGORY_MAPPINGS: CategoryMapping[] = [
   {
-    id: 'cat-abonos',
+    id: 'cat-abonos-pagos',
     name: 'Abonos y Pagos',
-    subcategories: ['Pagos de Tarjeta', 'Abono de Tarjeta', 'Abono Comida']
+    subcategories: [
+      'Pagos de Tarjeta',
+      'Abono de Tarjeta',
+      'Abono Comida',
+      'Transferencias Salida'
+    ]
   },
   {
     id: 'cat-alimentacion',
-    name: 'Alimentación y Gastronomía',
-    subcategories: ['Alimentación y Supermercados', 'Restaurantes y Bares']
-  },
-  {
-    id: 'cat-transporte',
-    name: 'Transporte y Movilidad',
-    subcategories: ['Transporte y Vehículos']
-  },
-  {
-    id: 'cat-vivienda',
-    name: 'Vivienda y Servicios',
-    subcategories: ['Servicios Básicos y Hogar', 'Suscripciones y Streaming']
-  },
-  {
-    id: 'cat-salud',
-    name: 'Salud y Bienestar',
-    subcategories: ['Salud y Farmacia']
+    name: 'Alimentación',
+    subcategories: [
+      'Supermercados',
+      'Restaurantes',
+      'Cafe-Snacks',
+      'Almuerzo Compartido',
+      'Almuerzos'
+    ]
   },
   {
     id: 'cat-compras',
-    name: 'Compras y Estilo de Vida',
-    subcategories: ['Ropa, Tecnología y Compras', 'Educación y Libros', 'Entretenimiento y Viajes']
+    name: 'Compras',
+    subcategories: [
+      'Tecnología',
+      'Educación',
+      'Entretenimiento',
+      'Peluqueria',
+      'Mascota',
+      'Gastos varios'
+    ]
   },
   {
-    id: 'cat-ingresos',
+    id: 'cat-creditos',
+    name: 'Creditos',
+    subcategories: [
+      'Avance',
+      'Hipotecario',
+      'Consumo'
+    ]
+  },
+  {
+    id: 'cat-ingresos-transferencias',
     name: 'Ingresos y Transferencias',
-    subcategories: ['Sueldo y Ventas', 'Transferencias']
+    subcategories: [
+      'Sueldo',
+      'Transferencias',
+      'Transferencia Entrada',
+      'Reembolsos'
+    ]
   },
   {
-    id: 'cat-otros',
+    id: 'cat-otros-gastos',
     name: 'Otros Gastos',
-    subcategories: ['Otros Gastos']
+    subcategories: [
+      'Otros Gastos',
+      'Impuestos - Gastos Adm',
+      'Venezuela'
+    ]
+  },
+  {
+    id: 'cat-salud',
+    name: 'Salud',
+    subcategories: [
+      'Farmacia',
+      'Clinica',
+      'Laboratorio',
+      'Seguro'
+    ]
+  },
+  {
+    id: 'cat-servicios',
+    name: 'Servicios',
+    subcategories: [
+      'Servicios Básicos',
+      'Suscripciones'
+    ]
+  },
+  {
+    id: 'cat-transporte',
+    name: 'Transporte',
+    subcategories: [
+      'Transporte',
+      'Estacionamiento',
+      'Repuestos',
+      'Gasolina'
+    ]
   }
 ];
 
