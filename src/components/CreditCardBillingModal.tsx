@@ -21,6 +21,7 @@ import {
 } from 'lucide-react';
 import { Account, ComputedTransaction, Credit, Transaction } from '../types';
 import { isPaymentOrIncomeTransaction } from '../utils/paymentAllocation';
+import { getBillingCycleSummary } from '../utils/billingCycleUtils';
 import { getBankBranding } from './AccountsManagementView';
 
 export interface CreditCardBillingModalProps {
@@ -34,6 +35,7 @@ export interface CreditCardBillingModalProps {
     newTxs: Transaction[],
     paidCreditUpdates: { id: string; paidInstallments?: number; lastPaidPeriod: string }[]
   ) => Promise<void> | void;
+  onOpenPayBillingModal?: (card: Account, period?: string) => void;
 }
 
 function formatCLP(amount: number): string {
@@ -278,7 +280,8 @@ export const CreditCardBillingModal: React.FC<CreditCardBillingModalProps> = ({
   transactions,
   credits,
   currentPeriod,
-  onGenerateBillingTransactions
+  onGenerateBillingTransactions,
+  onOpenPayBillingModal
 }) => {
   // Only Credit Card Accounts
   const creditCards = useMemo(
@@ -597,6 +600,12 @@ export const CreditCardBillingModal: React.FC<CreditCardBillingModalProps> = ({
       daysStatus
     };
   }, [activeCard, selectedPeriod]);
+
+  // Billing Cycle Summary & Traffic Light Status
+  const billingSummary = useMemo(() => {
+    if (!activeCard) return null;
+    return getBillingCycleSummary(activeCard, transactions, credits, selectedPeriod);
+  }, [activeCard, transactions, credits, selectedPeriod]);
 
   // Handle Generate Action
   const handleGeneratePendingItems = async () => {
@@ -968,6 +977,63 @@ export const CreditCardBillingModal: React.FC<CreditCardBillingModalProps> = ({
                   </div>
                 </div>
               )}
+
+              {/* Billing Cycle Payment Status & Action */}
+              {billingSummary && (
+                <div className="pt-3 border-t border-[#302840] space-y-3">
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                    <span className="text-xs font-headline font-bold text-white flex items-center gap-1.5">
+                      <span className="w-2 h-2 rounded-full animate-pulse bg-[#00FFCC]" />
+                      Estado de Pago del Ciclo
+                    </span>
+                    <span className={`text-[10px] font-headline font-bold px-2.5 py-0.5 rounded-full border self-start sm:self-auto ${billingSummary.statusBadgeColor}`}>
+                      {billingSummary.statusLabel}
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                    <div className="bg-[#141422] p-2.5 rounded-xl border border-[#302840]">
+                      <span className="text-[10px] text-[#A098B0] block uppercase font-mono">Facturado</span>
+                      <span className="text-xs font-mono font-bold text-white">{formatCLP(billingSummary.totalBilled)}</span>
+                    </div>
+                    <div className="bg-[#141422] p-2.5 rounded-xl border border-[#302840]">
+                      <span className="text-[10px] text-[#A098B0] block uppercase font-mono">Abonos / Pagos</span>
+                      <span className="text-xs font-mono font-bold text-emerald-400">+{formatCLP(billingSummary.totalPaid)}</span>
+                    </div>
+                    <div className="bg-[#141422] p-2.5 rounded-xl border border-[#302840]">
+                      <span className="text-[10px] text-[#A098B0] block uppercase font-mono">Saldo Pendiente</span>
+                      <span className={`text-xs font-mono font-bold ${billingSummary.pendingBalance === 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
+                        {formatCLP(billingSummary.pendingBalance)}
+                      </span>
+                    </div>
+                    <div className="bg-[#141422] p-2.5 rounded-xl border border-[#302840]">
+                      <span className="text-[10px] text-[#A098B0] block uppercase font-mono">Mínimo Sugerido</span>
+                      <span className="text-xs font-mono font-bold text-[#FFE04A]">{formatCLP(billingSummary.minPayment)}</span>
+                    </div>
+                  </div>
+
+                  {billingSummary.revolvingBalance > 0 && (
+                    <div className="text-[11px] text-amber-300 bg-amber-500/10 border border-amber-500/20 rounded-xl p-2.5 flex items-start gap-2">
+                      <AlertCircle className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+                      <span>
+                        Deuda rotativa activa: <b>{formatCLP(billingSummary.revolvingBalance)}</b> generará intereses financieros en el próximo estado de cuenta si no se liquida antes del corte.
+                      </span>
+                    </div>
+                  )}
+
+                  {onOpenPayBillingModal && (
+                    <div className="flex justify-end pt-1">
+                      <button
+                        onClick={() => onOpenPayBillingModal(activeCard, selectedPeriod)}
+                        className="w-full sm:w-auto px-4 py-2 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-black font-headline font-bold text-xs shadow-lg shadow-emerald-500/20 transition flex items-center justify-center gap-2"
+                      >
+                        <CreditCard className="w-3.5 h-3.5" />
+                        <span>Registrar Pago de Facturación</span>
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
 
             {/* 4 Grand Summary KPI Cards Stitch */}
@@ -1317,16 +1383,27 @@ export const CreditCardBillingModal: React.FC<CreditCardBillingModalProps> = ({
         )}
 
         {/* Footer */}
-        <div className="p-4 sm:p-5 bg-[#111118] border-t border-[#302840] flex items-center justify-between">
+        <div className="p-4 sm:p-5 bg-[#111118] border-t border-[#302840] flex flex-col sm:flex-row items-center justify-between gap-3">
           <span className="text-xs text-[#A098B0] font-sans">
             Período seleccionado: <b className="text-white font-mono">{formatPeriodLabel(selectedPeriod)}</b>
           </span>
-          <button
-            onClick={onClose}
-            className="px-5 py-2 rounded-xl bg-[#1A1A2E] hover:bg-[#25253E] border border-[#302840] text-white text-xs font-headline font-bold transition"
-          >
-            Cerrar
-          </button>
+          <div className="flex items-center gap-2.5 w-full sm:w-auto justify-end">
+            {activeCard && onOpenPayBillingModal && (
+              <button
+                onClick={() => onOpenPayBillingModal(activeCard, selectedPeriod)}
+                className="px-4 py-2 rounded-xl bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-500/30 text-emerald-400 text-xs font-headline font-bold transition flex items-center gap-1.5"
+              >
+                <CreditCard className="w-3.5 h-3.5" />
+                <span>Pagar Facturación</span>
+              </button>
+            )}
+            <button
+              onClick={onClose}
+              className="px-5 py-2 rounded-xl bg-[#1A1A2E] hover:bg-[#25253E] border border-[#302840] text-white text-xs font-headline font-bold transition"
+            >
+              Cerrar
+            </button>
+          </div>
         </div>
       </div>
     </div>

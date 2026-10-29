@@ -26,8 +26,9 @@ import {
   Percent
 } from 'lucide-react';
 import { Account, AccountType, Transaction, Credit } from '../types';
-import { isPaymentOrIncomeTransaction } from '../utils/paymentAllocation';
+import { isPaymentOrIncomeTransaction, isCreditCardPaymentTransaction } from '../utils/paymentAllocation';
 import { calculateTransactionPeriod } from '../utils/dateUtils';
+import { getBillingCycleSummary } from '../utils/billingCycleUtils';
 import { formatCLP } from './MetricCards';
 
 export type TCCAuditData = {
@@ -69,6 +70,7 @@ interface AccountsManagementViewProps {
   onDeleteAccount: (accountId: string) => void | Promise<void>;
   onOpenImportModal?: () => void;
   onOpenBillingModal?: () => void;
+  onOpenPayBillingModal?: (card: Account) => void;
 }
 
 export const CHILEAN_BANKS = [
@@ -233,7 +235,8 @@ export const AccountsManagementView: React.FC<AccountsManagementViewProps> = ({
   onUpdateAccount,
   onDeleteAccount,
   onOpenImportModal,
-  onOpenBillingModal
+  onOpenBillingModal,
+  onOpenPayBillingModal
 }) => {
   // Category tabs: 'all' | 'credit_card' | 'debit_checking' | 'prepaid_other'
   const [activeTabFilter, setActiveTabFilter] = useState<'all' | 'credit_card' | 'debit_checking' | 'prepaid_other'>('all');
@@ -364,14 +367,16 @@ export const AccountsManagementView: React.FC<AccountsManagementViewProps> = ({
       let tcPayments = 0;
 
       accTxs.forEach((t) => {
-        const isIncomeOrPay = isPaymentOrIncomeTransaction(t);
         const amount = Math.abs(t.amount);
+        const isTcOutflow =
+          t.transactionType === 'pago_tc' ||
+          (t.transactionType === 'transferencia_enviada' && isCreditCardPaymentTransaction(t));
 
-        if (isIncomeOrPay) {
-          validatedIncomes += amount;
-        } else if (t.transactionType === 'pago_tc') {
+        if (isTcOutflow) {
           // Explicitly isolated TC payments to avoid double charges
           tcPayments += amount;
+        } else if (isPaymentOrIncomeTransaction(t)) {
+          validatedIncomes += amount;
         } else {
           consumptionExpenses += amount;
         }
@@ -731,6 +736,24 @@ export const AccountsManagementView: React.FC<AccountsManagementViewProps> = ({
                           {acc.closingDay ? <span>Corte: día {acc.closingDay}</span> : <span>Sin día de corte</span>}
                           {acc.dueDay && <span>Vence: día {acc.dueDay}</span>}
                         </div>
+
+                        {/* Billing cycle status badge */}
+                        {(() => {
+                          const cycle = getBillingCycleSummary(acc, transactions, credits);
+                          if (!cycle) return null;
+                          return (
+                            <div className="pt-2 border-t border-[#302840]/60 flex items-center justify-between">
+                              <span className={`text-[10px] font-headline font-semibold px-2 py-0.5 rounded-full border ${cycle.statusBadgeColor}`}>
+                                {cycle.statusLabel}
+                              </span>
+                              {cycle.isClosed && cycle.pendingBalance > 0 && (
+                                <span className="text-[10px] font-mono text-rose-300 font-bold">
+                                  {formatCLP(cycle.pendingBalance)}
+                                </span>
+                              )}
+                            </div>
+                          );
+                        })()}
                       </div>
                     ) : (
                       <div className="space-y-2">
@@ -760,6 +783,19 @@ export const AccountsManagementView: React.FC<AccountsManagementViewProps> = ({
                       {accTxs.length} movimientos
                     </span>
                     <div className="flex items-center gap-1.5">
+                      {isTC && onOpenPayBillingModal && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onOpenPayBillingModal(acc);
+                          }}
+                          className="text-[11px] font-headline font-bold px-2 py-1 rounded-lg bg-emerald-500/15 text-emerald-400 hover:bg-emerald-500/25 border border-emerald-500/30 transition flex items-center gap-1"
+                          title="Registrar pago de facturación"
+                        >
+                          <CreditCard className="w-3 h-3" />
+                          <span>Pagar</span>
+                        </button>
+                      )}
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
@@ -924,6 +960,60 @@ export const AccountsManagementView: React.FC<AccountsManagementViewProps> = ({
                       </span>
                     </div>
                   </div>
+
+                  {/* Billing Cycle Status & Guided Payment */}
+                  {(() => {
+                    const cycle = getBillingCycleSummary(activeAccount, transactions, credits);
+                    if (!cycle) return null;
+                    return (
+                      <div className="bg-[#0E0E18] p-3.5 rounded-xl border border-[#302840] space-y-2.5">
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs font-headline font-bold text-white flex items-center gap-1.5">
+                            <span className="w-2 h-2 rounded-full animate-pulse bg-[#00FFCC]" />
+                            Estado de Facturación
+                          </span>
+                          <span className={`text-[10px] font-headline font-semibold px-2 py-0.5 rounded-full border ${cycle.statusBadgeColor}`}>
+                            {cycle.statusLabel}
+                          </span>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-2 text-xs font-mono">
+                          <div className="bg-[#141422] p-2 rounded-lg border border-[#302840]">
+                            <span className="text-[10px] text-[#A098B0] block">Total Facturado</span>
+                            <span className="font-bold text-white">{formatCLP(cycle.totalBilled)}</span>
+                          </div>
+                          <div className="bg-[#141422] p-2 rounded-lg border border-[#302840]">
+                            <span className="text-[10px] text-[#A098B0] block">Pagos Realizados</span>
+                            <span className="font-bold text-emerald-400">+{formatCLP(cycle.totalPaid)}</span>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center justify-between text-xs font-mono pt-0.5">
+                          <span className="text-[#A098B0]">Saldo Pendiente:</span>
+                          <span className={`font-bold ${cycle.pendingBalance === 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
+                            {formatCLP(cycle.pendingBalance)}
+                          </span>
+                        </div>
+
+                        {cycle.revolvingBalance > 0 && (
+                          <div className="text-[11px] text-amber-300 bg-amber-500/10 border border-amber-500/20 rounded-lg p-2 flex items-start gap-1.5">
+                            <span>⚠️</span>
+                            <span>Deuda rotativa de {formatCLP(cycle.revolvingBalance)} generará intereses el próximo ciclo.</span>
+                          </div>
+                        )}
+
+                        {onOpenPayBillingModal && (
+                          <button
+                            onClick={() => onOpenPayBillingModal(activeAccount)}
+                            className="w-full mt-2 py-2.5 px-4 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-black font-headline font-black text-xs uppercase tracking-wider transition shadow-lg shadow-emerald-500/20 flex items-center justify-center gap-2"
+                          >
+                            <CreditCard className="w-4 h-4" />
+                            Registrar Pago de Facturación
+                          </button>
+                        )}
+                      </div>
+                    );
+                  })()}
                 </div>
               ) : (
                 /* Case A: Debit / Checking / Sight Account Exact Arithmetic Formula (RF-14) */

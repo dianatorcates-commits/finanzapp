@@ -68,6 +68,7 @@ import { WalletAutomationModal } from './components/WalletAutomationModal';
 import { CustomizeDashboardModal } from './components/CustomizeDashboardModal';
 import { AuthModal } from './components/AuthModal';
 import { CreditCardBillingModal } from './components/CreditCardBillingModal';
+import { PayCreditCardModal, ConfirmBillingPaymentData } from './components/PayCreditCardModal';
 import { LandingPage } from './components/LandingPage';
 import { BottomNavBar } from './components/BottomNavBar';
 import { DuplicateAlertBanner } from './components/DuplicateAlertBanner';
@@ -216,6 +217,8 @@ export function App() {
   const [isBillingModalOpen, setIsBillingModalOpen] = useState(false);
   const [telegramProfile, setTelegramProfile] = useState<TelegramProfile | null>(null);
   const [selectedPurchaseForPayment, setSelectedPurchaseForPayment] = useState<ComputedTransaction | null>(null);
+  const [payBillingCard, setPayBillingCard] = useState<Account | null>(null);
+  const [payBillingPeriod, setPayBillingPeriod] = useState<string | undefined>(undefined);
 
   // Helper to ensure dashboard config conforms to array format and has all system metrics available
   const normalizeDashboardConfig = (raw: any): DashboardConfig => {
@@ -1242,6 +1245,68 @@ export function App() {
     setTransactions((prev) => removePaymentAllocation(prev, purchaseId, allocationId));
   };
 
+  const handleConfirmBillingPayment = async (data: ConfirmBillingPaymentData) => {
+    const sourceAcc = accounts.find((a) => a.id === data.sourceAccountId);
+    const cardAcc = accounts.find((a) => a.id === data.cardId);
+    if (!sourceAcc || !cardAcc) return;
+
+    const sourcePeriod = calculateTransactionPeriod(data.date, sourceAcc.closingDay);
+    const cardPeriod = data.period || calculateTransactionPeriod(data.date, cardAcc.closingDay);
+
+    const paymentTypeLabel =
+      data.paymentType === 'total'
+        ? 'Total Facturado'
+        : data.paymentType === 'min'
+        ? 'Pago Mínimo'
+        : 'Monto Personalizado';
+
+    // 1. Egreso desde la cuenta bancaria de origen
+    const egresoTx: Transaction = {
+      id: `tx-pago-out-${Date.now()}`,
+      accountId: sourceAcc.id,
+      date: data.date,
+      period: sourcePeriod,
+      description: `Pago Facturación TC ${cardAcc.name}`,
+      rawDescription: `Pago Facturación TC ${cardAcc.name} (${paymentTypeLabel})`,
+      amount: Math.abs(data.amount),
+      transactionType: 'pago_tc',
+      category: 'Abonos y Pagos',
+      subcategory: 'Pago Tarjeta',
+      allocations: [],
+      created_at: new Date().toISOString()
+    };
+
+    // 2. Abono en la tarjeta de crédito
+    const abonoTx: Transaction = {
+      id: `tx-pago-in-${Date.now() + 1}`,
+      accountId: cardAcc.id,
+      date: data.date,
+      period: cardPeriod,
+      description: `Abono Facturación desde ${sourceAcc.name}`,
+      rawDescription: `Abono Facturación desde ${sourceAcc.name} (${paymentTypeLabel})`,
+      amount: Math.abs(data.amount),
+      transactionType: 'pago_tc',
+      category: 'Abonos y Pagos',
+      subcategory: 'Abono de Tarjeta',
+      allocations: [],
+      created_at: new Date().toISOString()
+    };
+
+    // 3. Integración y auto-imputación en compras pendientes de la tarjeta
+    const combinedTxs = [egresoTx, abonoTx, ...transactions];
+    const allocatedTxs = autoAllocatePayments(combinedTxs, cardAcc.id);
+
+    setTransactions(allocatedTxs);
+
+    // 4. Persistir a la nube en lote si está autenticado
+    if (currentUser?.id) {
+      await saveCloudTransactionsBatch(currentUser.id, [egresoTx, abonoTx], accounts);
+    }
+
+    setPayBillingCard(null);
+    setPayBillingPeriod(undefined);
+  };
+
   // Export to Excel
   const handleExportExcel = () => {
     const exportData = filteredTransactions.map((tx) => {
@@ -1511,6 +1576,10 @@ export function App() {
                 onDeleteAccount={handleDeleteAccount}
                 onOpenImportModal={() => setIsImportModalOpen(true)}
                 onOpenBillingModal={() => setIsBillingModalOpen(true)}
+                onOpenPayBillingModal={(card) => {
+                  setPayBillingCard(card);
+                  setPayBillingPeriod(undefined);
+                }}
               />
             ) : (
               <CreditsManagementView
@@ -1643,6 +1712,27 @@ export function App() {
           credits={credits}
           currentPeriod={filters.month !== 'ALL' ? filters.month : new Date().toISOString().slice(0, 7)}
           onGenerateBillingTransactions={handleGenerateBillingTransactions}
+          onOpenPayBillingModal={(card, period) => {
+            setPayBillingCard(card);
+            setPayBillingPeriod(period);
+          }}
+        />
+      )}
+
+      {/* Guided Credit Card Billing Payment Flow Modal (Issue #38) */}
+      {payBillingCard && (
+        <PayCreditCardModal
+          isOpen={!!payBillingCard}
+          onClose={() => {
+            setPayBillingCard(null);
+            setPayBillingPeriod(undefined);
+          }}
+          card={payBillingCard}
+          accounts={accounts}
+          transactions={transactions}
+          credits={credits}
+          initialPeriod={payBillingPeriod}
+          onConfirmPayment={handleConfirmBillingPayment}
         />
       )}
 
