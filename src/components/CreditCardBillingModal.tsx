@@ -546,10 +546,22 @@ export const CreditCardBillingModal: React.FC<CreditCardBillingModalProps> = ({
   const totalProjectedGross = registeredSpendingTotal + pendingInstallmentsGross + pendingSubscriptionsGross;
   const totalProjectedUserShare = registeredSpendingTotal + pendingInstallmentsUserShare + pendingSubscriptionsUserShare;
 
+  // Billing Cycle Summary & Traffic Light Status
+  const billingSummary = useMemo(() => {
+    if (!activeCard) return null;
+    return getBillingCycleSummary(activeCard, transactions, credits, selectedPeriod);
+  }, [activeCard, transactions, credits, selectedPeriod]);
+
+  // Facturación Neta Esperada (deduciendo pagos y abonos del ciclo)
+  const totalPaidInCycle = billingSummary?.totalPaid || 0;
+  const netSpendingPending = Math.max(0, registeredSpendingTotal - totalPaidInCycle);
+  const totalFacturacionEsperada = netSpendingPending + pendingInstallmentsGross + pendingSubscriptionsGross;
+  const totalFacturacionEsperadaUserShare = Math.max(0, registeredSpendingNet - totalPaidInCycle) + pendingInstallmentsUserShare + pendingSubscriptionsUserShare;
+
   // Credit Limit Calculations
   const creditLimit = activeCard?.creditLimit || 0;
-  const creditLimitUsagePct = creditLimit > 0 ? Math.min(100, Math.round((totalProjectedGross / creditLimit) * 100)) : 0;
-  const creditAvailable = creditLimit > 0 ? Math.max(0, creditLimit - totalProjectedGross) : 0;
+  const creditLimitUsagePct = creditLimit > 0 ? Math.min(100, Math.round((totalFacturacionEsperada / creditLimit) * 100)) : 0;
+  const creditAvailable = creditLimit > 0 ? Math.max(0, creditLimit - totalFacturacionEsperada) : 0;
 
   // Cycle Info Calculation (days to closing)
   const cycleInfo = useMemo(() => {
@@ -608,12 +620,6 @@ export const CreditCardBillingModal: React.FC<CreditCardBillingModalProps> = ({
       daysStatus
     };
   }, [activeCard, selectedPeriod]);
-
-  // Billing Cycle Summary & Traffic Light Status
-  const billingSummary = useMemo(() => {
-    if (!activeCard) return null;
-    return getBillingCycleSummary(activeCard, transactions, credits, selectedPeriod);
-  }, [activeCard, transactions, credits, selectedPeriod]);
 
   // Handle Generate Action
   const handleGeneratePendingItems = async () => {
@@ -1001,7 +1007,7 @@ export const CreditCardBillingModal: React.FC<CreditCardBillingModalProps> = ({
 
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                     <div className="bg-[#141422] p-2.5 rounded-xl border border-[#302840]">
-                      <span className="text-[10px] text-[#A098B0] block uppercase font-mono">Facturado</span>
+                      <span className="text-[10px] text-[#A098B0] block uppercase font-mono">Gastos del Mes</span>
                       <span className="text-xs font-mono font-bold text-white">{formatCLP(billingSummary.totalBilled)}</span>
                     </div>
                     <div className="bg-[#141422] p-2.5 rounded-xl border border-[#302840]">
@@ -1091,20 +1097,29 @@ export const CreditCardBillingModal: React.FC<CreditCardBillingModalProps> = ({
                 </span>
               </div>
 
-              {/* Card 4: TOTAL ESTIMADO AL CORTE */}
+              {/* Card 4: FACTURACIÓN ESPERADA */}
               <div className="p-4 rounded-2xl bg-gradient-to-br from-[#141422] to-[#1A1A2E] border border-[#00FFCC]/40 panel-rim glow-secondary shadow-lg relative overflow-hidden">
                 <div className="flex items-center justify-between text-xs text-[#00FFCC] font-mono font-bold uppercase tracking-wider">
-                  <span>
-                    {pendingGeneratableItems.length > 0 ? 'Proyección Total al Corte' : 'Total Facturación'}
-                  </span>
+                  <span>FACTURACIÓN ESPERADA</span>
                   <Sparkles className="w-4 h-4 text-[#FFE04A]" />
                 </div>
                 <div className="mt-2 text-2xl font-headline font-black text-[#00FFCC] tracking-tight">
-                  {formatCLP(totalProjectedGross)}
+                  {formatCLP(totalFacturacionEsperada)}
                 </div>
-                <div className="text-[11px] text-[#A098B0] mt-1 flex items-center justify-between font-sans">
-                  <span>{pendingGeneratableItems.length > 0 ? 'Incluye cuotas futuras' : 'Facturado cartola'}</span>
-                  <span className="text-white font-mono font-bold">Mi parte: {formatCLP(totalProjectedUserShare)}</span>
+                <div className="text-[11px] text-[#A098B0] mt-1 flex flex-col gap-0.5 font-sans">
+                  <div className="flex items-center justify-between">
+                    <span>
+                      {totalPaidInCycle > 0 ? (
+                        <span className="text-emerald-400 font-mono text-[10px]">
+                          Saldo pend. ({formatCLP(netSpendingPending)})
+                          {(pendingInstallmentsGross > 0 || pendingSubscriptionsGross > 0) && ` + Proy. (${formatCLP(pendingInstallmentsGross + pendingSubscriptionsGross)})`}
+                        </span>
+                      ) : (
+                        <span>{pendingGeneratableItems.length > 0 ? 'Incluye cuotas futuras' : 'Facturado cartola'}</span>
+                      )}
+                    </span>
+                    <span className="text-white font-mono font-bold">Mi parte: {formatCLP(totalFacturacionEsperadaUserShare)}</span>
+                  </div>
                 </div>
               </div>
             </div>
