@@ -13,7 +13,8 @@ import {
   SavingsGoal,
   Credit,
   DashboardConfig,
-  DEFAULT_DASHBOARD_CONFIG
+  DEFAULT_DASHBOARD_CONFIG,
+  CreditCardBillingRecord
 } from './types';
 import { INITIAL_ACCOUNTS, INITIAL_TRANSACTIONS, DEMO_ACCOUNTS, DEMO_TRANSACTIONS, isDemoAccount } from './utils/demoData';
 import { DEFAULT_CATEGORY_MAPPINGS, DEFAULT_AUTO_RULES, getParentCategory, autoCategorize, applyAutoRulesToTransaction } from './utils/categorizer';
@@ -46,7 +47,10 @@ import {
   saveCreditToCloud,
   deleteCreditFromCloud,
   fetchDashboardConfig,
-  saveDashboardConfigToCloud
+  saveDashboardConfigToCloud,
+  fetchCreditCardBillings,
+  saveCreditCardBilling,
+  deleteCreditCardBilling
 } from './services/supabaseService';
 import { calculateTransactionPeriod } from './utils/dateUtils';
 import { Sidebar } from './components/Sidebar';
@@ -81,6 +85,7 @@ const STORAGE_KEY_AUTO_RULES = 'finanzapp_auto_rules_v1';
 const STORAGE_KEY_BUDGETS = 'finanzapp_budgets_v1';
 const STORAGE_KEY_SAVINGS_GOALS = 'finanzapp_savings_goals_v1';
 const STORAGE_KEY_CREDITS = 'finanzapp_credits';
+const STORAGE_KEY_CREDIT_BILLINGS = 'finanzapp_credit_billings';
 
 export function App() {
   // 1. State for Accounts: default empty array; populated on login by Supabase or on "Modo Demo" (Issue #49)
@@ -107,6 +112,9 @@ export function App() {
 
   // 7. State for Credits & Loans: strictly empty array by default
   const [credits, setCredits] = useState<Credit[]>([]);
+
+  // 8. State for Credit Card Billings Conciliation (Issue #57)
+  const [creditBillings, setCreditBillings] = useState<CreditCardBillingRecord[]>([]);
 
   // Auth & Cloud State
   const [currentUser, setCurrentUser] = useState<any>(null);
@@ -169,6 +177,13 @@ export function App() {
       localStorage.setItem(`${STORAGE_KEY_CREDITS}_${currentUser.id}`, JSON.stringify(credits));
     } catch {}
   }, [credits, currentUser?.id]);
+
+  useEffect(() => {
+    if (!currentUser?.id) return;
+    try {
+      localStorage.setItem(`${STORAGE_KEY_CREDIT_BILLINGS}_${currentUser.id}`, JSON.stringify(creditBillings));
+    } catch {}
+  }, [creditBillings, currentUser?.id]);
 
   // Refs for import in-flight locking and loaded user tracking
   const isImportingRef = useRef<boolean>(false);
@@ -276,6 +291,7 @@ export function App() {
       const userCachedBudgets = localStorage.getItem(`${STORAGE_KEY_BUDGETS}_${userId}`);
       const userCachedGoals = localStorage.getItem(`${STORAGE_KEY_SAVINGS_GOALS}_${userId}`);
       const userCachedCredits = localStorage.getItem(`${STORAGE_KEY_CREDITS}_${userId}`);
+      const userCachedBillings = localStorage.getItem(`${STORAGE_KEY_CREDIT_BILLINGS}_${userId}`);
       const userCachedDashboard = localStorage.getItem(`finanzapp_dashboard_config_${userId}`);
 
       if (userCachedDashboard) {
@@ -312,6 +328,12 @@ export function App() {
           if (Array.isArray(parsedCredits)) setCredits(parsedCredits);
         } catch {}
       }
+      if (userCachedBillings) {
+        try {
+          const parsedBillings = JSON.parse(userCachedBillings);
+          if (Array.isArray(parsedBillings)) setCreditBillings(parsedBillings);
+        } catch {}
+      }
 
       // 2. Fetch fresh data from Supabase Cloud
       const data = await fetchUserData(userId);
@@ -327,6 +349,11 @@ export function App() {
       const cloudCredits = data.credits || [];
       setCredits(cloudCredits);
       localStorage.setItem(`${STORAGE_KEY_CREDITS}_${userId}`, JSON.stringify(cloudCredits));
+
+      // Hydrate credit card billings strictly from Supabase (Issue #57)
+      const cloudBillings = data.creditBillings || [];
+      setCreditBillings(cloudBillings);
+      localStorage.setItem(`${STORAGE_KEY_CREDIT_BILLINGS}_${userId}`, JSON.stringify(cloudBillings));
 
       if (isCloudSynced || data.accounts.length > 0 || data.transactions.length > 0) {
         // If a newly registered user profile only has demo accounts and 0 transactions, purge demo accounts (Issue #44)
@@ -592,6 +619,7 @@ export function App() {
     ]);
     setSavingsGoals([]);
     setCredits([]);
+    setCreditBillings([]);
     setDashboardConfig(DEFAULT_DASHBOARD_CONFIG);
     setCurrentUser(null);
     setTelegramProfile(null);
@@ -607,6 +635,7 @@ export function App() {
         localStorage.removeItem(`${STORAGE_KEY_BUDGETS}_${signingOutUserId}`);
         localStorage.removeItem(`${STORAGE_KEY_SAVINGS_GOALS}_${signingOutUserId}`);
         localStorage.removeItem(`${STORAGE_KEY_CREDITS}_${signingOutUserId}`);
+        localStorage.removeItem(`${STORAGE_KEY_CREDIT_BILLINGS}_${signingOutUserId}`);
         localStorage.removeItem(`finanzapp_cloud_synced_${signingOutUserId}`);
       }
 
@@ -1353,9 +1382,45 @@ export function App() {
 
     setTransactions(allocatedTxs);
 
-    // 4. Persistir a la nube en lote si está autenticado
+    // 4. Conciliación formal en credit_card_billings (Issue #57)
+    const computedAllocated = computeTransactions(allocatedTxs);
+    const cardCycleTxs = computedAllocated.filter((tx) => {
+      if (tx.accountId !== cardAcc.id) return false;
+      const txPeriod = tx.period || calculateTransactionPeriod(tx.date, cardAcc.closingDay);
+      if (txPeriod !== cardPeriod) return false;
+      if (isPaymentOrIncomeTransaction(tx) || tx.amount <= 0) return false;
+      return true;
+    });
+    const totalBilled = cardCycleTxs.reduce((sum, tx) => sum + Math.abs(tx.amount), 0);
+    const pendingBalance = cardCycleTxs.reduce((sum, tx) => sum + tx.netAmount, 0);
+
+    const billingStatus: 'paid' | 'min_paid' | 'partial' =
+      pendingBalance === 0 ? 'paid' : data.paymentType === 'min' ? 'min_paid' : 'partial';
+
+    const newBillingRecord: CreditCardBillingRecord = {
+      id: `billing-${cardAcc.id}-${cardPeriod}`,
+      userId: currentUser?.id || 'local-user',
+      cardId: cardAcc.id,
+      period: cardPeriod,
+      totalBilled,
+      totalPaid: Math.abs(data.amount),
+      pendingBalance,
+      status: billingStatus,
+      paymentTransactionId: egresoTx.id,
+      sourceAccountId: sourceAcc.id,
+      paidAt: new Date(data.date).toISOString(),
+      createdAt: new Date().toISOString()
+    };
+
+    setCreditBillings((prev) => {
+      const filtered = prev.filter((b) => b.id !== newBillingRecord.id);
+      return [newBillingRecord, ...filtered];
+    });
+
+    // 5. Persistir a la nube en lote si está autenticado
     if (currentUser?.id) {
       await saveCloudTransactionsBatch(currentUser.id, [egresoTx, abonoTx], accounts);
+      await saveCreditCardBilling(currentUser.id, newBillingRecord);
     }
 
     setPayBillingCard(null);
@@ -1378,12 +1443,50 @@ export function App() {
 
     setTransactions(result.updatedTransactions);
 
-    // Persist touched transactions in cloud if authenticated
+    // Conciliación formal en credit_card_billings para pago vinculado (Issue #57)
+    const computedUpdated = computeTransactions(result.updatedTransactions);
+    const cardCycleTxs = computedUpdated.filter((tx) => {
+      if (tx.accountId !== cardAcc.id) return false;
+      const txPeriod = tx.period || calculateTransactionPeriod(tx.date, cardAcc.closingDay);
+      if (txPeriod !== data.period) return false;
+      if (isPaymentOrIncomeTransaction(tx) || tx.amount <= 0) return false;
+      return true;
+    });
+    const totalBilled = cardCycleTxs.reduce((sum, tx) => sum + Math.abs(tx.amount), 0);
+    const pendingBalance = cardCycleTxs.reduce((sum, tx) => sum + tx.netAmount, 0);
+
+    const paymentTx = transactions.find((t) => t.id === data.paymentTransactionId);
+    const sourceAccountId = paymentTx?.accountId !== cardAcc.id ? paymentTx?.accountId : undefined;
+
+    const billingStatus: 'paid' | 'partial' = pendingBalance === 0 ? 'paid' : 'partial';
+
+    const linkedBillingRecord: CreditCardBillingRecord = {
+      id: `billing-${cardAcc.id}-${data.period}`,
+      userId: currentUser?.id || 'local-user',
+      cardId: cardAcc.id,
+      period: data.period,
+      totalBilled,
+      totalPaid: data.amount,
+      pendingBalance,
+      status: billingStatus,
+      paymentTransactionId: data.paymentTransactionId,
+      sourceAccountId,
+      paidAt: paymentTx?.date ? new Date(paymentTx.date).toISOString() : new Date().toISOString(),
+      createdAt: new Date().toISOString()
+    };
+
+    setCreditBillings((prev) => {
+      const filtered = prev.filter((b) => b.id !== linkedBillingRecord.id);
+      return [linkedBillingRecord, ...filtered];
+    });
+
+    // Persist touched transactions and billing record in cloud if authenticated
     if (currentUser?.id && result.touchedTransactionIds.length > 0) {
       const touchedTxs = result.updatedTransactions.filter((tx) =>
         result.touchedTransactionIds.includes(tx.id)
       );
       await saveCloudTransactionsBatch(currentUser.id, touchedTxs, accounts);
+      await saveCreditCardBilling(currentUser.id, linkedBillingRecord);
     }
 
     setPayBillingCard(null);
@@ -1851,6 +1954,7 @@ export function App() {
           accounts={accounts}
           transactions={computedTransactions}
           credits={credits}
+          creditBillings={creditBillings}
           currentPeriod={filters.month !== 'ALL' ? filters.month : new Date().toISOString().slice(0, 7)}
           onGenerateBillingTransactions={handleGenerateBillingTransactions}
           onOpenPayBillingModal={(card, period) => {
@@ -1872,6 +1976,7 @@ export function App() {
           accounts={accounts}
           transactions={transactions}
           credits={credits}
+          creditBillings={creditBillings}
           initialPeriod={payBillingPeriod}
           onConfirmPayment={handleConfirmBillingPayment}
           onLinkExistingPayment={handleLinkExistingPaymentToBilling}

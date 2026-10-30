@@ -118,6 +118,23 @@ export interface SavingsGoal {
   categoryIcon?: string;
 }
 
+export type BillingRecordStatus = 'paid' | 'min_paid' | 'partial' | 'pending';
+
+export interface CreditCardBillingRecord {
+  id: string;
+  userId: string;
+  cardId: string;
+  period: string; // 'YYYY-MM'
+  totalBilled: number; // Gastos del mes al corte
+  totalPaid: number; // Monto efectivamente cubierto
+  pendingBalance: number; // Saldo pendiente
+  status: BillingRecordStatus;
+  paymentTransactionId?: string; // ID exacto de la transacción bancaria utilizada
+  sourceAccountId?: string; // Cuenta bancaria de origen de los fondos
+  paidAt?: string; // TIMESTAMPTZ / ISO string
+  createdAt?: string;
+}
+
 export type CreditType = 'hipotecario' | 'consumo' | 'avance_tc' | 'cuotas_tc' | 'automotriz' | 'otro' | 'suscripcion';
 
 export interface Credit {

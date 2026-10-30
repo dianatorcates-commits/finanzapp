@@ -16,7 +16,7 @@ import {
   Receipt,
   Info
 } from 'lucide-react';
-import { Account, Transaction, Credit } from '../types';
+import { Account, Transaction, Credit, CreditCardBillingRecord } from '../types';
 import { getBillingCycleSummary } from '../utils/billingCycleUtils';
 import {
   isPaymentOrIncomeTransaction,
@@ -47,6 +47,7 @@ export interface PayCreditCardModalProps {
   accounts: Account[];
   transactions: Transaction[];
   credits?: Credit[];
+  creditBillings?: CreditCardBillingRecord[];
   initialPeriod?: string;
   onConfirmPayment: (data: ConfirmBillingPaymentData) => Promise<void> | void;
   onLinkExistingPayment?: (data: LinkExistingPaymentData) => Promise<void> | void;
@@ -67,6 +68,7 @@ export const PayCreditCardModal: React.FC<PayCreditCardModalProps> = ({
   accounts,
   transactions,
   credits = [],
+  creditBillings = [],
   initialPeriod,
   onConfirmPayment,
   onLinkExistingPayment
@@ -695,6 +697,7 @@ export const PayCreditCardModal: React.FC<PayCreditCardModalProps> = ({
                       const originAcc = accounts.find((a) => a.id === p.accountId);
                       const isSelected = p.id === selectedLinkedPaymentId;
                       const avail = p.unallocatedPaymentBalance ?? Math.abs(p.amount);
+                      const linkedBillingsForTx = creditBillings.filter((b) => b.paymentTransactionId === p.id);
 
                       return (
                         <div
@@ -715,13 +718,18 @@ export const PayCreditCardModal: React.FC<PayCreditCardModalProps> = ({
                               {isSelected && <div className="w-1.5 h-1.5 rounded-full bg-black" />}
                             </div>
                             <div>
-                              <div className="flex items-center gap-2">
+                              <div className="flex items-center gap-2 flex-wrap">
                                 <span className="text-xs font-headline font-bold text-white">
                                   {p.description}
                                 </span>
                                 {originAcc && (
                                   <span className="text-[10px] font-mono px-2 py-0.2 rounded-full bg-[#1A1A2E] text-[#A098B0] border border-[#302840]">
                                     {originAcc.name}
+                                  </span>
+                                )}
+                                {linkedBillingsForTx.length > 0 && (
+                                  <span className="text-[9px] font-mono px-1.5 py-0.2 rounded bg-purple-500/20 text-purple-300 border border-purple-500/30">
+                                    Conciliada en {linkedBillingsForTx.map((b) => b.period).join(', ')}
                                   </span>
                                 )}
                               </div>

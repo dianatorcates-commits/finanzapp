@@ -19,7 +19,7 @@ import {
   Percent,
   Check
 } from 'lucide-react';
-import { Account, ComputedTransaction, Credit, Transaction } from '../types';
+import { Account, ComputedTransaction, Credit, Transaction, CreditCardBillingRecord } from '../types';
 import { isPaymentOrIncomeTransaction } from '../utils/paymentAllocation';
 import { calculateTransactionPeriod } from '../utils/dateUtils';
 import { getBillingCycleSummary } from '../utils/billingCycleUtils';
@@ -31,6 +31,7 @@ export interface CreditCardBillingModalProps {
   accounts: Account[];
   transactions: ComputedTransaction[];
   credits: Credit[];
+  creditBillings?: CreditCardBillingRecord[];
   currentPeriod: string;
   onGenerateBillingTransactions: (
     newTxs: Transaction[],
@@ -280,6 +281,7 @@ export const CreditCardBillingModal: React.FC<CreditCardBillingModalProps> = ({
   accounts,
   transactions,
   credits,
+  creditBillings = [],
   currentPeriod,
   onGenerateBillingTransactions,
   onOpenPayBillingModal
@@ -620,6 +622,25 @@ export const CreditCardBillingModal: React.FC<CreditCardBillingModalProps> = ({
       daysStatus
     };
   }, [activeCard, selectedPeriod]);
+
+  // Registro de conciliación auditado para este ciclo (Issue #57)
+  const activeBillingRecord = useMemo(() => {
+    if (!activeCard) return null;
+    return creditBillings.find(
+      (b) => b.cardId === activeCard.id && b.period === selectedPeriod
+    ) || null;
+  }, [activeCard, selectedPeriod, creditBillings]);
+
+  // Transacción bancaria de pago vinculada al registro
+  const linkedPaymentTx = useMemo(() => {
+    if (!activeBillingRecord?.paymentTransactionId) return null;
+    return transactions.find((t) => t.id === activeBillingRecord.paymentTransactionId) || null;
+  }, [activeBillingRecord, transactions]);
+
+  const linkedSourceAccount = useMemo(() => {
+    if (!activeBillingRecord?.sourceAccountId) return null;
+    return accounts.find((a) => a.id === activeBillingRecord.sourceAccountId) || null;
+  }, [activeBillingRecord, accounts]);
 
   // Handle Generate Action
   const handleGeneratePendingItems = async () => {
@@ -1031,6 +1052,31 @@ export const CreditCardBillingModal: React.FC<CreditCardBillingModalProps> = ({
                       <AlertCircle className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
                       <span>
                         Deuda rotativa activa: <b>{formatCLP(billingSummary.revolvingBalance)}</b> generará intereses financieros en el próximo estado de cuenta si no se liquida antes del corte.
+                      </span>
+                    </div>
+                  )}
+
+                  {/* Trazabilidad y Auditoría de Conciliación (Issue #57) */}
+                  {activeBillingRecord && (
+                    <div className="p-3 rounded-xl bg-[#00FFCC]/5 border border-[#00FFCC]/30 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                      <div className="flex items-center gap-2">
+                        <ShieldCheck className="w-4 h-4 text-[#00FFCC] shrink-0" />
+                        <span className="text-xs text-white font-headline">
+                          <b>Conciliación Registrada:</b>{' '}
+                          <span className="text-slate-300">
+                            {linkedPaymentTx
+                              ? `Pagada el ${linkedPaymentTx.date} con "${linkedPaymentTx.description}"`
+                              : `Liquidada por ${formatCLP(activeBillingRecord.totalPaid)}`}
+                          </span>
+                          {linkedSourceAccount && (
+                            <span className="ml-1 text-[10px] font-mono px-2 py-0.5 rounded-full bg-[#1A1A2E] text-[#A098B0] border border-[#302840]">
+                              {linkedSourceAccount.name}
+                            </span>
+                          )}
+                        </span>
+                      </div>
+                      <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded bg-[#00FFCC]/20 text-[#00FFCC] self-start sm:self-auto border border-[#00FFCC]/40">
+                        Auditado Supabase ✓
                       </span>
                     </div>
                   )}

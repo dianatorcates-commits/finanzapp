@@ -1,5 +1,5 @@
 import { supabase } from '../utils/supabaseClient';
-import { Account, Transaction, CategoryMapping, AutoCategoryRule, CategoryBudget, PaymentAllocation, TelegramProfile, SavingsGoal, Credit, DashboardConfig } from '../types';
+import { Account, Transaction, CategoryMapping, AutoCategoryRule, CategoryBudget, PaymentAllocation, TelegramProfile, SavingsGoal, Credit, DashboardConfig, CreditCardBillingRecord } from '../types';
 
 // ==========================================
 // 1. AUTHENTICATION SERVICES
@@ -94,6 +94,35 @@ export async function fetchUserData(userId: string) {
       .select('*')
       .eq('user_id', userId)
       .order('created_at', { ascending: false });
+
+    // 8. Fetch Credit Card Billing Records (Issue #57)
+    let creditBillings: CreditCardBillingRecord[] = [];
+    try {
+      const { data: billingsData, error: billingsError } = await supabase
+        .from('credit_card_billings')
+        .select('*')
+        .eq('user_id', userId)
+        .order('created_at', { ascending: false });
+
+      if (!billingsError && billingsData) {
+        creditBillings = billingsData.map((b: any) => ({
+          id: b.id,
+          userId: b.user_id,
+          cardId: b.card_id,
+          period: b.period,
+          totalBilled: parseFloat(b.total_billed) || 0,
+          totalPaid: parseFloat(b.total_paid) || 0,
+          pendingBalance: parseFloat(b.pending_balance) || 0,
+          status: b.status,
+          paymentTransactionId: b.payment_transaction_id || undefined,
+          sourceAccountId: b.source_account_id || undefined,
+          paidAt: b.paid_at || undefined,
+          createdAt: b.created_at || undefined
+        }));
+      }
+    } catch (bErr) {
+      console.warn('Notice fetching credit_card_billings (table may not exist yet):', bErr);
+    }
 
     // Format DB transactions to local types
     const accounts: Account[] = (accountsData || []).map((a: any) => ({
@@ -232,7 +261,8 @@ export async function fetchUserData(userId: string) {
       budgets,
       transactions,
       savingsGoals,
-      credits
+      credits,
+      creditBillings
     };
   } catch (error) {
     console.error('Error fetching cloud data:', error);
@@ -1127,6 +1157,95 @@ export async function saveDashboardConfigToCloud(userId: string, config: Dashboa
     console.warn('Notice saving dashboard config to cloud:', err);
   }
 }
+
+// ==========================================
+// 2.7 CREDIT CARD BILLINGS SERVICES (ISSUE #57)
+// ==========================================
+
+export async function fetchCreditCardBillings(userId: string): Promise<CreditCardBillingRecord[]> {
+  try {
+    const { data, error } = await supabase
+      .from('credit_card_billings')
+      .select('*')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.warn('Notice fetching credit_card_billings:', error.message);
+      return [];
+    }
+
+    return (data || []).map((b: any) => ({
+      id: b.id,
+      userId: b.user_id,
+      cardId: b.card_id,
+      period: b.period,
+      totalBilled: parseFloat(b.total_billed) || 0,
+      totalPaid: parseFloat(b.total_paid) || 0,
+      pendingBalance: parseFloat(b.pending_balance) || 0,
+      status: b.status,
+      paymentTransactionId: b.payment_transaction_id || undefined,
+      sourceAccountId: b.source_account_id || undefined,
+      paidAt: b.paid_at || undefined,
+      createdAt: b.created_at || undefined
+    }));
+  } catch (err) {
+    console.warn('Unexpected error fetching credit_card_billings:', err);
+    return [];
+  }
+}
+
+export async function saveCreditCardBilling(userId: string, record: CreditCardBillingRecord): Promise<boolean> {
+  try {
+    const payload = {
+      id: record.id,
+      user_id: userId,
+      card_id: record.cardId,
+      period: record.period,
+      total_billed: record.totalBilled,
+      total_paid: record.totalPaid,
+      pending_balance: record.pendingBalance,
+      status: record.status,
+      payment_transaction_id: record.paymentTransactionId || null,
+      source_account_id: record.sourceAccountId || null,
+      paid_at: record.paidAt || new Date().toISOString(),
+      created_at: record.createdAt || new Date().toISOString()
+    };
+
+    const { error } = await supabase
+      .from('credit_card_billings')
+      .upsert(payload, { onConflict: 'id' });
+
+    if (error) {
+      console.warn('Notice saving credit_card_billing to cloud:', error.message);
+      return false;
+    }
+    return true;
+  } catch (err) {
+    console.warn('Unexpected error saving credit_card_billing to cloud:', err);
+    return false;
+  }
+}
+
+export async function deleteCreditCardBilling(userId: string, billingId: string): Promise<boolean> {
+  try {
+    const { error } = await supabase
+      .from('credit_card_billings')
+      .delete()
+      .eq('id', billingId)
+      .eq('user_id', userId);
+
+    if (error) {
+      console.warn('Notice deleting credit_card_billing from cloud:', error.message);
+      return false;
+    }
+    return true;
+  } catch (err) {
+    console.warn('Unexpected error deleting credit_card_billing from cloud:', err);
+    return false;
+  }
+}
+
 
 
 

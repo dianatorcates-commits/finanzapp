@@ -5,3 +5,4 @@ dist
 *.rtf
 .DS_Store
 *.sql
+!docs/migration_issue_57_credit_card_billings.sql
