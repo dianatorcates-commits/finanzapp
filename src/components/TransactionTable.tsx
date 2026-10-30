@@ -425,7 +425,8 @@ export const TransactionTable: React.FC<TransactionTableProps> = ({
       transactionType: finalType,
       category: parentCategory,
       subcategory: finalSub,
-      allocations: []
+      allocations: [],
+      created_at: new Date().toISOString()
     });
 
     setNewDesc('');

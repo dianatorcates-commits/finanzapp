@@ -1282,9 +1282,13 @@ export function App() {
   };
 
   const handleAddManualTransaction = async (newTx: Transaction) => {
-    setTransactions((prev) => [newTx, ...prev]);
+    const txWithCreatedAt: Transaction = {
+      ...newTx,
+      created_at: newTx.created_at || new Date().toISOString()
+    };
+    setTransactions((prev) => [txWithCreatedAt, ...prev]);
     if (currentUser) {
-      await saveCloudTransaction(currentUser.id, newTx);
+      await saveCloudTransaction(currentUser.id, txWithCreatedAt);
     }
   };
 
