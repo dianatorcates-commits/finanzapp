@@ -551,8 +551,8 @@ export const CreditCardBillingModal: React.FC<CreditCardBillingModalProps> = ({
   // Billing Cycle Summary & Traffic Light Status
   const billingSummary = useMemo(() => {
     if (!activeCard) return null;
-    return getBillingCycleSummary(activeCard, transactions, credits, selectedPeriod);
-  }, [activeCard, transactions, credits, selectedPeriod]);
+    return getBillingCycleSummary(activeCard, transactions, credits, selectedPeriod, new Date(), creditBillings);
+  }, [activeCard, transactions, credits, selectedPeriod, creditBillings]);
 
   // Facturación Neta Esperada (deduciendo pagos y abonos del ciclo)
   const totalPaidInCycle = billingSummary?.totalPaid || 0;

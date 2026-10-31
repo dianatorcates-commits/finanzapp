@@ -25,7 +25,8 @@ import {
   Credit,
   CategoryBudget,
   DEFAULT_DASHBOARD_CONFIG,
-  MetricType
+  MetricType,
+  CreditCardBillingRecord
 } from '../types';
 import {
   isPaymentOrIncomeTransaction,
@@ -40,6 +41,7 @@ interface MetricCardsProps {
   metrics?: CustomMetricCard[];
   credits?: Credit[];
   budgets?: CategoryBudget[];
+  creditBillings?: CreditCardBillingRecord[];
   currentPeriod?: string;
   onOpenBillingModal?: () => void;
   onOpenCustomizeModal?: () => void;
@@ -61,6 +63,7 @@ export const MetricCards: React.FC<MetricCardsProps> = ({
   metrics = DEFAULT_DASHBOARD_CONFIG.metrics,
   credits = [],
   budgets = [],
+  creditBillings = [],
   currentPeriod,
   onOpenBillingModal,
   onOpenCustomizeModal,
@@ -140,9 +143,18 @@ export const MetricCards: React.FC<MetricCardsProps> = ({
       ? accounts.filter((a) => a.id === activeAccountId && a.type === 'credit_card')
       : accounts.filter((a) => a.type === 'credit_card');
 
-    const cyclePurchases = transactions
+    let cyclePurchases = transactions
       .filter((tx) => targetCards.some((a) => a.id === tx.accountId) && !isPaymentOrIncomeTransaction(tx) && tx.amount > 0)
       .reduce((sum, tx) => sum + (tx.netAmount !== undefined ? tx.netAmount : tx.amount), 0);
+
+    // Descontar conciliaciones formales de períodos ya liquidados en creditBillings (Issue #58)
+    const reconciledPayments = creditBillings
+      .filter((b) => targetCards.some((c) => c.id === b.cardId) && (b.period === selectedPeriod || !b.period))
+      .reduce((sum, b) => sum + b.totalPaid, 0);
+
+    if (reconciledPayments > 0) {
+      cyclePurchases = Math.max(0, cyclePurchases - reconciledPayments);
+    }
 
     const activeInstallments = credits
       .filter((c) => c.type === 'cuotas_tc' && (targetCards.some((a) => a.id === c.accountId) || (!c.accountId && targetCards.length > 0)))
@@ -162,7 +174,7 @@ export const MetricCards: React.FC<MetricCardsProps> = ({
       subs: activeSubs,
       closingDay: nextClosingDay
     };
-  }, [accounts, transactions, credits, activeAccountId]);
+  }, [accounts, transactions, credits, activeAccountId, creditBillings, selectedPeriod]);
 
   // 4. Data Calculation: Gasto Neto Real del Mes (Presupuesto)
   const monthlyExpenseData = useMemo(() => {

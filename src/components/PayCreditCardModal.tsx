@@ -158,8 +158,8 @@ export const PayCreditCardModal: React.FC<PayCreditCardModalProps> = ({
 
   // Calculate billing summary for the card in selected period
   const billingSummary = useMemo(() => {
-    return getBillingCycleSummary(card, transactions, credits, selectedPeriod);
-  }, [card, transactions, credits, selectedPeriod]);
+    return getBillingCycleSummary(card, transactions, credits, selectedPeriod, new Date(), creditBillings);
+  }, [card, transactions, credits, selectedPeriod, creditBillings]);
 
   // Calculate balances of candidate accounts
   const sourceAccountBalances = useMemo(() => {

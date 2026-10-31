@@ -25,7 +25,7 @@ import {
   CheckCircle2,
   Percent
 } from 'lucide-react';
-import { Account, AccountType, Transaction, Credit } from '../types';
+import { Account, AccountType, Transaction, Credit, CreditCardBillingRecord } from '../types';
 import { isPaymentOrIncomeTransaction, isCreditCardPaymentTransaction } from '../utils/paymentAllocation';
 import { calculateTransactionPeriod } from '../utils/dateUtils';
 import { getBillingCycleSummary } from '../utils/billingCycleUtils';
@@ -64,6 +64,7 @@ interface AccountsManagementViewProps {
   accounts: Account[];
   transactions: Transaction[];
   credits?: Credit[];
+  creditBillings?: CreditCardBillingRecord[];
   currentPeriod?: string;
   onAddAccount: (newAcc: Account) => void | Promise<void>;
   onUpdateAccount?: (updatedAcc: Account) => void | Promise<void>;
@@ -231,6 +232,7 @@ export const AccountsManagementView: React.FC<AccountsManagementViewProps> = ({
   accounts,
   transactions,
   credits = [],
+  creditBillings = [],
   currentPeriod = new Date().toISOString().slice(0, 7),
   onAddAccount,
   onUpdateAccount,
@@ -342,6 +344,16 @@ export const AccountsManagementView: React.FC<AccountsManagementViewProps> = ({
           subscriptions += c.installmentAmount;
         });
 
+      // Payments from external bank accounts reconciled in credit_card_billings (Issue #58)
+      creditBillings
+        .filter((b) => b.cardId === activeAccount.id)
+        .forEach((b) => {
+          // If payment was made from an external source account, ensure it is counted in debt reduction
+          if (b.sourceAccountId && b.sourceAccountId !== activeAccount.id) {
+            allocatedPayments += b.totalPaid;
+          }
+        });
+
       const totalUsed = Math.max(0, directPurchases + installmentCharges + subscriptions - allocatedPayments);
       const creditLimit = activeAccount.creditLimit || 0;
       const availableCredit = Math.max(0, creditLimit - totalUsed);
@@ -400,7 +412,7 @@ export const AccountsManagementView: React.FC<AccountsManagementViewProps> = ({
         txCount: accTxs.length
       };
     }
-  }, [activeAccount, transactions, credits]);
+  }, [activeAccount, transactions, credits, creditBillings]);
 
   // Open Modal to Create New Account
   const handleOpenCreateModal = () => {
@@ -662,6 +674,17 @@ export const AccountsManagementView: React.FC<AccountsManagementViewProps> = ({
                 else totalSpent += Math.abs(t.amount);
               });
 
+              // Add external payments reconciled in credit_card_billings (Issue #58)
+              if (isTC) {
+                creditBillings
+                  .filter((b) => b.cardId === acc.id)
+                  .forEach((b) => {
+                    if (b.sourceAccountId && b.sourceAccountId !== acc.id) {
+                      totalIncome += b.totalPaid;
+                    }
+                  });
+              }
+
               const estimatedBalance = (acc.initialBalance || 0) + totalIncome - totalSpent;
               const usedCredit = Math.max(0, totalSpent - totalIncome);
               const creditLimit = acc.creditLimit || 0;
@@ -748,7 +771,7 @@ export const AccountsManagementView: React.FC<AccountsManagementViewProps> = ({
 
                         {/* Billing cycle status badge */}
                         {(() => {
-                          const cycle = getBillingCycleSummary(acc, transactions, credits);
+                          const cycle = getBillingCycleSummary(acc, transactions, credits, undefined, new Date(), creditBillings);
                           if (!cycle) return null;
                           return (
                             <div className="pt-2 border-t border-[#302840]/60 flex items-center justify-between">
@@ -792,19 +815,33 @@ export const AccountsManagementView: React.FC<AccountsManagementViewProps> = ({
                       {accTxs.length} movimientos
                     </span>
                     <div className="flex items-center gap-1.5">
-                      {isTC && onOpenPayBillingModal && (
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            onOpenPayBillingModal(acc);
-                          }}
-                          className="text-[11px] font-headline font-bold px-2 py-1 rounded-lg bg-emerald-500/15 text-emerald-400 hover:bg-emerald-500/25 border border-emerald-500/30 transition flex items-center gap-1"
-                          title="Registrar pago de facturación"
-                        >
-                          <CreditCard className="w-3 h-3" />
-                          <span>Pagar</span>
-                        </button>
-                      )}
+                      {isTC && onOpenPayBillingModal && (() => {
+                        const cycle = getBillingCycleSummary(acc, transactions, credits, undefined, new Date(), creditBillings);
+                        const isFullyPaid = cycle?.status === 'paid' || (cycle && cycle.pendingBalance === 0);
+
+                        if (isFullyPaid) {
+                          return (
+                            <span className="text-[10px] font-headline font-bold px-2 py-0.5 rounded-lg bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 flex items-center gap-1">
+                              <CheckCircle2 className="w-3 h-3 text-emerald-400" />
+                              <span>Al día</span>
+                            </span>
+                          );
+                        }
+
+                        return (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onOpenPayBillingModal(acc);
+                            }}
+                            className="text-[11px] font-headline font-bold px-2 py-1 rounded-lg bg-emerald-500/15 text-emerald-400 hover:bg-emerald-500/25 border border-emerald-500/30 transition flex items-center gap-1"
+                            title="Registrar pago de facturación"
+                          >
+                            <CreditCard className="w-3 h-3" />
+                            <span>Pagar</span>
+                          </button>
+                        );
+                      })()}
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
@@ -972,8 +1009,11 @@ export const AccountsManagementView: React.FC<AccountsManagementViewProps> = ({
 
                   {/* Billing Cycle Status & Guided Payment */}
                   {(() => {
-                    const cycle = getBillingCycleSummary(activeAccount, transactions, credits);
+                    const cycle = getBillingCycleSummary(activeAccount, transactions, credits, undefined, new Date(), creditBillings);
                     if (!cycle) return null;
+                    const isFullyPaid = cycle.status === 'paid' || cycle.pendingBalance === 0;
+                    const billingRecord = cycle.billingRecord;
+
                     return (
                       <div className="bg-[#0E0E18] p-3.5 rounded-xl border border-[#302840] space-y-2.5">
                         <div className="flex items-center justify-between">
@@ -985,6 +1025,24 @@ export const AccountsManagementView: React.FC<AccountsManagementViewProps> = ({
                             {cycle.statusLabel}
                           </span>
                         </div>
+
+                        {/* Trazabilidad formal de conciliación en Supabase (Issue #58) */}
+                        {billingRecord && (
+                          <div className="p-2.5 rounded-lg bg-[#00FFCC]/5 border border-[#00FFCC]/30 flex items-center justify-between gap-2">
+                            <div className="flex items-center gap-1.5">
+                              <ShieldCheck className="w-3.5 h-3.5 text-[#00FFCC] shrink-0" />
+                              <span className="text-[11px] text-white font-sans">
+                                <b>Conciliación Registrada:</b>{' '}
+                                <span className="text-slate-300">
+                                  {billingRecord.paidAt ? `Pagada el ${billingRecord.paidAt.slice(0, 10)}` : 'Liquidada'}
+                                </span>
+                              </span>
+                            </div>
+                            <span className="text-[9px] font-mono font-bold px-1.5 py-0.2 rounded bg-[#00FFCC]/20 text-[#00FFCC] border border-[#00FFCC]/40">
+                              Auditado Supabase ✓
+                            </span>
+                          </div>
+                        )}
 
                         <div className="grid grid-cols-2 gap-2 text-xs font-mono">
                           <div className="bg-[#141422] p-2 rounded-lg border border-[#302840]">
@@ -1012,13 +1070,20 @@ export const AccountsManagementView: React.FC<AccountsManagementViewProps> = ({
                         )}
 
                         {onOpenPayBillingModal && (
-                          <button
-                            onClick={() => onOpenPayBillingModal(activeAccount)}
-                            className="w-full mt-2 py-2.5 px-4 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-black font-headline font-black text-xs uppercase tracking-wider transition shadow-lg shadow-emerald-500/20 flex items-center justify-center gap-2"
-                          >
-                            <CreditCard className="w-4 h-4" />
-                            Registrar Pago de Facturación
-                          </button>
+                          isFullyPaid ? (
+                            <div className="w-full mt-2 py-2 px-3 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 text-xs font-headline font-bold flex items-center justify-center gap-1.5">
+                              <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                              <span>Ciclo 100% al día y conciliado</span>
+                            </div>
+                          ) : (
+                            <button
+                              onClick={() => onOpenPayBillingModal(activeAccount)}
+                              className="w-full mt-2 py-2.5 px-4 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-black font-headline font-black text-xs uppercase tracking-wider transition shadow-lg shadow-emerald-500/20 flex items-center justify-center gap-2"
+                            >
+                              <CreditCard className="w-4 h-4" />
+                              Registrar Pago de Facturación
+                            </button>
+                          )
                         )}
                       </div>
                     );

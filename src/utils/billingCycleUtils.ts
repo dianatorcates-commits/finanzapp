@@ -1,4 +1,4 @@
-import { Account, Transaction, Credit } from '../types';
+import { Account, Transaction, Credit, CreditCardBillingRecord } from '../types';
 import { isPaymentOrIncomeTransaction } from './paymentAllocation';
 import { calculateTransactionPeriod } from './dateUtils';
 
@@ -35,6 +35,9 @@ export interface BillingCycleSummary {
   statusLabel: string;
   statusBadgeColor: string;
   statusDescription: string;
+
+  // Formal Conciliation Audit (Issue #57, #58)
+  billingRecord?: CreditCardBillingRecord;
 }
 
 function formatCLP(val: number): string {
@@ -54,7 +57,8 @@ export function getBillingCycleSummary(
   transactions: Transaction[] = [],
   credits: Credit[] = [],
   targetPeriod?: string,
-  referenceDate: Date = new Date()
+  referenceDate: Date = new Date(),
+  creditBillings: CreditCardBillingRecord[] = []
 ): BillingCycleSummary | null {
   if (card.type !== 'credit_card') return null;
 
@@ -142,11 +146,31 @@ export function getBillingCycleSummary(
     }
   });
 
-  const totalPaid = directCardPaid + externalAllocatedPaid;
+  let totalPaid = directCardPaid + externalAllocatedPaid;
+
+  // Reconciliar con registro formal en credit_card_billings si existe (Issue #57, #58)
+  const billingRecord = creditBillings.find(
+    (b) => b.cardId === card.id && b.period === period
+  );
+
+  if (billingRecord) {
+    if (billingRecord.totalPaid > totalPaid) {
+      totalPaid = billingRecord.totalPaid;
+    }
+  }
 
   // Calculate minimum payment (10% standard rule, minimum $10.000 or total if total < 10000)
   const minPayment = totalBilled > 0 ? Math.min(totalBilled, Math.max(10000, Math.round(totalBilled * 0.10))) : 0;
-  const pendingBalance = Math.max(0, totalBilled - totalPaid);
+  let pendingBalance = Math.max(0, totalBilled - totalPaid);
+
+  if (billingRecord) {
+    if (billingRecord.status === 'paid' || billingRecord.pendingBalance === 0) {
+      pendingBalance = 0;
+    } else if (billingRecord.pendingBalance < pendingBalance) {
+      pendingBalance = billingRecord.pendingBalance;
+    }
+  }
+
   const revolvingBalance = pendingBalance;
 
   const isClosed = referenceDate.getTime() > closingDate.getTime();
@@ -172,7 +196,7 @@ export function getBillingCycleSummary(
     statusLabel = 'Sin movimientos';
     statusBadgeColor = 'text-slate-400 bg-slate-500/10 border-slate-500/30';
     statusDescription = 'No hay cargos facturados en este ciclo.';
-  } else if (totalPaid >= totalBilled) {
+  } else if (pendingBalance === 0 || (billingRecord && billingRecord.status === 'paid') || totalPaid >= totalBilled) {
     status = 'paid';
     statusLabel = 'Facturación al día (100%)';
     statusBadgeColor = 'text-emerald-400 bg-emerald-500/15 border-emerald-500/30 shadow-[0_0_10px_rgba(52,211,153,0.15)]';
@@ -182,7 +206,7 @@ export function getBillingCycleSummary(
     statusLabel = `Ciclo en Curso • Corte en ${daysUntilClosing}d`;
     statusBadgeColor = 'text-sky-400 bg-sky-500/15 border-sky-500/30';
     statusDescription = `Compras acumulándose antes del corte el día ${closingDay}.`;
-  } else if (totalPaid >= minPayment) {
+  } else if (totalPaid >= minPayment || (billingRecord && billingRecord.status === 'min_paid')) {
     status = 'min_paid';
     statusLabel = 'Pago Mínimo Cubierto';
     statusBadgeColor = 'text-amber-400 bg-amber-500/15 border-amber-500/30 shadow-[0_0_10px_rgba(245,158,11,0.15)]';
@@ -224,6 +248,7 @@ export function getBillingCycleSummary(
     status,
     statusLabel,
     statusBadgeColor,
-    statusDescription
+    statusDescription,
+    billingRecord
   };
 }

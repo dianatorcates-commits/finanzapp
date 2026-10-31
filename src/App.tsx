@@ -1709,6 +1709,7 @@ export function App() {
                   activeAccountId={filters.accountId}
                   credits={credits}
                   budgets={budgets}
+                  creditBillings={creditBillings}
                   currentPeriod={filters.month !== 'ALL' ? filters.month : new Date().toISOString().slice(0, 7)}
                   onOpenBillingModal={() => setIsBillingModalOpen(true)}
                   onQuickAdd={() => setIsAddTransactionModalOpen(true)}
@@ -1802,6 +1803,7 @@ export function App() {
                 accounts={accounts}
                 transactions={transactions}
                 credits={credits}
+                creditBillings={creditBillings}
                 currentPeriod={filters.month !== 'ALL' ? filters.month : new Date().toISOString().slice(0, 7)}
                 onAddAccount={handleAddAccount}
                 onUpdateAccount={handleUpdateAccount}
