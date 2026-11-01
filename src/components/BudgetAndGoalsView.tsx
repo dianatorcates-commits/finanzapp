@@ -28,18 +28,25 @@ import {
   Search,
   Eye,
   EyeOff,
-  Coins
+  Coins,
+  History,
+  ArrowUpRight,
+  ArrowDownLeft,
+  Link2
 } from 'lucide-react';
 import {
   CategoryBudget,
   ComputedTransaction,
   CategoryMapping,
   SavingsGoal,
-  Account
+  Account,
+  SavingsGoalContribution,
+  Transaction
 } from '../types';
 import { isPaymentOrIncomeTransaction } from '../utils/paymentAllocation';
 import { getBudgetSpending } from '../utils/categorizer';
 import { getBankBranding } from './AccountsManagementView';
+import { GoalFundsModal } from './GoalFundsModal';
 
 export interface BudgetAndGoalsViewProps {
   budgets: CategoryBudget[];
@@ -54,6 +61,10 @@ export interface BudgetAndGoalsViewProps {
   onDeleteSavingsGoal: (goalId: string) => void | Promise<void>;
   onContributeToGoal: (goalId: string, amount: number) => void | Promise<void>;
   accounts?: Account[];
+  goalContributions?: SavingsGoalContribution[];
+  transactions?: Transaction[];
+  onSaveGoalContribution?: (contribution: SavingsGoalContribution, updatedGoalAmount: number) => void | Promise<void>;
+  onDeleteGoalContribution?: (contributionId: string, goalId: string, amount: number, type: 'deposit' | 'withdrawal') => void | Promise<void>;
 }
 
 export function formatCLP(amount: number): string {
@@ -91,7 +102,11 @@ export const BudgetAndGoalsView: React.FC<BudgetAndGoalsViewProps> = ({
   onUpdateSavingsGoal,
   onDeleteSavingsGoal,
   onContributeToGoal,
-  accounts = []
+  accounts = [],
+  goalContributions = [],
+  transactions = [],
+  onSaveGoalContribution,
+  onDeleteGoalContribution
 }) => {
   // 1. Calculate Spending for Each Budget via getBudgetSpending
   const budgetSpendings = useMemo(() => {
@@ -168,6 +183,39 @@ export const BudgetAndGoalsView: React.FC<BudgetAndGoalsViewProps> = ({
   const [contributeGoalId, setContributeGoalId] = useState<string | null>(null);
   const [contributeAmount, setContributeAmount] = useState<string>('');
   const [contributeSuccessMsg, setContributeSuccessMsg] = useState<{ id: string; amount: number } | null>(null);
+
+  // Modal de Fondos (Aportes / Extracciones con trazabilidad) - Issue #60
+  const [fundsModalGoal, setFundsModalGoal] = useState<SavingsGoal | null>(null);
+
+  // Expansión de Historial de Aportes por Meta
+  const [expandedGoalHistoryIds, setExpandedGoalHistoryIds] = useState<Set<string>>(new Set());
+
+  const toggleGoalHistory = (goalId: string) => {
+    setExpandedGoalHistoryIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(goalId)) {
+        next.delete(goalId);
+      } else {
+        next.add(goalId);
+      }
+      return next;
+    });
+  };
+
+  // Group contributions by goalId
+  const contributionsByGoal = useMemo(() => {
+    const map = new Map<string, SavingsGoalContribution[]>();
+    goalContributions.forEach((c) => {
+      const list = map.get(c.goalId) || [];
+      list.push(c);
+      map.set(c.goalId, list);
+    });
+    // Sort each list chronologically descending
+    map.forEach((list) => {
+      list.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    });
+    return map;
+  }, [goalContributions]);
 
   // Confirmations
   const [confirmDeleteBudgetId, setConfirmDeleteBudgetId] = useState<string | null>(null);
@@ -1146,8 +1194,8 @@ export const BudgetAndGoalsView: React.FC<BudgetAndGoalsViewProps> = ({
                         />
                       </div>
 
-                      {/* Quick 1-Touch Contribute Bar */}
-                      <div className="flex items-center justify-between pt-2 border-t border-[#302840]/60">
+                      {/* Quick 1-Touch Contribute Bar & Modal trigger */}
+                      <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-[#302840]/60">
                         {successForThis ? (
                           <span className="text-xs font-mono font-bold text-[#00FFCC] flex items-center gap-1.5 animate-fadeIn">
                             <CheckCircle2 className="w-3.5 h-3.5" />
@@ -1155,18 +1203,31 @@ export const BudgetAndGoalsView: React.FC<BudgetAndGoalsViewProps> = ({
                           </span>
                         ) : (
                           <span className="text-[11px] text-[#A098B0]">
-                            Aporte rápido con 1 toque:
+                            Operaciones y Fondos:
                           </span>
                         )}
 
-                        <button
-                          type="button"
-                          onClick={() => setContributeGoalId(isContributeOpen ? null : goal.id)}
-                          className="flex items-center gap-1 bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-400 border border-emerald-500/30 text-xs font-headline font-bold px-3 py-1 rounded-xl transition"
-                        >
-                          <Plus className="w-3 h-3 stroke-[3]" />
-                          <span>Aportar Fondos</span>
-                        </button>
+                        <div className="flex items-center gap-1.5 ml-auto">
+                          <button
+                            type="button"
+                            onClick={() => setFundsModalGoal(goal)}
+                            className="flex items-center gap-1 bg-gradient-to-r from-emerald-500/20 to-[#00FFCC]/20 hover:from-emerald-500/30 hover:to-[#00FFCC]/30 text-[#00FFCC] border border-[#00FFCC]/40 text-xs font-headline font-bold px-3 py-1 rounded-xl transition shadow-sm"
+                            title="Aportar o extraer con trazabilidad y vinculación"
+                          >
+                            <Sparkles className="w-3 h-3 text-[#00FFCC]" />
+                            <span>Aportar / Extraer</span>
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => setContributeGoalId(isContributeOpen ? null : goal.id)}
+                            className="flex items-center gap-1 bg-[#1A1A2E] hover:bg-[#302840] text-[#A098B0] hover:text-white border border-[#302840] text-xs font-headline font-semibold px-2.5 py-1 rounded-xl transition"
+                            title="Aporte rápido 1-touch"
+                          >
+                            <Plus className="w-3 h-3" />
+                            <span>Rápido</span>
+                          </button>
+                        </div>
                       </div>
 
                       {/* 1-Touch Popover / Inline Box */}
@@ -1175,7 +1236,7 @@ export const BudgetAndGoalsView: React.FC<BudgetAndGoalsViewProps> = ({
                           <div className="flex items-center justify-between">
                             <span className="text-xs font-headline font-bold text-emerald-400 flex items-center gap-1.5">
                               <Coins className="w-3.5 h-3.5" />
-                              Aportar a {goal.name}
+                              Aporte Rápido a {goal.name}
                             </span>
                             <button
                               type="button"
@@ -1241,6 +1302,127 @@ export const BudgetAndGoalsView: React.FC<BudgetAndGoalsViewProps> = ({
                           </div>
                         </div>
                       )}
+
+                      {/* Historial Plegable de Movimientos / Trazabilidad - Issue #60 */}
+                      {(() => {
+                        const historyList = contributionsByGoal.get(goal.id) || [];
+                        const isHistoryExpanded = expandedGoalHistoryIds.has(goal.id);
+
+                        return (
+                          <div className="mt-3 pt-2.5 border-t border-[#302840]/50">
+                            <button
+                              type="button"
+                              onClick={() => toggleGoalHistory(goal.id)}
+                              className="w-full flex items-center justify-between text-xs text-[#A098B0] hover:text-white py-1 transition group/hist"
+                            >
+                              <span className="flex items-center gap-1.5 font-headline font-semibold group-hover/hist:text-[#00FFCC]">
+                                <History className="w-3.5 h-3.5" />
+                                <span>Historial de Aportes y Retiros</span>
+                                <span className="bg-[#1A1A2E] border border-[#302840] px-1.5 py-0.2 rounded text-[10px] font-mono text-[#A098B0]">
+                                  {historyList.length}
+                                </span>
+                              </span>
+                              {isHistoryExpanded ? (
+                                <ChevronDown className="w-3.5 h-3.5" />
+                              ) : (
+                                <ChevronRight className="w-3.5 h-3.5" />
+                              )}
+                            </button>
+
+                            {isHistoryExpanded && (
+                              <div className="mt-2 space-y-1.5 animate-fadeIn">
+                                {historyList.length === 0 ? (
+                                  <div className="text-center py-3 bg-[#0A0A12] rounded-xl border border-[#302840]/60 text-[11px] text-[#A098B0]">
+                                    Aún no hay aportes ni extracciones registradas con trazabilidad.
+                                  </div>
+                                ) : (
+                                  <div className="max-h-48 overflow-y-auto space-y-1.5 pr-0.5">
+                                    {historyList.map((item) => {
+                                      const isDeposit = item.type === 'deposit';
+                                      return (
+                                        <div
+                                          key={item.id}
+                                          className="p-2.5 rounded-xl bg-[#0A0A12] border border-[#302840]/80 flex items-center justify-between gap-2 text-xs"
+                                        >
+                                          <div className="flex items-center gap-2.5 min-w-0">
+                                            <div
+                                              className={`p-1.5 rounded-lg shrink-0 ${
+                                                isDeposit
+                                                  ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30'
+                                                  : 'bg-rose-500/15 text-rose-400 border border-rose-500/30'
+                                              }`}
+                                            >
+                                              {isDeposit ? (
+                                                <ArrowDownLeft className="w-3.5 h-3.5 stroke-[2.5]" />
+                                              ) : (
+                                                <ArrowUpRight className="w-3.5 h-3.5 stroke-[2.5]" />
+                                              )}
+                                            </div>
+                                            <div className="min-w-0">
+                                              <div className="flex items-center gap-1.5">
+                                                <span
+                                                  className={`font-headline font-bold text-[11px] ${
+                                                    isDeposit ? 'text-emerald-400' : 'text-rose-400'
+                                                  }`}
+                                                >
+                                                  {isDeposit ? 'Aporte' : 'Extracción'}
+                                                </span>
+                                                <span className="text-[10px] text-[#A098B0] font-mono">
+                                                  {item.date}
+                                                </span>
+                                              </div>
+                                              {item.notes && (
+                                                <div className="text-[11px] text-white/80 truncate mt-0.5">
+                                                  {item.notes}
+                                                </div>
+                                              )}
+                                              {item.transactionId && (
+                                                <div className="text-[10px] text-[#00FFCC] flex items-center gap-1 mt-0.5">
+                                                  <Link2 className="w-2.5 h-2.5" />
+                                                  <span>Movimiento bancario vinculado</span>
+                                                </div>
+                                              )}
+                                            </div>
+                                          </div>
+
+                                          <div className="flex items-center gap-2 shrink-0">
+                                            <span
+                                              className={`font-mono font-bold text-xs ${
+                                                isDeposit ? 'text-emerald-400' : 'text-rose-400'
+                                              }`}
+                                            >
+                                              {isDeposit ? '+' : '-'}
+                                              {formatCLP(item.amount)}
+                                            </span>
+
+                                            {onDeleteGoalContribution && (
+                                              <button
+                                                type="button"
+                                                onClick={() =>
+                                                  onDeleteGoalContribution(
+                                                    item.id,
+                                                    item.goalId,
+                                                    item.amount,
+                                                    item.type
+                                                  )
+                                                }
+                                                className="p-1 rounded text-[#A098B0] hover:text-rose-400 hover:bg-[#1A1A2E] transition"
+                                                title="Revertir / Eliminar movimiento"
+                                              >
+                                                <Trash2 className="w-3 h-3" />
+                                              </button>
+                                            )}
+                                          </div>
+                                        </div>
+                                      );
+                                    })}
+                                  </div>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })()}
 
                     </div>
                   );
@@ -1633,6 +1815,24 @@ export const BudgetAndGoalsView: React.FC<BudgetAndGoalsViewProps> = ({
 
           </div>
         </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* MODAL 3: Gestionar Fondos (Aportes / Retiros con Trazabilidad) - Issue #60 */}
+      {/* ========================================================================= */}
+      {fundsModalGoal && (
+        <GoalFundsModal
+          isOpen={!!fundsModalGoal}
+          onClose={() => setFundsModalGoal(null)}
+          goal={fundsModalGoal}
+          transactions={transactions}
+          accounts={accounts}
+          onSaveContribution={async (contribution, updatedGoalAmount) => {
+            if (onSaveGoalContribution) {
+              await onSaveGoalContribution(contribution, updatedGoalAmount);
+            }
+          }}
+        />
       )}
 
     </div>

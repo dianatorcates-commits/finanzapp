@@ -6,3 +6,4 @@ dist
 .DS_Store
 *.sql
 !docs/migration_issue_57_credit_card_billings.sql
+!docs/migration_issue_60_savings_goal_contributions.sql

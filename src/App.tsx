@@ -14,7 +14,8 @@ import {
   Credit,
   DashboardConfig,
   DEFAULT_DASHBOARD_CONFIG,
-  CreditCardBillingRecord
+  CreditCardBillingRecord,
+  SavingsGoalContribution
 } from './types';
 import { INITIAL_ACCOUNTS, INITIAL_TRANSACTIONS, DEMO_ACCOUNTS, DEMO_TRANSACTIONS, isDemoAccount } from './utils/demoData';
 import { DEFAULT_CATEGORY_MAPPINGS, DEFAULT_AUTO_RULES, getParentCategory, autoCategorize, applyAutoRulesToTransaction } from './utils/categorizer';
@@ -50,7 +51,10 @@ import {
   saveDashboardConfigToCloud,
   fetchCreditCardBillings,
   saveCreditCardBilling,
-  deleteCreditCardBilling
+  deleteCreditCardBilling,
+  fetchGoalContributions,
+  saveGoalContribution,
+  deleteGoalContribution
 } from './services/supabaseService';
 import { calculateTransactionPeriod } from './utils/dateUtils';
 import { Sidebar } from './components/Sidebar';
@@ -86,6 +90,7 @@ const STORAGE_KEY_BUDGETS = 'finanzapp_budgets_v1';
 const STORAGE_KEY_SAVINGS_GOALS = 'finanzapp_savings_goals_v1';
 const STORAGE_KEY_CREDITS = 'finanzapp_credits';
 const STORAGE_KEY_CREDIT_BILLINGS = 'finanzapp_credit_billings';
+const STORAGE_KEY_GOAL_CONTRIBUTIONS = 'finanzapp_goal_contributions';
 
 export function App() {
   // 1. State for Accounts: default empty array; populated on login by Supabase or on "Modo Demo" (Issue #49)
@@ -115,6 +120,9 @@ export function App() {
 
   // 8. State for Credit Card Billings Conciliation (Issue #57)
   const [creditBillings, setCreditBillings] = useState<CreditCardBillingRecord[]>([]);
+
+  // 9. State for Savings Goal Contributions & Traceability (Issue #60)
+  const [goalContributions, setGoalContributions] = useState<SavingsGoalContribution[]>([]);
 
   // Auth & Cloud State
   const [currentUser, setCurrentUser] = useState<any>(null);
@@ -184,6 +192,13 @@ export function App() {
       localStorage.setItem(`${STORAGE_KEY_CREDIT_BILLINGS}_${currentUser.id}`, JSON.stringify(creditBillings));
     } catch {}
   }, [creditBillings, currentUser?.id]);
+
+  useEffect(() => {
+    if (!currentUser?.id) return;
+    try {
+      localStorage.setItem(`${STORAGE_KEY_GOAL_CONTRIBUTIONS}_${currentUser.id}`, JSON.stringify(goalContributions));
+    } catch {}
+  }, [goalContributions, currentUser?.id]);
 
   // Refs for import in-flight locking and loaded user tracking
   const isImportingRef = useRef<boolean>(false);
@@ -354,6 +369,11 @@ export function App() {
       const cloudBillings = data.creditBillings || [];
       setCreditBillings(cloudBillings);
       localStorage.setItem(`${STORAGE_KEY_CREDIT_BILLINGS}_${userId}`, JSON.stringify(cloudBillings));
+
+      // Hydrate goal contributions strictly from Supabase (Issue #60)
+      const cloudContributions = data.goalContributions || [];
+      setGoalContributions(cloudContributions);
+      localStorage.setItem(`${STORAGE_KEY_GOAL_CONTRIBUTIONS}_${userId}`, JSON.stringify(cloudContributions));
 
       if (isCloudSynced || data.accounts.length > 0 || data.transactions.length > 0) {
         // If a newly registered user profile only has demo accounts and 0 transactions, purge demo accounts (Issue #44)
@@ -1165,6 +1185,70 @@ export function App() {
     }
   };
 
+  // Issue #60: Traceable Contributions Handlers
+  const handleSaveGoalContribution = async (
+    contribution: SavingsGoalContribution,
+    updatedGoalAmount: number
+  ) => {
+    const enrichedContrib: SavingsGoalContribution = {
+      ...contribution,
+      userId: currentUser?.id || 'local'
+    };
+
+    setGoalContributions((prev) => [enrichedContrib, ...prev.filter((c) => c.id !== enrichedContrib.id)]);
+
+    let goalToSave: SavingsGoal | null = null;
+    setSavingsGoals((prev) =>
+      prev.map((g) => {
+        if (g.id === contribution.goalId) {
+          const updated = { ...g, currentAmount: updatedGoalAmount };
+          goalToSave = updated;
+          return updated;
+        }
+        return g;
+      })
+    );
+
+    if (currentUser) {
+      await saveGoalContribution(currentUser.id, enrichedContrib);
+      if (goalToSave) {
+        await saveSavingsGoalToCloud(currentUser.id, goalToSave);
+      }
+    }
+  };
+
+  const handleDeleteGoalContribution = async (
+    contributionId: string,
+    goalId: string,
+    amount: number,
+    type: 'deposit' | 'withdrawal'
+  ) => {
+    setGoalContributions((prev) => prev.filter((c) => c.id !== contributionId));
+
+    let goalToSave: SavingsGoal | null = null;
+    setSavingsGoals((prev) =>
+      prev.map((g) => {
+        if (g.id === goalId) {
+          // Revert: if it was a deposit, subtract it; if withdrawal, add it back
+          const newAmount = type === 'deposit'
+            ? Math.max(0, g.currentAmount - amount)
+            : g.currentAmount + amount;
+          const updated = { ...g, currentAmount: newAmount };
+          goalToSave = updated;
+          return updated;
+        }
+        return g;
+      })
+    );
+
+    if (currentUser) {
+      await deleteGoalContribution(currentUser.id, contributionId);
+      if (goalToSave) {
+        await saveSavingsGoalToCloud(currentUser.id, goalToSave);
+      }
+    }
+  };
+
   // ----------------------------------------------------
   // CREDITS & DEBT MANAGEMENT HANDLERS
   // ----------------------------------------------------
@@ -1797,6 +1881,10 @@ export function App() {
                 onDeleteSavingsGoal={handleDeleteSavingsGoal}
                 onContributeToGoal={handleContributeToGoal}
                 accounts={accounts}
+                goalContributions={goalContributions}
+                transactions={transactions}
+                onSaveGoalContribution={handleSaveGoalContribution}
+                onDeleteGoalContribution={handleDeleteGoalContribution}
               />
             ) : activeTab === 'accounts' ? (
               <AccountsManagementView

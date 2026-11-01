@@ -1,5 +1,5 @@
 import { supabase } from '../utils/supabaseClient';
-import { Account, Transaction, CategoryMapping, AutoCategoryRule, CategoryBudget, PaymentAllocation, TelegramProfile, SavingsGoal, Credit, DashboardConfig, CreditCardBillingRecord } from '../types';
+import { Account, Transaction, CategoryMapping, AutoCategoryRule, CategoryBudget, PaymentAllocation, TelegramProfile, SavingsGoal, Credit, DashboardConfig, CreditCardBillingRecord, SavingsGoalContribution } from '../types';
 
 // ==========================================
 // 1. AUTHENTICATION SERVICES
@@ -122,6 +122,32 @@ export async function fetchUserData(userId: string) {
       }
     } catch (bErr) {
       console.warn('Notice fetching credit_card_billings (table may not exist yet):', bErr);
+    }
+
+    // 9. Fetch Savings Goal Contributions (Issue #60)
+    let goalContributions: SavingsGoalContribution[] = [];
+    try {
+      const { data: contribsData, error: contribsError } = await supabase
+        .from('savings_goal_contributions')
+        .select('*')
+        .eq('user_id', userId)
+        .order('date', { ascending: false });
+
+      if (!contribsError && contribsData) {
+        goalContributions = contribsData.map((c: any) => ({
+          id: c.id,
+          userId: c.user_id,
+          goalId: c.goal_id,
+          type: c.type,
+          amount: parseFloat(c.amount) || 0,
+          transactionId: c.transaction_id || null,
+          notes: c.notes || null,
+          date: c.date,
+          createdAt: c.created_at || undefined
+        }));
+      }
+    } catch (cErr) {
+      console.warn('Notice fetching savings_goal_contributions (table may not exist yet):', cErr);
     }
 
     // Format DB transactions to local types
@@ -262,7 +288,8 @@ export async function fetchUserData(userId: string) {
       transactions,
       savingsGoals,
       credits,
-      creditBillings
+      creditBillings,
+      goalContributions
     };
   } catch (error) {
     console.error('Error fetching cloud data:', error);
@@ -832,6 +859,92 @@ export async function deleteSavingsGoalFromCloud(userId: string, goalId: string)
     }
   } catch (err) {
     console.error('Unexpected error deleting savings goal from cloud:', err);
+  }
+}
+
+// ==========================================
+// 2.1.1 SAVINGS GOAL CONTRIBUTIONS (ISSUE #60)
+// ==========================================
+
+export async function fetchGoalContributions(userId: string, goalId?: string): Promise<SavingsGoalContribution[]> {
+  try {
+    let query = supabase
+      .from('savings_goal_contributions')
+      .select('*')
+      .eq('user_id', userId)
+      .order('date', { ascending: false });
+
+    if (goalId) {
+      query = query.eq('goal_id', goalId);
+    }
+
+    const { data, error } = await query;
+    if (error) {
+      console.error('Error fetching savings goal contributions:', error);
+      return [];
+    }
+
+    return (data || []).map((c: any) => ({
+      id: c.id,
+      userId: c.user_id,
+      goalId: c.goal_id,
+      type: c.type,
+      amount: parseFloat(c.amount) || 0,
+      transactionId: c.transaction_id || null,
+      notes: c.notes || null,
+      date: c.date,
+      createdAt: c.created_at || undefined
+    }));
+  } catch (err) {
+    console.error('Unexpected error in fetchGoalContributions:', err);
+    return [];
+  }
+}
+
+export async function saveGoalContribution(userId: string, contribution: SavingsGoalContribution): Promise<boolean> {
+  try {
+    const payload = {
+      id: contribution.id,
+      user_id: userId,
+      goal_id: contribution.goalId,
+      type: contribution.type,
+      amount: contribution.amount,
+      transaction_id: contribution.transactionId || null,
+      notes: contribution.notes || null,
+      date: contribution.date
+    };
+
+    const { error } = await supabase
+      .from('savings_goal_contributions')
+      .upsert(payload, { onConflict: 'id' });
+
+    if (error) {
+      console.error('Error saving goal contribution:', error);
+      return false;
+    }
+    return true;
+  } catch (err) {
+    console.error('Unexpected error in saveGoalContribution:', err);
+    return false;
+  }
+}
+
+export async function deleteGoalContribution(userId: string, contributionId: string): Promise<boolean> {
+  try {
+    const { error } = await supabase
+      .from('savings_goal_contributions')
+      .delete()
+      .eq('id', contributionId)
+      .eq('user_id', userId);
+
+    if (error) {
+      console.error('Error deleting goal contribution:', error);
+      return false;
+    }
+    return true;
+  } catch (err) {
+    console.error('Unexpected error in deleteGoalContribution:', err);
+    return false;
   }
 }
 

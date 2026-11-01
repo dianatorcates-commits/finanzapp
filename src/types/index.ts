@@ -118,6 +118,20 @@ export interface SavingsGoal {
   categoryIcon?: string;
 }
 
+export type GoalContributionType = 'deposit' | 'withdrawal';
+
+export interface SavingsGoalContribution {
+  id: string;
+  userId: string;
+  goalId: string;
+  type: GoalContributionType;
+  amount: number;
+  transactionId?: string | null;
+  notes?: string | null;
+  date: string; // YYYY-MM-DD
+  createdAt?: string;
+}
+
 export type BillingRecordStatus = 'paid' | 'min_paid' | 'partial' | 'pending';
 
 export interface CreditCardBillingRecord {
