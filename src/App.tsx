@@ -145,59 +145,59 @@ export function App() {
     }
   }, []);
 
-  // Save to localStorage ONLY when currentUser is authenticated, strictly isolated by user ID
+  // Save to localStorage ONLY when currentUser is authenticated and cloud data is NOT loading, strictly isolated by user ID
   useEffect(() => {
-    if (!currentUser?.id) return;
+    if (!currentUser?.id || isCloudLoading) return;
     localStorage.setItem(`${STORAGE_KEY_ACCOUNTS}_${currentUser.id}`, JSON.stringify(accounts));
-  }, [accounts, currentUser?.id]);
+  }, [accounts, currentUser?.id, isCloudLoading]);
 
   useEffect(() => {
-    if (!currentUser?.id) return;
+    if (!currentUser?.id || isCloudLoading) return;
     localStorage.setItem(`${STORAGE_KEY_TRANSACTIONS}_${currentUser.id}`, JSON.stringify(transactions));
-  }, [transactions, currentUser?.id]);
+  }, [transactions, currentUser?.id, isCloudLoading]);
 
   useEffect(() => {
-    if (!currentUser?.id) return;
+    if (!currentUser?.id || isCloudLoading) return;
     localStorage.setItem(`${STORAGE_KEY_CATEGORY_MAPPINGS}_${currentUser.id}`, JSON.stringify(categoryMappings));
-  }, [categoryMappings, currentUser?.id]);
+  }, [categoryMappings, currentUser?.id, isCloudLoading]);
 
   useEffect(() => {
-    if (!currentUser?.id) return;
+    if (!currentUser?.id || isCloudLoading) return;
     localStorage.setItem(`${STORAGE_KEY_AUTO_RULES}_${currentUser.id}`, JSON.stringify(autoRules));
-  }, [autoRules, currentUser?.id]);
+  }, [autoRules, currentUser?.id, isCloudLoading]);
 
   useEffect(() => {
-    if (!currentUser?.id) return;
+    if (!currentUser?.id || isCloudLoading) return;
     localStorage.setItem(`${STORAGE_KEY_BUDGETS}_${currentUser.id}`, JSON.stringify(budgets));
-  }, [budgets, currentUser?.id]);
+  }, [budgets, currentUser?.id, isCloudLoading]);
 
   useEffect(() => {
-    if (!currentUser?.id) return;
+    if (!currentUser?.id || isCloudLoading) return;
     try {
       localStorage.setItem(`${STORAGE_KEY_SAVINGS_GOALS}_${currentUser.id}`, JSON.stringify(savingsGoals));
     } catch {}
-  }, [savingsGoals, currentUser?.id]);
+  }, [savingsGoals, currentUser?.id, isCloudLoading]);
 
   useEffect(() => {
-    if (!currentUser?.id) return;
+    if (!currentUser?.id || isCloudLoading) return;
     try {
       localStorage.setItem(`${STORAGE_KEY_CREDITS}_${currentUser.id}`, JSON.stringify(credits));
     } catch {}
-  }, [credits, currentUser?.id]);
+  }, [credits, currentUser?.id, isCloudLoading]);
 
   useEffect(() => {
-    if (!currentUser?.id) return;
+    if (!currentUser?.id || isCloudLoading) return;
     try {
       localStorage.setItem(`${STORAGE_KEY_CREDIT_BILLINGS}_${currentUser.id}`, JSON.stringify(creditBillings));
     } catch {}
-  }, [creditBillings, currentUser?.id]);
+  }, [creditBillings, currentUser?.id, isCloudLoading]);
 
   useEffect(() => {
-    if (!currentUser?.id) return;
+    if (!currentUser?.id || isCloudLoading) return;
     try {
       localStorage.setItem(`${STORAGE_KEY_GOAL_CONTRIBUTIONS}_${currentUser.id}`, JSON.stringify(goalContributions));
     } catch {}
-  }, [goalContributions, currentUser?.id]);
+  }, [goalContributions, currentUser?.id, isCloudLoading]);
 
   // Refs for import in-flight locking and loaded user tracking
   const isImportingRef = useRef<boolean>(false);
@@ -305,6 +305,7 @@ export function App() {
       const userCachedGoals = localStorage.getItem(`${STORAGE_KEY_SAVINGS_GOALS}_${userId}`);
       const userCachedCredits = localStorage.getItem(`${STORAGE_KEY_CREDITS}_${userId}`);
       const userCachedBillings = localStorage.getItem(`${STORAGE_KEY_CREDIT_BILLINGS}_${userId}`);
+      const userCachedContributions = localStorage.getItem(`${STORAGE_KEY_GOAL_CONTRIBUTIONS}_${userId}`);
       const userCachedDashboard = localStorage.getItem(`finanzapp_dashboard_config_${userId}`);
 
       if (userCachedDashboard) {
@@ -345,6 +346,12 @@ export function App() {
         try {
           const parsedBillings = JSON.parse(userCachedBillings);
           if (Array.isArray(parsedBillings)) setCreditBillings(parsedBillings);
+        } catch {}
+      }
+      if (userCachedContributions) {
+        try {
+          const parsedContributions = JSON.parse(userCachedContributions);
+          if (Array.isArray(parsedContributions)) setGoalContributions(parsedContributions);
         } catch {}
       }
 
@@ -430,6 +437,10 @@ export function App() {
         setAutoRules(initialUserRules);
         setBudgets(initialUserBudgets);
         setTransactions(initialUserTransactions);
+        setSavingsGoals([]);
+        setCredits([]);
+        setCreditBillings([]);
+        setGoalContributions([]);
 
         await syncLocalDataToCloud(userId, {
           accounts: initialUserAccounts,
@@ -550,13 +561,24 @@ export function App() {
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       const user = session?.user ?? null;
-      setCurrentUser(user);
       if (user) {
-        setViewMode('app');
         if (lastLoadedUserIdRef.current !== user.id) {
+          setIsCloudLoading(true);
+          setAccounts([]);
+          setTransactions([]);
+          setBudgets([]);
+          setCredits([]);
+          setSavingsGoals([]);
+          setCreditBillings([]);
+          setGoalContributions([]);
+          setTelegramProfile(null);
           lastLoadedUserIdRef.current = user.id;
           loadCloudData(user.id);
         }
+        setCurrentUser(user);
+        setViewMode('app');
+      } else {
+        setCurrentUser(null);
       }
     });
 
@@ -567,6 +589,7 @@ export function App() {
       if (event === 'SIGNED_OUT') {
         setCurrentUser(null);
         lastLoadedUserIdRef.current = null;
+        setIsCloudLoading(false);
         setAccounts([]);
         setTransactions([]);
         setCategoryMappings(DEFAULT_CATEGORY_MAPPINGS);
@@ -577,6 +600,9 @@ export function App() {
           { id: 'b-3', categoryName: 'Compras', monthlyLimit: 200000 }
         ]);
         setSavingsGoals([]);
+        setCredits([]);
+        setCreditBillings([]);
+        setGoalContributions([]);
         setTelegramProfile(null);
         setDashboardConfig(DEFAULT_DASHBOARD_CONFIG);
         hasAutoSelectedMonth.current = false;
@@ -594,16 +620,22 @@ export function App() {
       }
 
       if (user) {
+        // Detect new user session or user switch: immediately and synchronously purge memory state and set isCloudLoading
+        if (lastLoadedUserIdRef.current !== user.id && !isImportingRef.current) {
+          setIsCloudLoading(true);
+          setAccounts([]);
+          setTransactions([]);
+          setBudgets([]);
+          setCredits([]);
+          setSavingsGoals([]);
+          setCreditBillings([]);
+          setGoalContributions([]);
+          setTelegramProfile(null);
+          lastLoadedUserIdRef.current = user.id;
+          loadCloudData(user.id);
+        }
         setCurrentUser(user);
         setViewMode('app');
-        // Only load full cloud data on explicit sign in if user changed or not yet loaded,
-        // and NEVER if an active batch import is currently saving
-        if (event === 'SIGNED_IN') {
-          if (lastLoadedUserIdRef.current !== user.id && !isImportingRef.current) {
-            lastLoadedUserIdRef.current = user.id;
-            loadCloudData(user.id);
-          }
-        }
         // TOKEN_REFRESHED, USER_UPDATED, etc. do NOT reload cloud data, preserving newly added/imported transactions!
       }
     });
@@ -638,8 +670,11 @@ export function App() {
     setSavingsGoals([]);
     setCredits([]);
     setCreditBillings([]);
+    setGoalContributions([]);
     setDashboardConfig(DEFAULT_DASHBOARD_CONFIG);
     setCurrentUser(null);
+    lastLoadedUserIdRef.current = null;
+    setIsCloudLoading(false);
     setTelegramProfile(null);
     setViewMode('landing');
 
@@ -654,6 +689,7 @@ export function App() {
         localStorage.removeItem(`${STORAGE_KEY_SAVINGS_GOALS}_${signingOutUserId}`);
         localStorage.removeItem(`${STORAGE_KEY_CREDITS}_${signingOutUserId}`);
         localStorage.removeItem(`${STORAGE_KEY_CREDIT_BILLINGS}_${signingOutUserId}`);
+        localStorage.removeItem(`${STORAGE_KEY_GOAL_CONTRIBUTIONS}_${signingOutUserId}`);
         localStorage.removeItem(`finanzapp_cloud_synced_${signingOutUserId}`);
       }
 
