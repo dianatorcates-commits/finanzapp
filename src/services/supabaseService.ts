@@ -74,12 +74,13 @@ export async function fetchUserData(userId: string) {
       .select('*')
       .eq('user_id', userId);
 
-    // 5. Fetch Transactions
+    // 5. Fetch Transactions (Issue #59: Deterministic sorting date DESC, created_at DESC)
     const { data: txsData } = await supabase
       .from('transactions')
       .select('*')
       .eq('user_id', userId)
-      .order('date', { ascending: false });
+      .order('date', { ascending: false })
+      .order('created_at', { ascending: false });
 
     // 6. Fetch Savings Goals
     const { data: goalsData } = await supabase

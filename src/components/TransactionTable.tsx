@@ -278,11 +278,44 @@ export const TransactionTable: React.FC<TransactionTableProps> = ({
       list = list.filter((t) => Boolean(t.installments && (t.installments.total > 1 || t.installments.current >= 1)));
     }
 
+    // Helper for deterministic tie-breaking (Issue #59)
+    const compareDeterministically = (a: ComputedTransaction, b: ComputedTransaction) => {
+      const dateDiff = new Date(b.date).getTime() - new Date(a.date).getTime();
+      if (dateDiff !== 0) return dateDiff;
+
+      // Tie-breaker 1: created_at / createdAt timestamp
+      const aTime = a.created_at || (a as any).createdAt;
+      const bTime = b.created_at || (b as any).createdAt;
+      if (aTime && bTime) {
+        const timeDiff = new Date(bTime).getTime() - new Date(aTime).getTime();
+        if (timeDiff !== 0) return timeDiff;
+      } else if (aTime && !bTime) {
+        return -1;
+      } else if (!aTime && bTime) {
+        return 1;
+      }
+
+      // Tie-breaker 2: Extract numeric timestamp from ID if format is tx_TIMESTAMP_... or similar
+      const aTimestampMatch = a.id?.match(/_(\d{10,13})/);
+      const bTimestampMatch = b.id?.match(/_(\d{10,13})/);
+      if (aTimestampMatch && bTimestampMatch) {
+        const idTimeDiff = Number(bTimestampMatch[1]) - Number(aTimestampMatch[1]);
+        if (idTimeDiff !== 0) return idTimeDiff;
+      }
+
+      // Tie-breaker 3: Stable ID string comparison
+      return (b.id || '').localeCompare(a.id || '');
+    };
+
     // 2. Sorting
     if (sortBy === 'recent') {
-      list.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+      list.sort(compareDeterministically);
     } else if (sortBy === 'amount') {
-      list.sort((a, b) => Math.abs(b.amount) - Math.abs(a.amount));
+      list.sort((a, b) => {
+        const amountDiff = Math.abs(b.amount) - Math.abs(a.amount);
+        if (amountDiff !== 0) return amountDiff;
+        return compareDeterministically(a, b);
+      });
     } else if (sortBy === 'reconciliation') {
       list.sort((a, b) => {
         // Potential duplicates first
@@ -293,7 +326,7 @@ export const TransactionTable: React.FC<TransactionTableProps> = ({
         const bPending = !b.isFullyPaid && b.netAmount > 0;
         if (aPending && !bPending) return -1;
         if (!aPending && bPending) return 1;
-        return new Date(b.date).getTime() - new Date(a.date).getTime();
+        return compareDeterministically(a, b);
       });
     }
 

@@ -378,6 +378,7 @@ export function parseRawText(
 
   let currentPeriod: string | undefined = undefined;
 
+  const baseTime = Date.now();
   lines.forEach((line, idx) => {
     // Check if line specifies period e.g. "PERIODO 2026-09"
     const periodMatch = line.match(/(?:MES|PERIODO|CICLO)[\s:-]*([a-zA-Z0-9\/-]+)/i);
@@ -436,8 +437,11 @@ export function parseRawText(
     // Default period to month of date if not specified
     const defaultPeriod = currentPeriod || (dateStr ? dateStr.slice(0, 7) : undefined);
 
+    // Sequential timestamp: preservation of bank statement row ordering (Issue #59)
+    const sequentialTimestamp = new Date(baseTime + idx * 10).toISOString();
+
     transactions.push({
-      id: `tx-text-${Date.now()}-${idx}`,
+      id: `tx-text-${baseTime}-${idx}`,
       accountId,
       date: dateStr,
       period: defaultPeriod,
@@ -450,7 +454,7 @@ export function parseRawText(
       subcategory: autoCat.subcategory,
       installments,
       allocations: [],
-      created_at: new Date().toISOString()
+      created_at: sequentialTimestamp
     });
   });
 
@@ -468,6 +472,7 @@ function mapRawRowsToTransactions(
   categoryMappings: CategoryMapping[] = DEFAULT_CATEGORY_MAPPINGS,
   autoRules: AutoCategoryRule[] = []
 ): Transaction[] {
+  const baseTime = Date.now();
   return rows
     .map((row, idx) => {
       const keys = Object.keys(row);
@@ -556,8 +561,11 @@ function mapRawRowsToTransactions(
         effectiveAmount = Math.round(amount / installments.total);
       }
 
+      // Sequential timestamp: preservation of bank statement row ordering (Issue #59)
+      const sequentialTimestamp = new Date(baseTime + idx * 10).toISOString();
+
       return {
-        id: `tx-imp-${Date.now()}-${idx}`,
+        id: `tx-imp-${baseTime}-${idx}`,
         accountId,
         date: dateStr,
         period: period,
@@ -574,7 +582,7 @@ function mapRawRowsToTransactions(
         subcategory: autoCat.subcategory,
         installments,
         allocations: [],
-        created_at: new Date().toISOString()
+        created_at: sequentialTimestamp
       } as Transaction;
     })
     .filter((t): t is Transaction => t !== null);

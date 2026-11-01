@@ -173,10 +173,13 @@ export const ImportModal: React.FC<ImportModalProps> = ({
     if (parsedPreview.length === 0 || !selectedAccountId || isImporting) return;
     setIsImporting(true);
     try {
-      const finalTransactions = parsedPreview.map((tx) => ({
+      const importBaseTime = Date.now();
+      const finalTransactions = parsedPreview.map((tx, idx) => ({
         ...tx,
         accountId: selectedAccountId,
-        period: tx.period || calculateTransactionPeriod(tx.date, targetAccount?.closingDay)
+        period: tx.period || calculateTransactionPeriod(tx.date, targetAccount?.closingDay),
+        // Ensure sequential deterministic timestamps if not already set or identical (Issue #59)
+        created_at: tx.created_at || new Date(importBaseTime + idx * 10).toISOString()
       }));
       await onImport(finalTransactions);
       onClose();
