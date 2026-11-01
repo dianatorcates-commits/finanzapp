@@ -50,13 +50,15 @@ export function getTransactionOrigin(tx: ComputedTransaction, account?: Account)
   const bank = (account?.bank || '').toLowerCase();
   const txSource = (tx as any).source || '';
 
-  // 1. Google Wallet / MacroDroid (ámbar neón)
+  // 1. Google Wallet / Webhook (ámbar neón)
   if (
     txSource === 'wallet' ||
+    txSource === 'webhook' ||
     notes.includes('wallet') ||
+    notes.includes('webhook') ||
     raw.includes('google pay') ||
     raw.includes('wallet') ||
-    raw.includes('macrodroid')
+    raw.includes('webhook')
   ) {
     return {
       label: 'Google Wallet',

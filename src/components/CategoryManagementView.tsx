@@ -221,7 +221,7 @@ export const CategoryManagementView: React.FC<CategoryManagementViewProps> = ({
   const [liveLogs, setLiveLogs] = useState<Array<{
     id: string;
     timestamp: string;
-    source: 'google_wallet' | 'telegram' | 'macrodroid' | 'simulated';
+    source: 'google_wallet' | 'telegram' | 'webhook' | 'simulated';
     status: number;
     text: string;
     amount?: number;
@@ -586,10 +586,10 @@ export const CategoryManagementView: React.FC<CategoryManagementViewProps> = ({
             <button
               onClick={onOpenWalletModal}
               className="flex items-center gap-2 px-3.5 py-2.5 rounded-2xl bg-[#141422] hover:bg-[#1C1C30] text-[#00FFCC] border border-[#302840] hover:border-[#00FFCC]/40 text-xs font-bold transition shadow-sm"
-              title="Configuración MacroDroid y Webhooks"
+              title="Configuración de Webhooks de Billeteras y Notificaciones"
             >
               <Smartphone className="w-4 h-4 text-[#00FFCC]" />
-              <span className="hidden sm:inline">MacroDroid</span>
+              <span className="hidden sm:inline">Webhooks</span>
             </button>
           )}
 
@@ -1276,7 +1276,7 @@ export const CategoryManagementView: React.FC<CategoryManagementViewProps> = ({
                     onClick={onOpenWalletModal}
                     className="px-4 py-2.5 rounded-2xl bg-gradient-to-r from-[#00FFCC] to-[#38bdf8] text-[#0A0A12] font-black text-xs uppercase tracking-wider shadow-[0_0_20px_rgba(0,255,204,0.3)] transition"
                   >
-                    Guía MacroDroid
+                    Webhooks & API
                   </button>
                 )}
                 {onOpenTelegramModal && (
@@ -1296,7 +1296,7 @@ export const CategoryManagementView: React.FC<CategoryManagementViewProps> = ({
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <Smartphone className="w-5 h-5 text-[#00FFCC]" />
-                <h3 className="text-sm font-black text-white">Endpoint Personal de MacroDroid (Android)</h3>
+                <h3 className="text-sm font-black text-white">Endpoint Personal de Webhooks (Android / iOS)</h3>
               </div>
               <span className="text-[11px] font-bold text-[#00FFCC] bg-[#00FFCC]/10 px-2.5 py-0.5 rounded-full border border-[#00FFCC]/20">
                 HTTP POST • TLS 1.3

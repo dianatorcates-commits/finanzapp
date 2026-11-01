@@ -274,7 +274,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
             )}
           </button>
 
-          {/* MacroDroid / Wallet Live Status */}
+          {/* Google Wallet / Webhook Live Status */}
           <button
             onClick={() => {
               if (currentUser) {
@@ -288,7 +288,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
           >
             <div className="flex items-center gap-2.5">
               <Zap className="w-4 h-4 text-[#00FFCC] transition group-hover:scale-110" />
-              <span className="text-xs">MacroDroid / Wallet</span>
+              <span className="text-xs">Google Wallet / Webhook</span>
             </div>
             <span className="flex items-center gap-1.5 text-[10px] text-[#00FFCC] bg-[#00FFCC]/10 border border-[#00FFCC]/30 px-2 py-0.5 rounded-full font-mono font-semibold">
               <span className="w-1.5 h-1.5 rounded-full bg-[#00FFCC]" />

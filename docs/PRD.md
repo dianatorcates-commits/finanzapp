@@ -5,7 +5,7 @@
 * **Versión**: 2.0.0
 * **Fecha de Última Actualización**: Octubre 2026
 * **Estado**: En Producción / Evolución Continua
-* **Stack Principal**: React 18 + TypeScript + Vite + Tailwind CSS + Lucide Icons + Recharts + Supabase (PostgreSQL / Auth / RLS) + Vercel Serverless Functions (Webhooks Telegram & Google Wallet / MacroDroid)
+* **Stack Principal**: React 18 + TypeScript + Vite + Tailwind CSS + Lucide Icons + Recharts + Supabase (PostgreSQL / Auth / RLS) + Vercel Serverless Functions (Webhooks Telegram & Google Wallet)
 
 ---
 
@@ -20,7 +20,7 @@ Los usuarios de tarjetas de crédito y cuentas bancarias en Latinoamérica (part
 
 ### 2.2. La Solución (FinanzApp v2.0)
 FinanzApp es una plataforma web financiera integral, interactiva y multi-dispositivo que combina **captura automática en tiempo real** con **conciliación inteligente de cartolas bancarias**:
-* **Captura en Tiempo Real**: Registra gastos y transferencias al instante desde notificaciones de Android (**Google Wallet / Apps Bancarias vía MacroDroid**) y mediante el **Bot de Telegram**, identificando automáticamente la cuenta/tarjeta de origen, el comercio y el tipo de operación.
+* **Captura en Tiempo Real**: Registra gastos y transferencias al instante desde notificaciones de Android (**Google Wallet / Apps Bancarias vía Webhook**) y mediante el **Bot de Telegram**, identificando automáticamente la cuenta/tarjeta de origen, el comercio y el tipo de operación.
 * **Carga Multiformato y Conciliación Anti-Duplicados**: Permite subir archivos `.csv`, `.xlsx`, `.xls` o pegar texto desde PDFs bancarios, excluyendo duplicados exactos y alertando sobre **"Posible Duplicidad"** por desfase de días hábiles ($\pm 7$ días).
 * **Asociación de Pagos y Monto Real Utilizado**: Vincula abonos o pagos de tarjeta de crédito a compras específicas (FIFO o manual), filtrando estrictamente abonos elegibles mediante reglas `pago_tc`.
 * **Gestión de Cuentas y Ciclos de Facturación**: Administra tarjetas de crédito (cupo, día de corte, día de pago) y cuentas de débito/vista/ahorro/efectivo (saldo inicial, ingresos vs. gastos acumulados y saldo estimado).
@@ -146,9 +146,9 @@ FinanzApp es una plataforma web financiera integral, interactiva y multi-disposi
     6. **Feedback Visual y Control**: Si una cuota o suscripción ya está en los movimientos, muestra el badge verde `✅ Ya en movimientos (Cuota X/Y)` o `✅ Ya en movimientos`, bloquea y desmarca su checkbox para no duplicar en el Gran Total ni permitir doble creación al pulsar *"Generar Cuotas"*.
   * El usuario puede **generar/materializar con 1 clic** los cargos pendientes del período en la tabla de transacciones.
 
-### 4.9. Automatización en Tiempo Real: Google Wallet / MacroDroid & Bot de Telegram
-* **RF-26 (Webhook de Google Wallet y Notificaciones Bancarias vía MacroDroid)**:
-  * El endpoint serverless `api/wallet-webhook.ts` recibe notificaciones push capturadas en Android por MacroDroid (`text` / `[notification]`, `title`, y `app` / `[not_app_name]`):
+### 4.9. Automatización en Tiempo Real: Google Wallet / Webhooks & Bot de Telegram
+* **RF-26 (Webhook de Google Wallet y Notificaciones Bancarias vía Webhooks)**:
+  * El endpoint serverless `api/wallet-webhook.ts` recibe notificaciones push capturadas en Android / iOS (`text`, `title`, y `app`):
     * **Identificación de Cuenta por App de Origen (`findAccountByAppOrigin`)**: Asocia el nombre de la aplicación emisora (ej. *Banco Falabella*, *Banco de Chile*, *Santander*, *Itaú*, *Tenpo*, *Mercado Pago*, *MACH*) o los últimos 4 dígitos de la tarjeta directamente con la cuenta correspondiente del usuario en Supabase.
     * **Clasificación Inteligente de Movimientos**: Distingue entre `compra`, `transferencia_enviada` y `transferencia_recibida`, extrayendo el destinatario o remitente real y limpiando frases genéricas bancarias (ej. *"Tu transferencia fue realizada con éxito a..."*).
     * **Exclusión Estricta de Tarjetas de Crédito en Transferencias**: Cuando la notificación corresponde a una transferencia enviada o recibida, el motor **excluye todas las cuentas tipo `credit_card`**, asignándola únicamente a cuentas bancarias de débito/vista/corriente/ahorro de la entidad detectada.
@@ -198,7 +198,7 @@ FinanzApp es una plataforma web financiera integral, interactiva y multi-disposi
     * Botón de acción principal destacado `+ Nuevo Movimiento` con resplandor neón magenta (`glow-primary`).
     * **Indicadores de Estado en Vivo (Live Status)**:
       * 🤖 *Telegram Bot*: Indicador activo en magenta/verde con punto pulsante (`animate-pulse`).
-      * ⚡ *MacroDroid / Wallet*: Indicador de conexión en cyan menta (`#00FFCC`).
+      * ⚡ *Google Wallet / Webhook*: Indicador de conexión en cyan menta (`#00FFCC`).
     * Tarjeta de perfil de usuario en la base con acabado `panel-rim` y opciones de autenticación / cierre de sesión.
   * **Barra Superior de Escritorio (`TopBar.tsx`)**:
     * Navegación rápida de meses con botones de paso anterior y siguiente (`< Octubre 2026 >`).
@@ -312,7 +312,7 @@ FinanzApp es una plataforma web financiera integral, interactiva y multi-disposi
     * Filtros por tipo y buscador instantáneo de reglas.
   * **Panel de Automatizaciones & Webhook Live Stream (`Pantalla9.html` / `Mobile8.html`)**:
     * Indicador de eficiencia: `78% de gastos capturados automáticamente (~4.5 horas ahorradas)`.
-    * Endpoint personal de MacroDroid (Android) con botones de copiar URL y regenerar token secreto.
+    * Endpoint personal de Webhooks (Android / iOS) con botones de copiar URL y regenerar token secreto.
     * Botón de acceso directo a integración y handshake de Telegram Bot.
     * **Consola de Live Log Stream**: Streaming en vivo estilo terminal (`bg-[#0A0A12]`) con estado HTTP `[200 OK]`, timestamp, glosa recibida, monto analizado y categoría asignada.
     * **Simulador de Notificaciones (Tester Integrado)**: Disparador interactivo de pruebas HTTP POST con plantillas rápidas (Starbucks, Jumbo, Pago TC).
@@ -429,7 +429,9 @@ Todas las tablas cuentan con **Row Level Security (RLS)** activo bajo la políti
 | **`credits`** | `id`, `user_id`, `name`, `category_type` (`hipotecario`, `consumo`, `automotriz`, `cuotas_tc`, `suscripcion`, `otro`), `account_id`, `total_amount`, `installment_amount`, `total_installments`, `paid_installments`, `start_date`, `payment_day`, `category`, `subcategory`, `is_shared`, `my_share_percentage`, `my_share_amount`, `status` | Créditos bancarios, compras en cuotas y suscripciones mensuales vinculadas a su cuenta/tarjeta de pago (`account_id`). |
 | **`savings_goals`** | `id`, `user_id`, `name`, `target_amount`, `current_amount`, `deadline`, `category`, `color`, `icon` | Metas de ahorro y fondos específicos del usuario. |
 | **`categories`** | `id`, `user_id`, `name`, `subcategories` (`JSONB`), `color`, `icon` | Árbol jerárquico de categorías y subcategorías personalizadas. |
-| **`user_settings`** | `user_id`, `telegram_chat_id`, `webhook_secret`, `dashboard_config` (`JSONB`), `updated_at` | Preferencias del usuario, credenciales de integración (Telegram/MacroDroid) y layout del dashboard. |
+| **`user_settings`** | `user_id`, `telegram_chat_id`, `webhook_secret`, `dashboard_config` (`JSONB`), `updated_at` | Preferencias del usuario, credenciales de integración (Telegram/Webhooks) y layout del dashboard. |
+| **`savings_goal_contributions`** | `id`, `user_id`, `goal_id`, `type`, `amount`, `transaction_id`, `notes`, `date`, `created_at` | Trazabilidad de aportes y retiros en metas de ahorro. |
+| **`credit_card_billings`** | `id`, `user_id`, `card_id`, `period`, `total_billed`, `total_paid`, `pending_balance`, `status`, `payment_transaction_id`, `source_account_id`, `paid_at`, `created_at` | Estados de cuenta mensuales y registro de pagos de tarjetas de crédito. |
 
 ---
 
@@ -444,7 +446,7 @@ Todas las tablas cuentan con **Row Level Security (RLS)** activo bajo la políti
 ---
 
 ## 7. Métricas de Éxito (KPIs)
-1. **Automatización del Registro Diario**: Porcentaje de transacciones mensuales ingresadas automáticamente vía Webhook (Google Wallet / MacroDroid / Telegram) sin digitación manual ($> 70\%$).
+1. **Automatización del Registro Diario**: Porcentaje de transacciones mensuales ingresadas automáticamente vía Webhook (Google Wallet / Webhooks / Telegram) sin digitación manual ($> 70\%$).
 2. **Precisión en Conciliación de Cartolas**: Tasa de detección de duplicados exactos y posibles duplicadas por desfase bancario ($\pm 7$ días) al importar la cartola mensual ($> 95\%$).
 3. **Exactitud en Proyección de Facturación TC**: Diferencia menor al $2\%$ entre la facturación proyectada por el simulador al día de corte y el estado de cuenta emitido por el banco.
 4. **Tiempo de Carga y Conciliación Mensual**: Tiempo promedio para subir una cartola, resolver alertas de duplicidad y actualizar el dashboard ($< 30\text{ segundos}$).

@@ -37,7 +37,7 @@ export const WalletAutomationModal: React.FC<WalletAutomationModalProps> = ({
   const [copiedUrl, setCopiedUrl] = useState<boolean>(false);
   const [copiedBody, setCopiedBody] = useState<boolean>(false);
   const [copiedCurl, setCopiedCurl] = useState<boolean>(false);
-  const [activeTab, setActiveTab] = useState<'setup' | 'macrodroid' | 'tester'>('setup');
+  const [activeTab, setActiveTab] = useState<'setup' | 'tester'>('setup');
 
   // Interactive Tester State
   const [testNotificationText, setTestNotificationText] = useState<string>(
@@ -154,55 +154,6 @@ export const WalletAutomationModal: React.FC<WalletAutomationModalProps> = ({
     }
   };
 
-  const handleDownloadMacroDroidInstructions = () => {
-    const instructions = `=====================================================
-GUÍA DE CONFIGURACIÓN MACRODROID - FINANZAPP WEBHOOK
-=====================================================
-
-Objetivo: Capturar automáticamente compras de Google Wallet, transferencias o notificaciones bancarias en Chile y registrarlas al instante en FinanzApp.
-
-1. DISPARADOR (TRIGGER):
-   • Tipo: Notificación -> Notificación recibida
-   • Seleccionar aplicaciones:
-     - Google Wallet
-     - Banco Santander Chile
-     - Banco de Chile
-     - Banco Falabella / CMR
-     - BCI
-     - BancoEstado
-     - Mercado Pago
-     - Scotiabank
-     - Tenpo / Mach
-   • Contenido de texto: Dejar en blanco o "Cualquiera"
-
-2. ACCIONES (ACTIONS):
-   • Tipo: Conectividad -> Solicitud HTTP (HTTP Request)
-   • Método: POST
-   • URL del servidor:
-     ${webhookUrl}
-   • Tipo de contenido (Content-Type): application/json
-   • Cuerpo del contenido (Body):
-     {
-       "title": "[not_title]",
-       "text": "[notification]",
-       "app": "[not_app_name]"
-     }
-
-3. RESTRICCIONES (OPCIONAL):
-   • Evitar duplicados si tu banco envía más de una notificación por el mismo pago.
-
-Tu URL personal:
-${webhookUrl}
-`;
-    const blob = new Blob([instructions], { type: 'text/plain;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = 'FinanzApp_MacroDroid_Config.txt';
-    link.click();
-    URL.revokeObjectURL(url);
-  };
-
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-fadeIn">
       <div className="bg-[#141422] border border-[#302840] panel-rim rounded-3xl w-full max-w-3xl overflow-hidden shadow-2xl flex flex-col max-h-[90vh]">
@@ -215,14 +166,14 @@ ${webhookUrl}
             <div>
               <div className="flex items-center gap-2">
                 <h2 className="text-base sm:text-lg font-black text-white tracking-tight">
-                  Automatización Android / Google Wallet
+                  Automatización Webhook / Google Wallet
                 </h2>
                 <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-[#00FFCC]/10 text-[#00FFCC] border border-[#00FFCC]/30 uppercase tracking-wider">
-                  Webhook
+                  HTTP REST API
                 </span>
               </div>
               <p className="text-xs text-slate-400 mt-0.5">
-                Registra compras en tiempo real al pagar con tu teléfono o recibir notificaciones bancarias.
+                Registra compras y transferencias al instante desde atajos de iOS, Tasker, Google Wallet o webhooks bancarios.
               </p>
             </div>
           </div>
@@ -246,17 +197,7 @@ ${webhookUrl}
                 : 'border-transparent text-slate-400 hover:text-slate-200'
             }`}
           >
-            1. Mi Webhook Personal
-          </button>
-          <button
-            onClick={() => setActiveTab('macrodroid')}
-            className={`py-3 px-4 text-xs font-bold border-b-2 transition ${
-              activeTab === 'macrodroid'
-                ? 'border-[#00FFCC] text-[#00FFCC]'
-                : 'border-transparent text-slate-400 hover:text-slate-200'
-            }`}
-          >
-            2. Configuración MacroDroid
+            1. Endpoint y Formato JSON
           </button>
           <button
             onClick={() => setActiveTab('tester')}
@@ -266,7 +207,7 @@ ${webhookUrl}
                 : 'border-transparent text-slate-400 hover:text-slate-200'
             }`}
           >
-            3. Simulador de Pruebas
+            2. Probador y Simulador en Vivo
           </button>
         </div>
 
@@ -299,10 +240,10 @@ ${webhookUrl}
                       <span className="w-4 h-4 rounded-full bg-indigo-500/20 text-indigo-400 flex items-center justify-center text-[10px]">
                         2
                       </span>
-                      MacroDroid / HTTP
+                      HTTP POST / Webhook
                     </span>
                     <p className="text-slate-400 text-[11px]">
-                      MacroDroid captura el texto de la notificación y envía una solicitud HTTP POST a tu URL personal.
+                      Tu automatización nativa (Tasker, Atajos de iOS, bot o webhook) envía una solicitud HTTP POST a tu URL personal.
                     </p>
                   </div>
 
@@ -362,12 +303,39 @@ ${webhookUrl}
                 </p>
               </div>
 
+              {/* Webhook JSON Payload Spec */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-bold text-slate-300 uppercase tracking-wider">
+                    Estructura del Payload JSON (HTTP Body)
+                  </label>
+                  <button
+                    onClick={handleCopyBody}
+                    className="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-[11px] text-slate-300 font-semibold border border-slate-700 transition flex items-center gap-1"
+                  >
+                    {copiedBody ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3" />}
+                    <span>{copiedBody ? 'Copiado' : 'Copiar JSON'}</span>
+                  </button>
+                </div>
+
+                <pre className="p-3.5 rounded-2xl bg-slate-950 border border-slate-800 text-[11px] font-mono text-emerald-300 overflow-x-auto">
+{`{
+  "title": "Google Wallet",
+  "text": "Compra aprobada por $14.500 en Jumbo con tu tarjeta terminada en 4892",
+  "app": "Google Wallet"
+}`}
+                </pre>
+                <p className="text-[11px] text-slate-500">
+                  Envía solicitudes POST con <code className="text-sky-300">Content-Type: application/json</code>. FinanzApp parseará el monto, comercio, cuenta o tarjeta y el tipo de operación automáticamente.
+                </p>
+              </div>
+
               {/* Regenerate Token Section */}
               <div className="p-4 rounded-2xl bg-slate-950/60 border border-slate-800 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                 <div>
                   <h4 className="text-xs font-bold text-slate-200">¿Deseas revocar o cambiar tu clave?</h4>
                   <p className="text-[11px] text-slate-500">
-                    Al regenerar el token, las macros antiguas dejarán de funcionar hasta que actualices la URL.
+                    Al regenerar el token, las llamadas antiguas dejarán de funcionar hasta que actualices la URL.
                   </p>
                 </div>
 
@@ -400,112 +368,7 @@ ${webhookUrl}
             </div>
           )}
 
-          {/* TAB 2: MACRODROID SETUP GUIDE */}
-          {activeTab === 'macrodroid' && (
-            <div className="space-y-6">
-              <div className="flex items-center justify-between pb-2 border-b border-slate-800">
-                <div>
-                  <h3 className="text-sm font-bold text-white">Configuración Paso a Paso en MacroDroid</h3>
-                  <p className="text-xs text-slate-400">
-                    MacroDroid es una aplicación gratuita para Android disponible en Google Play Store.
-                  </p>
-                </div>
-
-                <button
-                  onClick={handleDownloadMacroDroidInstructions}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs text-sky-400 font-semibold border border-slate-700 transition"
-                >
-                  <Download className="w-3.5 h-3.5" />
-                  <span>Descargar Guía (.txt)</span>
-                </button>
-              </div>
-
-              {/* Step 1 */}
-              <div className="p-4 rounded-2xl bg-slate-950/80 border border-slate-800 space-y-2">
-                <span className="text-xs font-bold text-sky-400 flex items-center gap-1.5">
-                  <span className="w-5 h-5 rounded-full bg-sky-500/20 text-sky-400 flex items-center justify-center text-xs">
-                    1
-                  </span>
-                  Configurar el Disparador (Trigger)
-                </span>
-                <ul className="text-xs text-slate-300 space-y-1 pl-6 list-disc">
-                  <li>En MacroDroid, pulsa en <strong>Añadir Macro</strong>.</li>
-                  <li>Toca en el botón rojo (+) de <strong>Disparadores</strong> ➔ <strong>Eventos del dispositivo</strong> ➔ <strong>Notificación</strong>.</li>
-                  <li>Selecciona <strong>Notificación recibida</strong> ➔ <strong>Seleccionar aplicaciones</strong>.</li>
-                  <li>
-                    Marca las apps desde las que recibes avisos de compra:
-                    <strong className="text-white"> Google Wallet</strong>,{' '}
-                    <strong className="text-white">Santander</strong>,{' '}
-                    <strong className="text-white">Banco de Chile</strong>,{' '}
-                    <strong className="text-white">CMR Falabella</strong>,{' '}
-                    <strong className="text-white">BCI</strong>,{' '}
-                    <strong className="text-white">Mercado Pago</strong>, etc.
-                  </li>
-                </ul>
-              </div>
-
-              {/* Step 2 */}
-              <div className="p-4 rounded-2xl bg-slate-950/80 border border-slate-800 space-y-3">
-                <span className="text-xs font-bold text-indigo-400 flex items-center gap-1.5">
-                  <span className="w-5 h-5 rounded-full bg-indigo-500/20 text-indigo-400 flex items-center justify-center text-xs">
-                    2
-                  </span>
-                  Configurar la Acción (Action: Solicitud HTTP)
-                </span>
-                <ul className="text-xs text-slate-300 space-y-1 pl-6 list-disc">
-                  <li>Toca en el botón azul (+) de <strong>Acciones</strong> ➔ <strong>Conectividad</strong> ➔ <strong>Solicitud HTTP</strong>.</li>
-                  <li>Método de solicitud: <strong className="text-emerald-400">POST</strong>.</li>
-                  <li>URL del servidor: Pega tu URL de Webhook:</li>
-                </ul>
-
-                <div className="relative pl-6">
-                  <input
-                    type="text"
-                    readOnly
-                    value={webhookUrl}
-                    className="w-full bg-slate-900 border border-slate-800 rounded-xl py-2 px-3 text-[11px] font-mono text-sky-300"
-                  />
-                </div>
-
-                <ul className="text-xs text-slate-300 space-y-1 pl-6 list-disc">
-                  <li>Tipo de contenido: <strong className="text-white">application/json</strong>.</li>
-                  <li>Cuerpo del contenido (Body): Pega el siguiente JSON exacto con las variables de MacroDroid:</li>
-                </ul>
-
-                <div className="relative pl-6">
-                  <pre className="p-3 rounded-xl bg-slate-900 border border-slate-800 text-[11px] font-mono text-emerald-300 overflow-x-auto">
-{`{
-  "title": "[not_title]",
-  "text": "[notification]",
-  "app": "[not_app_name]"
-}`}
-                  </pre>
-                  <button
-                    onClick={handleCopyBody}
-                    className="absolute right-2 top-2 px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-[11px] text-slate-300 font-semibold border border-slate-700 transition flex items-center gap-1"
-                  >
-                    {copiedBody ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3" />}
-                    <span>{copiedBody ? 'Copiado' : 'Copiar JSON'}</span>
-                  </button>
-                </div>
-              </div>
-
-              {/* Step 3 */}
-              <div className="p-4 rounded-2xl bg-slate-950/80 border border-slate-800 space-y-2">
-                <span className="text-xs font-bold text-emerald-400 flex items-center gap-1.5">
-                  <span className="w-5 h-5 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center text-xs">
-                    3
-                  </span>
-                  Guardar y Activar
-                </span>
-                <p className="text-xs text-slate-300 pl-6">
-                  Guarda la macro con el nombre <strong className="text-white">"FinanzApp Webhook"</strong> y asegúrate de que MacroDroid tenga permisos de acceso a notificaciones en tu Android. ¡Listo! Cada compra, transferencia o abono que hagas se registrará automáticamente.
-                </p>
-              </div>
-            </div>
-          )}
-
-          {/* TAB 3: TESTER */}
+          {/* TAB 2: TESTER */}
           {activeTab === 'tester' && (
             <div className="space-y-6">
               <div className="flex items-center justify-between pb-2 border-b border-slate-800">
