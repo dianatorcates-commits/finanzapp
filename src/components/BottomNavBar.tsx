@@ -37,7 +37,6 @@ export interface BottomNavBarProps {
   onOpenAddTransaction?: () => void;
   onOpenAutoAllocate: () => void;
   onOpenTelegramModal: () => void;
-  onOpenWalletModal: () => void;
   onOpenAuthModal: () => void;
   onSignOut: () => void;
   onExport: () => void;
@@ -56,7 +55,6 @@ export const BottomNavBar: React.FC<BottomNavBarProps> = ({
   onOpenAddTransaction,
   onOpenAutoAllocate,
   onOpenTelegramModal,
-  onOpenWalletModal,
   onOpenAuthModal,
   onSignOut,
   onExport,
@@ -242,26 +240,6 @@ export const BottomNavBar: React.FC<BottomNavBarProps> = ({
                     Conectar
                   </span>
                 )}
-              </button>
-
-              <button
-                onClick={() => {
-                  if (currentUser) {
-                    onOpenWalletModal();
-                  } else {
-                    onOpenAuthModal();
-                  }
-                  setIsMenuOpen(false);
-                }}
-                className="w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-medium text-[#E8E0F0] hover:bg-[#141422] transition"
-              >
-                <div className="flex items-center gap-2.5">
-                  <Smartphone className="w-4 h-4 text-emerald-400" />
-                  <span>Google Wallet & Notificaciones</span>
-                </div>
-                <span className="text-[10px] bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 px-2 py-0.5 rounded-full font-semibold">
-                  Webhook
-                </span>
               </button>
             </div>
 

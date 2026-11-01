@@ -41,7 +41,7 @@ export const DuplicateAlertBanner: React.FC<DuplicateAlertBannerProps> = ({
               </span>
             </h4>
             <p className="text-xs text-[#A098B0] font-sans">
-              Transacciones detectadas en la cartola que coinciden en monto y fecha cercana con compras registradas previamente por Google Wallet o Telegram.
+              Transacciones detectadas en la cartola que coinciden en monto y fecha cercana con compras registradas previamente vía Telegram Bot o Webhook.
             </p>
           </div>
         </div>

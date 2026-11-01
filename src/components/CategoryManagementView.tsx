@@ -49,7 +49,6 @@ export interface CategoryManagementViewProps {
   onDeleteRule?: (ruleId: string) => void | Promise<void>;
   onApplyRulesToExisting?: () => void | Promise<void>;
   onResetToDefaultCategories?: () => void | Promise<void>;
-  onOpenWalletModal?: () => void;
   onOpenTelegramModal?: () => void;
 }
 
@@ -143,7 +142,6 @@ export const CategoryManagementView: React.FC<CategoryManagementViewProps> = ({
   onDeleteRule,
   onApplyRulesToExisting,
   onResetToDefaultCategories,
-  onOpenWalletModal,
   onOpenTelegramModal
 }) => {
   // Navigation: 3 Main Specialized Tabs
@@ -209,8 +207,8 @@ export const CategoryManagementView: React.FC<CategoryManagementViewProps> = ({
   const [telegramProfile, setTelegramProfile] = useState<TelegramProfile | null>(null);
   const [copiedWebhookUrl, setCopiedWebhookUrl] = useState(false);
   const [isRegeneratingToken, setIsRegeneratingToken] = useState(false);
-  const [testNotificationTitle, setTestNotificationTitle] = useState('Google Wallet');
-  const [testNotificationApp, setTestNotificationApp] = useState('Google Wallet');
+  const [testNotificationTitle, setTestNotificationTitle] = useState('Telegram Bot');
+  const [testNotificationApp, setTestNotificationApp] = useState('Telegram');
   const [testNotificationText, setTestNotificationText] = useState(
     'Compra aprobada por $14.500 en Jumbo con tu tarjeta terminada en 4892'
   );
@@ -221,7 +219,7 @@ export const CategoryManagementView: React.FC<CategoryManagementViewProps> = ({
   const [liveLogs, setLiveLogs] = useState<Array<{
     id: string;
     timestamp: string;
-    source: 'google_wallet' | 'telegram' | 'webhook' | 'simulated';
+    source: 'telegram' | 'webhook' | 'simulated';
     status: number;
     text: string;
     amount?: number;
@@ -252,13 +250,13 @@ export const CategoryManagementView: React.FC<CategoryManagementViewProps> = ({
   useEffect(() => {
     if (transactions.length > 0 && liveLogs.length === 0) {
       const autoTxs = transactions
-        .filter((tx) => tx.source === 'google_wallet' || tx.source === 'telegram' || tx.source === 'wallet')
+        .filter((tx) => tx.source === 'telegram' || tx.source === 'webhook' || tx.source === 'google_wallet' || tx.source === 'wallet')
         .slice(0, 10);
 
       const mappedLogs = autoTxs.map((tx) => ({
         id: tx.id,
         timestamp: tx.date || new Date().toISOString().slice(0, 10),
-        source: (tx.source === 'telegram' ? 'telegram' : 'google_wallet') as any,
+        source: 'telegram' as any,
         status: 200,
         text: tx.description || 'Movimiento recibido',
         amount: tx.amount,
@@ -582,17 +580,6 @@ export const CategoryManagementView: React.FC<CategoryManagementViewProps> = ({
         </div>
 
         <div className="flex items-center gap-2.5 shrink-0">
-          {onOpenWalletModal && (
-            <button
-              onClick={onOpenWalletModal}
-              className="flex items-center gap-2 px-3.5 py-2.5 rounded-2xl bg-[#141422] hover:bg-[#1C1C30] text-[#00FFCC] border border-[#302840] hover:border-[#00FFCC]/40 text-xs font-bold transition shadow-sm"
-              title="Configuración de Webhooks de Billeteras y Notificaciones"
-            >
-              <Smartphone className="w-4 h-4 text-[#00FFCC]" />
-              <span className="hidden sm:inline">Webhooks</span>
-            </button>
-          )}
-
           {onOpenTelegramModal && (
             <button
               onClick={onOpenTelegramModal}
@@ -1271,14 +1258,6 @@ export const CategoryManagementView: React.FC<CategoryManagementViewProps> = ({
               </div>
 
               <div className="flex items-center gap-2 shrink-0">
-                {onOpenWalletModal && (
-                  <button
-                    onClick={onOpenWalletModal}
-                    className="px-4 py-2.5 rounded-2xl bg-gradient-to-r from-[#00FFCC] to-[#38bdf8] text-[#0A0A12] font-black text-xs uppercase tracking-wider shadow-[0_0_20px_rgba(0,255,204,0.3)] transition"
-                  >
-                    Webhooks & API
-                  </button>
-                )}
                 {onOpenTelegramModal && (
                   <button
                     onClick={onOpenTelegramModal}
@@ -1358,7 +1337,7 @@ export const CategoryManagementView: React.FC<CategoryManagementViewProps> = ({
                 {liveLogs.length === 0 ? (
                   <div className="text-center py-16 text-slate-600">
                     <Radio className="w-8 h-8 mx-auto mb-2 opacity-40 animate-pulse text-[#00FFCC]" />
-                    <p>Esperando notificaciones entrantes de Google Wallet o Telegram...</p>
+                    <p>Esperando notificaciones entrantes de Telegram...</p>
                   </div>
                 ) : (
                   liveLogs.map((log) => (

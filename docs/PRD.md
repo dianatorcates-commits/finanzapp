@@ -5,7 +5,7 @@
 * **Versión**: 2.0.0
 * **Fecha de Última Actualización**: Octubre 2026
 * **Estado**: En Producción / Evolución Continua
-* **Stack Principal**: React 18 + TypeScript + Vite + Tailwind CSS + Lucide Icons + Recharts + Supabase (PostgreSQL / Auth / RLS) + Vercel Serverless Functions (Webhooks Telegram & Google Wallet)
+* **Stack Principal**: React 18 + TypeScript + Vite + Tailwind CSS + Lucide Icons + Recharts + Supabase (PostgreSQL / Auth / RLS) + Vercel Serverless Functions (Webhook Bot Telegram)
 
 ---
 
@@ -20,7 +20,7 @@ Los usuarios de tarjetas de crédito y cuentas bancarias en Latinoamérica (part
 
 ### 2.2. La Solución (FinanzApp v2.0)
 FinanzApp es una plataforma web financiera integral, interactiva y multi-dispositivo que combina **captura automática en tiempo real** con **conciliación inteligente de cartolas bancarias**:
-* **Captura en Tiempo Real**: Registra gastos y transferencias al instante desde notificaciones de Android (**Google Wallet / Apps Bancarias vía Webhook**) y mediante el **Bot de Telegram**, identificando automáticamente la cuenta/tarjeta de origen, el comercio y el tipo de operación.
+* **Captura en Tiempo Real**: Registra gastos y transferencias al instante mediante el **Bot Oficial de Telegram**, identificando automáticamente la cuenta/tarjeta de origen, el comercio y el tipo de operación.
 * **Carga Multiformato y Conciliación Anti-Duplicados**: Permite subir archivos `.csv`, `.xlsx`, `.xls` o pegar texto desde PDFs bancarios, excluyendo duplicados exactos y alertando sobre **"Posible Duplicidad"** por desfase de días hábiles ($\pm 7$ días).
 * **Asociación de Pagos y Monto Real Utilizado**: Vincula abonos o pagos de tarjeta de crédito a compras específicas (FIFO o manual), filtrando estrictamente abonos elegibles mediante reglas `pago_tc`.
 * **Gestión de Cuentas y Ciclos de Facturación**: Administra tarjetas de crédito (cupo, día de corte, día de pago) y cuentas de débito/vista/ahorro/efectivo (saldo inicial, ingresos vs. gastos acumulados y saldo estimado).
@@ -33,7 +33,7 @@ FinanzApp es una plataforma web financiera integral, interactiva y multi-disposi
 ## 3. Personas de Usuario (User Personas)
 
 ### 👤 Persona A: "Felipe el Ordenado" (Profesional Digital)
-* **Perfil**: 28 años, paga todo con Google Wallet y usa 2 tarjetas de crédito y 2 cuentas vista/corriente. Comparte gastos con su pareja y tiene compras en 3, 6 y 12 cuotas sin interés.
+* **Perfil**: 28 años, paga todo con contactless/celular y usa 2 tarjetas de crédito y 2 cuentas vista/corriente. Comparte gastos con su pareja y tiene compras en 3, 6 y 12 cuotas sin interés.
 * **Necesidad**: Que sus compras con el celular se registren solas al instante, que al subir la cartola a fin de mes no se dupliquen las compras del fin de semana, y poder proyectar exactamente cuánto le facturará cada tarjeta al día de corte sumando gastos del mes, cuotas y suscripciones.
 
 ### 👤 Persona B: "Claudia la Independiente" (Freelancer / Emprendedora)
@@ -59,7 +59,7 @@ FinanzApp es una plataforma web financiera integral, interactiva y multi-disposi
 * **RF-07 (Exclusión Automática de Duplicados Exactos)**:
   * Al importar una cartola, el sistema compara cada fila contra las transacciones existentes en la misma cuenta. Si coinciden **Cuenta + Fecha exacta + Monto**, el movimiento se marca como duplicado exacto y se excluye automáticamente de la selección por defecto.
 * **RF-08 (Detección de "Posible Duplicidad" por Desfase de Días Hábiles $\pm 7$ días)**:
-  * Si un movimiento entrante tiene la **misma Cuenta y el mismo Monto** que una transacción existente dentro de una ventana de **$\pm 7$ días corridos** (pero en distinta fecha, típico de compras realizadas en fin de semana vía Google Wallet/Telegram y contabilizadas el lunes o martes en la cartola bancaria), el sistema lo etiqueta con alerta ámbar de **`⚠️ Posible Duplicada`** mostrando el detalle de la transacción original coincidente.
+  * Si un movimiento entrante tiene la **misma Cuenta y el mismo Monto** que una transacción existente dentro de una ventana de **$\pm 7$ días corridos** (pero en distinta fecha, típico de compras realizadas en fin de semana vía Telegram Bot y contabilizadas el lunes o martes en la cartola bancaria), el sistema lo etiqueta con alerta ámbar de **`⚠️ Posible Duplicada`** mostrando el detalle de la transacción original coincidente.
 * **RF-09 (Resolución de Posibles Duplicadas en Previsualización y Tabla)**:
   * Tanto en la vista previa de `ImportModal.tsx` como en la tabla principal de movimientos (`TransactionTable.tsx`), el usuario puede inspeccionar la alerta de posible duplicidad y elegir entre **Aceptar ("No es duplicada")** —limpiando la alerta de forma permanente en base de datos— o **Eliminar / Omitir** el registro duplicado.
 * **RF-09B (Persistencia Inmediata por Lotes, Resiliencia ante Fallos y Protección de Sesión)**:
@@ -146,15 +146,9 @@ FinanzApp es una plataforma web financiera integral, interactiva y multi-disposi
     6. **Feedback Visual y Control**: Si una cuota o suscripción ya está en los movimientos, muestra el badge verde `✅ Ya en movimientos (Cuota X/Y)` o `✅ Ya en movimientos`, bloquea y desmarca su checkbox para no duplicar en el Gran Total ni permitir doble creación al pulsar *"Generar Cuotas"*.
   * El usuario puede **generar/materializar con 1 clic** los cargos pendientes del período en la tabla de transacciones.
 
-### 4.9. Automatización en Tiempo Real: Google Wallet / Webhooks & Bot de Telegram
-* **RF-26 (Webhook de Google Wallet y Notificaciones Bancarias vía Webhooks)**:
-  * El endpoint serverless `api/wallet-webhook.ts` recibe notificaciones push capturadas en Android / iOS (`text`, `title`, y `app`):
-    * **Identificación de Cuenta por App de Origen (`findAccountByAppOrigin`)**: Asocia el nombre de la aplicación emisora (ej. *Banco Falabella*, *Banco de Chile*, *Santander*, *Itaú*, *Tenpo*, *Mercado Pago*, *MACH*) o los últimos 4 dígitos de la tarjeta directamente con la cuenta correspondiente del usuario en Supabase.
-    * **Clasificación Inteligente de Movimientos**: Distingue entre `compra`, `transferencia_enviada` y `transferencia_recibida`, extrayendo el destinatario o remitente real y limpiando frases genéricas bancarias (ej. *"Tu transferencia fue realizada con éxito a..."*).
-    * **Exclusión Estricta de Tarjetas de Crédito en Transferencias**: Cuando la notificación corresponde a una transferencia enviada o recibida, el motor **excluye todas las cuentas tipo `credit_card`**, asignándola únicamente a cuentas bancarias de débito/vista/corriente/ahorro de la entidad detectada.
-    * **Deduplicación Temporal**: Previene registros dobles si el banco y Google Wallet emiten notificaciones simultáneas por la misma compra dentro de una ventana de 30 minutos.
-* **RF-27 (Integración con Bot de Telegram)**:
-  * El endpoint `api/telegram-webhook.ts` y el modal `TelegramConfigModal.tsx` permiten vincular el `telegram_chat_id` del usuario para registrar gastos por mensaje en lenguaje natural y recibir confirmaciones instantáneas de cada movimiento procesado.
+### 4.9. Automatización en Tiempo Real: Bot Oficial de Telegram
+* **RF-26 (Integración con Bot de Telegram)**:
+  * El endpoint serverless `api/telegram-webhook.ts` y el modal `TelegramModal.tsx` permiten vincular el `telegram_chat_id` del usuario para registrar gastos por mensaje en lenguaje natural o audio y recibir confirmaciones instantáneas de cada movimiento procesado con auto-clasificación y asignación de cuenta.
 
 ### 4.10. Dashboard Personalizable, Filtros & Exportación
 * **RF-28 (Tarjetas de Métricas y Gráficos Personalizables con Drag & Drop)**:
@@ -191,14 +185,13 @@ FinanzApp es una plataforma web financiera integral, interactiva y multi-disposi
       2. `📋 Movimientos`: Vista de cartola, transacciones y detalle de gastos.
       3. `💳 Cuentas`: Gestión de cuentas bancarias y tarjetas de crédito.
       4. `⚖️ Conciliar`: Herramienta de conciliación con badge numérico ámbar (`duplicateCount`) si existen transacciones con sospecha de duplicidad.
-      5. `☰ Menú`: Action Sheet modal con accesos a Presupuestos y Metas, Créditos y Cuotas, Categorías y Reglas, Bot de Telegram, Google Wallet y Sesión de Usuario.
+      5. `☰ Menú`: Action Sheet modal con accesos a Presupuestos y Metas, Créditos y Cuotas, Categorías y Reglas, Bot de Telegram y Sesión de Usuario.
     * El área de trabajo principal implementa padding inferior (`pb-24 md:pb-6`) para garantizar que ningún botón ni dato quede cubierto por la barra fija.
   * **Sidebar Lateral de Escritorio (`Sidebar.tsx`)**:
     * Ancho fijo de 260px (`w-64`) con fondo `#0A0A12`, borde derecho sutil `#302840` y tipografías Sora/Space Grotesk.
     * Botón de acción principal destacado `+ Nuevo Movimiento` con resplandor neón magenta (`glow-primary`).
     * **Indicadores de Estado en Vivo (Live Status)**:
       * 🤖 *Telegram Bot*: Indicador activo en magenta/verde con punto pulsante (`animate-pulse`).
-      * ⚡ *Google Wallet / Webhook*: Indicador de conexión en cyan menta (`#00FFCC`).
     * Tarjeta de perfil de usuario en la base con acabado `panel-rim` y opciones de autenticación / cierre de sesión.
   * **Barra Superior de Escritorio (`TopBar.tsx`)**:
     * Navegación rápida de meses con botones de paso anterior y siguiente (`< Octubre 2026 >`).
@@ -207,7 +200,7 @@ FinanzApp es una plataforma web financiera integral, interactiva y multi-disposi
 * **RF-33 (Terminal Financiero: Dashboard Central, 4 KPIs con Micro-Indicadores, Alerta de Duplicidad y Grid de Cuentas - Fase 3)**:
   * **Banner Superior de Alerta de Duplicidad (RF-09)**:
     * Componente [`DuplicateAlertBanner.tsx`](file:///Users/EcheverriaTorcates/Documents/Proyectos/FinanzApp/src/components/DuplicateAlertBanner.tsx) renderizado en el Dashboard cuando existen movimientos con `isPotentialDuplicate = true`.
-    * Diseño ámbar discreto (`bg-[#F59E0B]/10 border-l-[4px] border-l-[#F59E0B] rounded-2xl panel-rim`) que contrasta la glosa de la cartola bancaria con la descripción original registrada previamente vía webhook (Google Wallet o Telegram).
+    * Diseño ámbar discreto (`bg-[#F59E0B]/10 border-l-[4px] border-l-[#F59E0B] rounded-2xl panel-rim`) que contrasta la glosa de la cartola bancaria con la descripción original registrada previamente vía Bot de Telegram.
     * Acciones en 1 solo clic: "No es Duplicada / Conservar", "Eliminar Duplicada" y acción en lote "Aceptar Todas".
   * **4 Tarjetas de Métricas de Estilo Terminal Financiero (`MetricCards.tsx`)**:
     * Rediseñadas bajo la estética Stitch (fondo `#141422`, borde `#302840`, panel-rim y tipografía Space Grotesk/JetBrains Mono):
@@ -226,7 +219,7 @@ FinanzApp es una plataforma web financiera integral, interactiva y multi-disposi
     * Selector de ordenamiento interactivo: `Más recientes primero`, `Mayor monto` y `Por Estado Conciliación` (prioriza movimientos con alerta de duplicidad y compras de TC pendientes de abono).
   * **Estilo de Filas en Tabla de Escritorio (`Pantalla7.html` / `TransactionTable.tsx`)**:
     * Contenedor de tabla bajo diseño Stitch (`panel-rim`, borde `#302840`, cabecera `#0E0E18` y texto secundario `#A098B0`).
-    * **Columna 1 (Fecha & Origen)**: Fecha en fuente monoespaciada (`18 Oct 2026`) con selector editable de período contable (`Mes: YYYY-MM`) y badge distintivo de procedencia: `Google Wallet` (ámbar neón `#FFE04A`), `Santander Transfer` (menta `#00FFCC`), `Cartola Falabella` (slate `#A098B0`), `Webhook Telegram` (magenta `#FF2D78`) o `Cartola Bancaria`.
+    * **Columna 1 (Fecha & Origen)**: Fecha en fuente monoespaciada (`18 Oct 2026`) con selector editable de período contable (`Mes: YYYY-MM`) y badge distintivo de procedencia: `Webhook Telegram` (magenta `#FF2D78`), `Santander Transfer` (menta `#00FFCC`), `Cartola Falabella` (slate `#A098B0`) o `Cartola Bancaria`.
     * **Columna 2 (Descripción & Comercio)**: Glosa comercial en tipografía Space Grotesk destacada con badge de posible duplicidad (`Doble?`) y nombre de la cuenta bancaria / tarjeta asociada (`CMR Falabella ••4821`).
     * **Columna 3 (Categoría)**: Píldora redondeada con emoji representativo (`🛒 Supermercado`, `🚗 Transporte`, `📺 Streaming`, etc.) y selector desplegable interactivo para re-categorización instantánea.
     * **Columna 4 (Tipo & Cuotas)**: Etiqueta de tipo de movimiento y fracción de cuotas con badge dorado (`4 / 12 cuotas`).
@@ -446,7 +439,7 @@ Todas las tablas cuentan con **Row Level Security (RLS)** activo bajo la políti
 ---
 
 ## 7. Métricas de Éxito (KPIs)
-1. **Automatización del Registro Diario**: Porcentaje de transacciones mensuales ingresadas automáticamente vía Webhook (Google Wallet / Webhooks / Telegram) sin digitación manual ($> 70\%$).
+1. **Automatización del Registro Diario**: Porcentaje de transacciones mensuales ingresadas automáticamente vía Telegram Bot sin digitación manual ($> 70\%$).
 2. **Precisión en Conciliación de Cartolas**: Tasa de detección de duplicados exactos y posibles duplicadas por desfase bancario ($\pm 7$ días) al importar la cartola mensual ($> 95\%$).
 3. **Exactitud en Proyección de Facturación TC**: Diferencia menor al $2\%$ entre la facturación proyectada por el simulador al día de corte y el estado de cuenta emitido por el banco.
 4. **Tiempo de Carga y Conciliación Mensual**: Tiempo promedio para subir una cartola, resolver alertas de duplicidad y actualizar el dashboard ($< 30\text{ segundos}$).

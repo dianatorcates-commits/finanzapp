@@ -72,7 +72,6 @@ import { BudgetAndGoalsView } from './components/BudgetAndGoalsView';
 import { CreditsManagementView } from './components/CreditsManagementView';
 import { BudgetAndRulesModal } from './components/BudgetAndRulesModal';
 import { TelegramModal } from './components/TelegramModal';
-import { WalletAutomationModal } from './components/WalletAutomationModal';
 import { CustomizeDashboardModal } from './components/CustomizeDashboardModal';
 import { AuthModal } from './components/AuthModal';
 import { CreditCardBillingModal } from './components/CreditCardBillingModal';
@@ -243,7 +242,6 @@ export function App() {
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [isBudgetModalOpen, setIsBudgetModalOpen] = useState(false);
   const [isTelegramModalOpen, setIsTelegramModalOpen] = useState(false);
-  const [isWalletModalOpen, setIsWalletModalOpen] = useState(false);
   const [isBillingModalOpen, setIsBillingModalOpen] = useState(false);
   const [telegramProfile, setTelegramProfile] = useState<TelegramProfile | null>(null);
   const [selectedPurchaseForPayment, setSelectedPurchaseForPayment] = useState<ComputedTransaction | null>(null);
@@ -1694,7 +1692,6 @@ export function App() {
         onOpenCategoryModal={() => setActiveTab('categories')}
         onOpenBudgetModal={() => setActiveTab('budgets')}
         onOpenTelegramModal={() => (currentUser ? setIsTelegramModalOpen(true) : setIsAuthModalOpen(true))}
-        onOpenWalletModal={() => (currentUser ? setIsWalletModalOpen(true) : setIsAuthModalOpen(true))}
         onOpenAuthModal={() => setIsAuthModalOpen(true)}
         onSignOut={handleSignOut}
         onAutoAllocate={handleAutoAllocate}
@@ -1864,7 +1861,6 @@ export function App() {
                 onDeleteRule={handleDeleteAutoRule}
                 onApplyRulesToExisting={handleApplyRulesToExisting}
                 onResetToDefaultCategories={handleResetToDefaultCategories}
-                onOpenWalletModal={() => (currentUser ? setIsWalletModalOpen(true) : setIsAuthModalOpen(true))}
                 onOpenTelegramModal={() => (currentUser ? setIsTelegramModalOpen(true) : setIsAuthModalOpen(true))}
               />
             ) : activeTab === 'budgets' ? (
@@ -1954,7 +1950,6 @@ export function App() {
         onOpenImport={() => setIsImportModalOpen(true)}
         onOpenAutoAllocate={handleAutoAllocate}
         onOpenTelegramModal={() => (currentUser ? setIsTelegramModalOpen(true) : setIsAuthModalOpen(true))}
-        onOpenWalletModal={() => (currentUser ? setIsWalletModalOpen(true) : setIsAuthModalOpen(true))}
         onOpenAuthModal={() => setIsAuthModalOpen(true)}
         onSignOut={handleSignOut}
         onExport={handleExportExcel}
@@ -2025,14 +2020,6 @@ export function App() {
           accounts={accounts}
           onClose={() => setIsTelegramModalOpen(false)}
           onProfileUpdated={(prof) => setTelegramProfile(prof)}
-        />
-      )}
-
-      {/* Android / Google Wallet Automation Modal */}
-      {isWalletModalOpen && (
-        <WalletAutomationModal
-          currentUser={currentUser}
-          onClose={() => setIsWalletModalOpen(false)}
         />
       )}
 

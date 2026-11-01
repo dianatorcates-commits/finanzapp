@@ -42,7 +42,7 @@ export function formatDisplayDate(dateStr: string): string {
   return `${day} ${monthName} ${year}`;
 }
 
-// 2. Helper to determine Origin Badge (Google Wallet, Santander Transfer, Cartola Falabella, Webhook Telegram)
+// 2. Helper to determine Origin Badge (Webhook Telegram, Santander Transfer, Cartola Falabella, etc.)
 export function getTransactionOrigin(tx: ComputedTransaction, account?: Account): OriginBadgeInfo {
   const raw = (tx.rawDescription || tx.description || '').toLowerCase();
   const notes = (tx.notes || '').toLowerCase();
@@ -50,26 +50,7 @@ export function getTransactionOrigin(tx: ComputedTransaction, account?: Account)
   const bank = (account?.bank || '').toLowerCase();
   const txSource = (tx as any).source || '';
 
-  // 1. Google Wallet / Webhook (ámbar neón)
-  if (
-    txSource === 'wallet' ||
-    txSource === 'webhook' ||
-    notes.includes('wallet') ||
-    notes.includes('webhook') ||
-    raw.includes('google pay') ||
-    raw.includes('wallet') ||
-    raw.includes('webhook')
-  ) {
-    return {
-      label: 'Google Wallet',
-      icon: '⚡',
-      bgColor: 'bg-[#FFE04A]/10',
-      borderColor: 'border-[#FFE04A]/30',
-      textColor: 'text-[#FFE04A]'
-    };
-  }
-
-  // 2. Webhook Telegram (magenta neón)
+  // 1. Webhook Telegram (magenta neón)
   if (
     txSource === 'telegram' ||
     notes.includes('telegram') ||
@@ -82,6 +63,21 @@ export function getTransactionOrigin(tx: ComputedTransaction, account?: Account)
       bgColor: 'bg-[#FF2D78]/10',
       borderColor: 'border-[#FF2D78]/30',
       textColor: 'text-[#FF2D78]'
+    };
+  }
+
+  // 2. Webhook Directo / API (ámbar neón)
+  if (
+    txSource === 'webhook' ||
+    notes.includes('webhook') ||
+    raw.includes('webhook')
+  ) {
+    return {
+      label: 'Webhook',
+      icon: '⚡',
+      bgColor: 'bg-[#FFE04A]/10',
+      borderColor: 'border-[#FFE04A]/30',
+      textColor: 'text-[#FFE04A]'
     };
   }
 

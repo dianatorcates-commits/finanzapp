@@ -505,7 +505,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onOpenAuth, onTryDemo 
                   Detección de Duplicados ±7 Días
                 </h3>
                 <p className="text-xs sm:text-sm text-[#A098B0] leading-relaxed">
-                  Conciliación inteligente entre tus notificaciones instantáneas (Telegram / Google Wallet) y las cartolas bancarias. El motor detecta coincidencias por monto y ventana temporal de ±7 días para que nunca dupliques un gasto al subir tu estado de cuenta.
+                  Conciliación inteligente entre tus notificaciones instantáneas (Telegram Bot Oficial) y las cartolas bancarias. El motor detecta coincidencias por monto y ventana temporal de ±7 días para que nunca dupliques un gasto al subir tu estado de cuenta.
                 </p>
               </div>
               <div className="mt-5 pt-3 border-t border-[#302840] flex items-center gap-2 text-[11px] font-mono text-[#FFB703] font-bold">
