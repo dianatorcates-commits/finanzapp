@@ -114,11 +114,18 @@ export const MobileDashboardView: React.FC<MobileDashboardViewProps> = ({
     let debitCount = 0;
 
     const summaries = accounts.map((acc) => {
-      const accTxs = allTransactions.filter((t) => t.accountId === acc.id);
+      const accTxs = allTransactions.filter((t) => {
+        if (t.accountId !== acc.id) return false;
+        if (acc.type !== 'credit_card' && currentPeriod !== 'ALL') {
+          const txPeriod = t.period || (t.date ? t.date.substring(0, 7) : '');
+          return txPeriod === currentPeriod;
+        }
+        return true;
+      });
       let income = 0;
       let spent = 0;
       accTxs.forEach((t) => {
-        if (isPaymentOrIncomeTransaction(t)) {
+        if (isPaymentOrIncomeTransaction(t) || t.amount < 0) {
           income += Math.abs(t.amount);
         } else {
           spent += Math.abs(t.amount);
@@ -180,7 +187,7 @@ export const MobileDashboardView: React.FC<MobileDashboardViewProps> = ({
       accountSummaries: summaries,
       activeDebitCount: debitCount
     };
-  }, [accounts, allTransactions, creditBillings, activeAccountId, selectedAccount]);
+  }, [accounts, allTransactions, creditBillings, activeAccountId, selectedAccount, currentPeriod]);
 
   // 2. Billing Projection & Next Statement Summary (Scoped to activeAccountId if TC selected)
   const billingProjection = useMemo(() => {
