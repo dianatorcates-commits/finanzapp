@@ -708,46 +708,46 @@ export const CreditsManagementView: React.FC<CreditsManagementViewProps> = ({
             </div>
 
             {/* 3 Desgloses */}
-            <div className="lg:col-span-7 grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div className="lg:col-span-7 grid grid-cols-3 gap-2 sm:gap-3">
               {/* Desglose 1: Compras directas */}
-              <div className="p-3.5 rounded-2xl bg-[#0A0A12]/80 border border-[#302840] hover:border-[#38bdf8]/40 transition space-y-1">
-                <div className="flex items-center justify-between text-[11px] text-slate-400 font-bold uppercase">
-                  <span>Compras Mes</span>
-                  <ShoppingBag className="w-3.5 h-3.5 text-[#38bdf8]" />
+              <div className="p-2.5 sm:p-3.5 rounded-xl sm:rounded-2xl bg-[#0A0A12]/80 border border-[#302840] hover:border-[#38bdf8]/40 transition space-y-0.5 sm:space-y-1 min-w-0">
+                <div className="flex items-center justify-between gap-1 text-[10px] sm:text-[11px] text-slate-400 font-bold uppercase">
+                  <span className="truncate">Compras</span>
+                  <ShoppingBag className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-[#38bdf8] shrink-0" />
                 </div>
-                <div className="text-base sm:text-lg font-black text-white">
+                <div className="text-xs sm:text-lg font-black text-white truncate">
                   {formatCLP(cardDirectPurchases)}
                 </div>
-                <div className="text-[10px] text-slate-500">
-                  {directPurchasesCount} compra(s) registradas
+                <div className="text-[9px] sm:text-[10px] text-slate-500 truncate">
+                  {directPurchasesCount} reg.
                 </div>
               </div>
 
               {/* Desglose 2: Cuotas imputables */}
-              <div className="p-3.5 rounded-2xl bg-[#0A0A12]/80 border border-[#302840] hover:border-[#00FFCC]/40 transition space-y-1">
-                <div className="flex items-center justify-between text-[11px] text-slate-400 font-bold uppercase">
-                  <span>Cuotas TC</span>
-                  <Layers className="w-3.5 h-3.5 text-[#00FFCC]" />
+              <div className="p-2.5 sm:p-3.5 rounded-xl sm:rounded-2xl bg-[#0A0A12]/80 border border-[#302840] hover:border-[#00FFCC]/40 transition space-y-0.5 sm:space-y-1 min-w-0">
+                <div className="flex items-center justify-between gap-1 text-[10px] sm:text-[11px] text-slate-400 font-bold uppercase">
+                  <span className="truncate">Cuotas TC</span>
+                  <Layers className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-[#00FFCC] shrink-0" />
                 </div>
-                <div className="text-base sm:text-lg font-black text-[#00FFCC]">
+                <div className="text-xs sm:text-lg font-black text-[#00FFCC] truncate">
                   {formatCLP(cardCycleInstallments)}
                 </div>
-                <div className="text-[10px] text-slate-500">
-                  {tabInstallments.filter((c) => c.totalInstallments > c.paidInstallments).length} cuota(s) vigentes
+                <div className="text-[9px] sm:text-[10px] text-slate-500 truncate">
+                  {tabInstallments.filter((c) => c.totalInstallments > c.paidInstallments).length} vig.
                 </div>
               </div>
 
               {/* Desglose 3: Suscripciones */}
-              <div className="p-3.5 rounded-2xl bg-[#0A0A12]/80 border border-[#302840] hover:border-[#FF2D78]/40 transition space-y-1">
-                <div className="flex items-center justify-between text-[11px] text-slate-400 font-bold uppercase">
-                  <span>Suscripciones</span>
-                  <Repeat className="w-3.5 h-3.5 text-[#FF2D78]" />
+              <div className="p-2.5 sm:p-3.5 rounded-xl sm:rounded-2xl bg-[#0A0A12]/80 border border-[#302840] hover:border-[#FF2D78]/40 transition space-y-0.5 sm:space-y-1 min-w-0">
+                <div className="flex items-center justify-between gap-1 text-[10px] sm:text-[11px] text-slate-400 font-bold uppercase">
+                  <span className="truncate">Suscrip.</span>
+                  <Repeat className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-[#FF2D78] shrink-0" />
                 </div>
-                <div className="text-base sm:text-lg font-black text-[#FF2D78]">
+                <div className="text-xs sm:text-lg font-black text-[#FF2D78] truncate">
                   {formatCLP(cardCycleSubscriptions)}
                 </div>
-                <div className="text-[10px] text-slate-500">
-                  {tabSubscriptions.filter((s) => s.isActive !== false).length} activa(s) recurrentes
+                <div className="text-[9px] sm:text-[10px] text-slate-500 truncate">
+                  {tabSubscriptions.filter((s) => s.isActive !== false).length} act.
                 </div>
               </div>
             </div>
@@ -756,90 +756,48 @@ export const CreditsManagementView: React.FC<CreditsManagementViewProps> = ({
       </div>
 
       {/* ======================================================== */}
-      {/* 3. 4 Indicadores Consolidados (KPIs) */}
+      {/* 3. 2 Indicadores Globales Consolidados (Sin duplicación) */}
       {/* ======================================================== */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 gap-2.5 sm:gap-4">
         {/* KPI 1: Deuda Total Restante */}
-        <div className="bg-[#141422] border border-[#302840] panel-rim rounded-2xl p-5 shadow-lg relative overflow-hidden group hover:border-[#00FFCC]/50 transition">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">
+        <div className="bg-[#141422] border border-[#302840] panel-rim rounded-xl sm:rounded-2xl p-3 sm:p-5 shadow-lg relative overflow-hidden group hover:border-[#00FFCC]/50 transition">
+          <div className="flex items-center justify-between gap-1.5">
+            <span className="text-[10px] sm:text-xs font-bold text-slate-400 uppercase tracking-tight sm:tracking-wider truncate">
               Deuda Total Restante
             </span>
-            <div className="p-2.5 rounded-xl bg-[#00FFCC]/10 text-[#00FFCC] border border-[#00FFCC]/20">
-              <TrendingDown className="w-5 h-5" />
+            <div className="p-1.5 sm:p-2.5 rounded-lg sm:rounded-xl bg-[#00FFCC]/10 text-[#00FFCC] border border-[#00FFCC]/20 shrink-0">
+              <TrendingDown className="w-3.5 h-3.5 sm:w-5 sm:h-5" />
             </div>
           </div>
-          <div className="mt-3">
-            <span className="text-2xl font-black text-white tracking-tight">
+          <div className="mt-1.5 sm:mt-3">
+            <span className="text-base sm:text-2xl font-black text-white tracking-tight">
               {formatCLP(consolidatedMetrics.totalDebtRemaining)}
             </span>
           </div>
-          <p className="text-xs text-slate-400 mt-2 flex items-center gap-1.5">
-            <span className="w-1.5 h-1.5 rounded-full bg-[#00FFCC]" />
-            <span>Mi parte por amortizar</span>
+          <p className="text-[10px] sm:text-xs text-slate-400 mt-1 sm:mt-2 flex items-center gap-1.5 truncate">
+            <span className="w-1.5 h-1.5 rounded-full bg-[#00FFCC] shrink-0" />
+            <span className="truncate">Mi parte por amortizar</span>
           </p>
         </div>
 
-        {/* KPI 2: Cuotas Activas */}
-        <div className="bg-[#141422] border border-[#302840] panel-rim rounded-2xl p-5 shadow-lg relative overflow-hidden group hover:border-[#38bdf8]/50 transition">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">
-              Cuotas Activas
-            </span>
-            <div className="p-2.5 rounded-xl bg-[#38bdf8]/10 text-[#38bdf8] border border-[#38bdf8]/20">
-              <ShoppingBag className="w-5 h-5" />
-            </div>
-          </div>
-          <div className="mt-3">
-            <span className="text-2xl font-black text-[#38bdf8] tracking-tight">
-              {consolidatedMetrics.activeInstallmentsCount} Compras
-            </span>
-          </div>
-          <p className="text-xs text-slate-400 mt-2 flex items-center gap-1.5">
-            <span className="w-1.5 h-1.5 rounded-full bg-[#38bdf8]" />
-            <span>{formatCLP(consolidatedMetrics.activeInstallmentsMonthlyTotal)}/mes</span>
-          </p>
-        </div>
-
-        {/* KPI 3: Suscripciones Mensuales */}
-        <div className="bg-[#141422] border border-[#302840] panel-rim rounded-2xl p-5 shadow-lg relative overflow-hidden group hover:border-[#FF2D78]/50 transition">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">
-              Suscripciones Mensuales
-            </span>
-            <div className="p-2.5 rounded-xl bg-[#FF2D78]/10 text-[#FF2D78] border border-[#FF2D78]/20">
-              <Repeat className="w-5 h-5" />
-            </div>
-          </div>
-          <div className="mt-3">
-            <span className="text-2xl font-black text-[#FF2D78] tracking-tight">
-              {formatCLP(consolidatedMetrics.totalSubsMonthly)}
-            </span>
-          </div>
-          <p className="text-xs text-slate-400 mt-2 flex items-center gap-1.5">
-            <span className="w-1.5 h-1.5 rounded-full bg-[#FF2D78]" />
-            <span>{consolidatedMetrics.activeSubsCount} servicios activos</span>
-          </p>
-        </div>
-
-        {/* KPI 4: Monto Gastos Compartidos */}
-        <div className="bg-[#141422] border border-[#302840] panel-rim rounded-2xl p-5 shadow-lg relative overflow-hidden group hover:border-[#FFE04A]/50 transition">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">
+        {/* KPI 2: Monto Gastos Compartidos */}
+        <div className="bg-[#141422] border border-[#302840] panel-rim rounded-xl sm:rounded-2xl p-3 sm:p-5 shadow-lg relative overflow-hidden group hover:border-[#FFE04A]/50 transition">
+          <div className="flex items-center justify-between gap-1.5">
+            <span className="text-[10px] sm:text-xs font-bold text-slate-400 uppercase tracking-tight sm:tracking-wider truncate">
               Gastos Compartidos
             </span>
-            <div className="p-2.5 rounded-xl bg-[#FFE04A]/10 text-[#FFE04A] border border-[#FFE04A]/20">
-              <Users className="w-5 h-5" />
+            <div className="p-1.5 sm:p-2.5 rounded-lg sm:rounded-xl bg-[#FFE04A]/10 text-[#FFE04A] border border-[#FFE04A]/20 shrink-0">
+              <Users className="w-3.5 h-3.5 sm:w-5 sm:h-5" />
             </div>
           </div>
-          <div className="mt-3">
-            <span className="text-2xl font-black text-[#FFE04A] tracking-tight">
+          <div className="mt-1.5 sm:mt-3">
+            <span className="text-base sm:text-2xl font-black text-[#FFE04A] tracking-tight">
               {formatCLP(consolidatedMetrics.totalSharedOthersPortion)}
             </span>
           </div>
-          <p className="text-xs text-slate-400 mt-2 flex items-center gap-1.5">
-            <span className="w-1.5 h-1.5 rounded-full bg-[#FFE04A]" />
-            <span>Aporte ajeno en {consolidatedMetrics.sharedItemsCount} ítem(s)</span>
+          <p className="text-[10px] sm:text-xs text-slate-400 mt-1 sm:mt-2 flex items-center gap-1.5 truncate">
+            <span className="w-1.5 h-1.5 rounded-full bg-[#FFE04A] shrink-0" />
+            <span className="truncate">Aporte ajeno ({consolidatedMetrics.sharedItemsCount})</span>
           </p>
         </div>
       </div>
@@ -911,6 +869,35 @@ export const CreditsManagementView: React.FC<CreditsManagementViewProps> = ({
           </span>
         </button>
       </div>
+
+      {/* Resumen contextual por pestaña (Global) */}
+      {activeTab === 'installments' && (
+        <div className="flex items-center justify-between px-3.5 py-2 rounded-xl bg-[#38bdf8]/10 border border-[#38bdf8]/25 text-xs">
+          <span className="font-mono text-[#A098B0]">
+            Cuotas Activas (Global):{' '}
+            <strong className="text-[#38bdf8]">
+              {consolidatedMetrics.activeInstallmentsCount} compras
+            </strong>
+          </span>
+          <span className="font-mono font-bold text-white">
+            {formatCLP(consolidatedMetrics.activeInstallmentsMonthlyTotal)}/mes
+          </span>
+        </div>
+      )}
+
+      {activeTab === 'subscriptions' && (
+        <div className="flex items-center justify-between px-3.5 py-2 rounded-xl bg-[#FF2D78]/10 border border-[#FF2D78]/25 text-xs">
+          <span className="font-mono text-[#A098B0]">
+            Suscripciones Activas (Global):{' '}
+            <strong className="text-[#FF2D78]">
+              {consolidatedMetrics.activeSubsCount} servicios
+            </strong>
+          </span>
+          <span className="font-mono font-bold text-white">
+            {formatCLP(consolidatedMetrics.totalSubsMonthly)}/mes
+          </span>
+        </div>
+      )}
 
       {/* ======================================================== */}
       {/* 5. Master-Detail 2-Column Grid */}
