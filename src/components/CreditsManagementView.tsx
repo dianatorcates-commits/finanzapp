@@ -240,6 +240,10 @@ export const CreditsManagementView: React.FC<CreditsManagementViewProps> = ({
   // Delete Confirmation State
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [isPayingNow, setIsPayingNow] = useState<boolean>(false);
+  const [saveSuccessModal, setSaveSuccessModal] = useState<{
+    isNew: boolean;
+    credit: Credit;
+  } | null>(null);
 
   // Currently selected credit object
   const selectedCredit = useMemo(() => {
@@ -533,10 +537,12 @@ export const CreditsManagementView: React.FC<CreditsManagementViewProps> = ({
     };
 
     try {
+      const wasNew = isCreatingNew;
       await onSaveCredit(creditData);
       setIsCreatingNew(false);
       setSelectedCreditId(creditData.id);
       setFormError(null);
+      setSaveSuccessModal({ isNew: wasNew, credit: creditData });
     } catch (err: any) {
       setFormError(err.message || 'Error al guardar.');
     }
@@ -2235,6 +2241,66 @@ export const CreditsManagementView: React.FC<CreditsManagementViewProps> = ({
           )}
         </div>
       </div>
+
+      {/* Modal de Confirmación de Guardado Exitoso (Web & Mobile) */}
+      {saveSuccessModal && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm animate-fadeIn"
+          onClick={() => setSaveSuccessModal(null)}
+        >
+          <div
+            className="bg-[#141422] border border-[#00FFCC]/40 rounded-2xl p-5 sm:p-6 max-w-sm w-full shadow-2xl shadow-[#00FFCC]/15 space-y-4"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex flex-col items-center text-center space-y-2.5">
+              <div className="w-12 h-12 rounded-2xl bg-[#00FFCC]/15 border border-[#00FFCC]/30 flex items-center justify-center text-[#00FFCC]">
+                <CheckCircle2 className="w-7 h-7" />
+              </div>
+              <h3 className="text-lg font-headline font-black text-white">
+                {saveSuccessModal.isNew ? '¡Guardado exitosamente!' : '¡Actualizado exitosamente!'}
+              </h3>
+              <p className="text-xs sm:text-sm text-[#A098B0]">
+                {saveSuccessModal.credit.type === 'cuotas_tc'
+                  ? 'La compra en cuotas'
+                  : saveSuccessModal.credit.type === 'suscripcion'
+                  ? 'La suscripción'
+                  : 'El crédito'}{' '}
+                <strong className="text-white">{saveSuccessModal.credit.name}</strong> fue{' '}
+                {saveSuccessModal.isNew ? 'registrada' : 'actualizada'} correctamente.
+              </p>
+            </div>
+
+            <div className="bg-[#0A0A12] border border-[#302840] rounded-xl p-3 grid grid-cols-2 gap-2 text-xs">
+              <div>
+                <span className="text-[10px] font-mono uppercase text-slate-400 block">
+                  {saveSuccessModal.credit.type === 'suscripcion' ? 'Mensualidad' : 'Cuota mensual'}
+                </span>
+                <span className="font-mono font-bold text-[#00FFCC]">
+                  {formatCLP(saveSuccessModal.credit.installmentAmount)}
+                </span>
+              </div>
+              {saveSuccessModal.credit.type !== 'suscripcion' && (
+                <div className="text-right">
+                  <span className="text-[10px] font-mono uppercase text-slate-400 block">
+                    Cuotas
+                  </span>
+                  <span className="font-mono font-bold text-white">
+                    {saveSuccessModal.credit.paidInstallments} / {saveSuccessModal.credit.totalInstallments}
+                  </span>
+                </div>
+              )}
+            </div>
+
+            <button
+              type="button"
+              onClick={() => setSaveSuccessModal(null)}
+              className="w-full py-2.5 px-4 rounded-xl bg-[#00FFCC] hover:bg-[#00e6b8] text-[#0A0A12] font-headline font-black text-xs sm:text-sm transition active:scale-95 shadow-lg shadow-[#00FFCC]/20"
+            >
+              Entendido
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
