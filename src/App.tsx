@@ -1,6 +1,7 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import * as XLSX from 'xlsx';
-import { SlidersHorizontal } from 'lucide-react';
+import { SlidersHorizontal, Lock, Clock, X } from 'lucide-react';
+import { useSessionTimeout } from './hooks/useSessionTimeout';
 import {
   Account,
   Transaction,
@@ -128,6 +129,7 @@ export function App() {
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [viewMode, setViewMode] = useState<'landing' | 'app'>('landing');
   const [isCloudLoading, setIsCloudLoading] = useState(false);
+  const [sessionExpiredMessage, setSessionExpiredMessage] = useState<string | null>(null);
 
   // Security: Clean up legacy un-isolated keys from localStorage on startup to prevent contamination
   useEffect(() => {
@@ -636,6 +638,9 @@ export function App() {
         }
         setCurrentUser(user);
         setViewMode('app');
+        if (event === 'SIGNED_IN') {
+          setSessionExpiredMessage(null);
+        }
         // TOKEN_REFRESHED, USER_UPDATED, etc. do NOT reload cloud data, preserving newly added/imported transactions!
       }
     });
@@ -718,6 +723,26 @@ export function App() {
     // 3. Complete Supabase signOut
     await signOutUser();
   };
+
+  // Keep a stable ref to handleSignOut for inactivity auto-logout (Issue #46)
+  const handleSignOutRef = useRef(handleSignOut);
+  handleSignOutRef.current = handleSignOut;
+
+  const handleAutoLogout = useCallback(async () => {
+    setSessionExpiredMessage(
+      '🔒 Tu sesión ha expirado por inactividad para proteger tus datos financieros. Por favor, vuelve a iniciar sesión.'
+    );
+    await handleSignOutRef.current();
+  }, []);
+
+  const {
+    isWarningOpen: isSessionWarningOpen,
+    remainingSeconds: sessionRemainingSeconds,
+    extendSession: extendActiveSession
+  } = useSessionTimeout({
+    isAuthenticated: Boolean(currentUser),
+    onTimeout: handleAutoLogout
+  });
 
   // Normalize transactions dynamically to guarantee parent category & subcategory resolution
   const normalizedTransactions = useMemo(() => {
@@ -1680,9 +1705,46 @@ export function App() {
   if (!currentUser && viewMode === 'landing') {
     return (
       <>
+        {sessionExpiredMessage && (
+          <div
+            role="alert"
+            className="fixed top-4 left-1/2 -translate-x-1/2 z-[60] w-[calc(100%-2rem)] max-w-xl bg-[#141422]/95 backdrop-blur-md border border-amber-500/50 text-[#E8E0F0] rounded-2xl shadow-2xl shadow-amber-500/10 p-4 flex items-start sm:items-center justify-between gap-3 animate-fadeIn"
+          >
+            <div className="flex items-start sm:items-center gap-3">
+              <div className="p-2 rounded-xl bg-amber-500/15 text-amber-400 border border-amber-500/30 shrink-0">
+                <Lock className="w-4 h-4" />
+              </div>
+              <p className="text-xs sm:text-sm font-medium leading-relaxed text-amber-100">
+                {sessionExpiredMessage}
+              </p>
+            </div>
+            <div className="flex items-center gap-2 shrink-0">
+              <button
+                type="button"
+                onClick={() => {
+                  setSessionExpiredMessage(null);
+                  setIsAuthModalOpen(true);
+                }}
+                className="px-3 py-1.5 rounded-xl bg-[#00FFCC] hover:bg-[#00e6b8] text-[#0A0A12] font-bold text-xs transition whitespace-nowrap"
+              >
+                Iniciar Sesión
+              </button>
+              <button
+                type="button"
+                onClick={() => setSessionExpiredMessage(null)}
+                className="p-1.5 rounded-lg text-[#A098B0] hover:text-white hover:bg-[#1E1E32] transition"
+                aria-label="Cerrar aviso"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+        )}
+
         <LandingPage
           onOpenAuth={() => setIsAuthModalOpen(true)}
           onTryDemo={() => {
+            setSessionExpiredMessage(null);
             setAccounts(INITIAL_ACCOUNTS);
             setTransactions(INITIAL_TRANSACTIONS);
             setViewMode('app');
@@ -1693,7 +1755,10 @@ export function App() {
         {isAuthModalOpen && (
           <AuthModal
             onClose={() => setIsAuthModalOpen(false)}
-            onSuccess={() => setIsAuthModalOpen(false)}
+            onSuccess={() => {
+              setSessionExpiredMessage(null);
+              setIsAuthModalOpen(false);
+            }}
           />
         )}
       </>
@@ -2140,9 +2205,68 @@ export function App() {
         <AuthModal
           onClose={() => setIsAuthModalOpen(false)}
           onSuccess={() => {
+            setSessionExpiredMessage(null);
             setIsAuthModalOpen(false);
           }}
         />
+      )}
+
+      {/* Session Inactivity Warning Modal (Issue #46) */}
+      {currentUser && isSessionWarningOpen && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="session-timeout-title"
+          className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fadeIn"
+        >
+          <div className="bg-[#141422] border border-amber-500/40 panel-rim rounded-3xl shadow-2xl max-w-md w-full p-6 space-y-5">
+            <div className="flex items-center gap-3.5">
+              <div className="p-3 rounded-2xl bg-amber-500/15 text-amber-400 border border-amber-500/30 shrink-0">
+                <Clock className="w-6 h-6 animate-pulse" />
+              </div>
+              <div>
+                <h3 id="session-timeout-title" className="text-base font-headline font-bold text-white">
+                  ¿Sigues ahí?
+                </h3>
+                <p className="text-xs text-[#A098B0]">
+                  Protección automática de sesión financiera
+                </p>
+              </div>
+            </div>
+
+            <div className="bg-[#0E0E18] border border-[#302840] rounded-2xl p-4 text-center space-y-1.5">
+              <p className="text-sm text-[#E8E0F0]">
+                Tu sesión se cerrará en{' '}
+                <span className="font-mono font-black text-amber-400 text-base">
+                  {sessionRemainingSeconds}
+                </span>{' '}
+                {sessionRemainingSeconds === 1 ? 'segundo' : 'segundos'} por seguridad.
+              </p>
+              <p className="text-xs text-[#A098B0]">
+                Haz clic en continuar para mantener tu sesión abierta.
+              </p>
+            </div>
+
+            <div className="flex flex-col sm:flex-row gap-2.5">
+              <button
+                type="button"
+                onClick={extendActiveSession}
+                className="flex-1 py-2.5 px-4 rounded-xl bg-[#00FFCC] hover:bg-[#00e6b8] text-[#0A0A12] font-bold text-xs sm:text-sm transition shadow-lg shadow-[#00FFCC]/20"
+              >
+                Mantener Sesión Abierta
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  void handleSignOut();
+                }}
+                className="py-2.5 px-4 rounded-xl bg-[#1A1A2E] hover:bg-rose-500/15 text-[#A098B0] hover:text-rose-400 border border-[#302840] hover:border-rose-500/30 font-semibold text-xs sm:text-sm transition"
+              >
+                Cerrar Sesión
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
