@@ -33,6 +33,7 @@ import { getBudgetSpending } from '../utils/categorizer';
 
 interface MobileDashboardViewProps {
   accounts: Account[];
+  activeAccountId: string;
   allTransactions: Transaction[];
   filteredTransactions: ComputedTransaction[];
   credits: Credit[];
@@ -81,6 +82,7 @@ function formatShortDate(dateStr: string): string {
 
 export const MobileDashboardView: React.FC<MobileDashboardViewProps> = ({
   accounts,
+  activeAccountId,
   allTransactions,
   filteredTransactions,
   credits,
@@ -97,11 +99,17 @@ export const MobileDashboardView: React.FC<MobileDashboardViewProps> = ({
   onOpenAddTransaction,
   onSelectAccount
 }) => {
-  // 1. Account Balances & Credit Card Debt
-  const { availableBalance, totalTcDebt, totalTcLimit, tcUsagePct, accountSummaries } = useMemo(() => {
+  const selectedAccount = useMemo(
+    () => (activeAccountId !== 'ALL' ? accounts.find((a) => a.id === activeAccountId) || null : null),
+    [accounts, activeAccountId]
+  );
+
+  // 1. Account Balances & Credit Card Debt (Scoped to activeAccountId if selected)
+  const { availableBalance, totalTcDebt, tcUsagePct, accountSummaries, activeDebitCount } = useMemo(() => {
     let liquid = 0;
     let tcDebt = 0;
     let tcLimit = 0;
+    let debitCount = 0;
 
     const summaries = accounts.map((acc) => {
       const accTxs = allTransactions.filter((t) => t.accountId === acc.id);
@@ -115,6 +123,8 @@ export const MobileDashboardView: React.FC<MobileDashboardViewProps> = ({
         }
       });
 
+      const isIncluded = activeAccountId === 'ALL' || activeAccountId === acc.id;
+
       if (acc.type === 'credit_card') {
         const paidBillings = creditBillings
           .filter((b) => b.cardId === acc.id)
@@ -124,8 +134,10 @@ export const MobileDashboardView: React.FC<MobileDashboardViewProps> = ({
         const limit = acc.creditLimit || 0;
         const pct = limit > 0 ? Math.min(100, Math.round((used / limit) * 1000) / 10) : 0;
 
-        tcDebt += used;
-        tcLimit += limit;
+        if (isIncluded) {
+          tcDebt += used;
+          tcLimit += limit;
+        }
 
         return {
           account: acc,
@@ -136,7 +148,10 @@ export const MobileDashboardView: React.FC<MobileDashboardViewProps> = ({
         };
       } else {
         const balance = (acc.initialBalance || 0) + income - spent;
-        liquid += balance;
+        if (isIncluded) {
+          liquid += balance;
+          debitCount += 1;
+        }
         return {
           account: acc,
           isTC: false,
@@ -147,21 +162,35 @@ export const MobileDashboardView: React.FC<MobileDashboardViewProps> = ({
       }
     });
 
+    // If a specific credit card is selected, show its available credit in KPI 1
+    if (selectedAccount?.type === 'credit_card') {
+      const cardSummary = summaries.find((s) => s.account.id === selectedAccount.id);
+      if (cardSummary && cardSummary.limit > 0) {
+        liquid = Math.max(0, cardSummary.limit - cardSummary.balanceOrUsed);
+      }
+    }
+
     const overallPct = tcLimit > 0 ? Math.min(100, Math.round((tcDebt / tcLimit) * 1000) / 10) : 0;
 
     return {
       availableBalance: liquid,
       totalTcDebt: tcDebt,
-      totalTcLimit: tcLimit,
       tcUsagePct: overallPct,
-      accountSummaries: summaries
+      accountSummaries: summaries,
+      activeDebitCount: debitCount
     };
-  }, [accounts, allTransactions, creditBillings]);
+  }, [accounts, allTransactions, creditBillings, activeAccountId, selectedAccount]);
 
-  // 2. Billing Projection & Next Statement Summary
+  // 2. Billing Projection & Next Statement Summary (Scoped to activeAccountId if TC selected)
   const billingProjection = useMemo(() => {
-    const creditCards = accounts.filter((a) => a.type === 'credit_card');
-    const primaryCard = creditCards[0];
+    const allCards = accounts.filter((a) => a.type === 'credit_card');
+    const targetCards =
+      selectedAccount?.type === 'credit_card'
+        ? [selectedAccount]
+        : activeAccountId !== 'ALL'
+        ? []
+        : allCards;
+    const primaryCard = targetCards[0] || allCards[0];
 
     let cyclePurchases = 0;
     let cycleItemsCount = 0;
@@ -170,7 +199,7 @@ export const MobileDashboardView: React.FC<MobileDashboardViewProps> = ({
     let activeSubs = 0;
     let activeSubsCount = 0;
 
-    creditCards.forEach((card) => {
+    targetCards.forEach((card) => {
       const summary = getBillingCycleSummary(
         card,
         allTransactions,
@@ -189,14 +218,23 @@ export const MobileDashboardView: React.FC<MobileDashboardViewProps> = ({
       return acc?.type === 'credit_card' && !isPaymentOrIncomeTransaction(tx) && tx.amount > 0;
     }).length;
 
-    const cardInstallments = credits.filter((c) => c.type === 'cuotas_tc');
+    const cardInstallments = credits.filter(
+      (c) =>
+        c.type === 'cuotas_tc' &&
+        (targetCards.some((card) => card.id === c.accountId) || (!c.accountId && targetCards.length > 0))
+    );
     activeInstallmentsCount = cardInstallments.length;
     activeInstallments = cardInstallments.reduce(
       (sum, c) => sum + (c.myShareAmount || c.installmentAmount || 0),
       0
     );
 
-    const cardSubs = credits.filter((c) => c.type === 'suscripcion' && c.isActive !== false);
+    const cardSubs = credits.filter(
+      (c) =>
+        c.type === 'suscripcion' &&
+        c.isActive !== false &&
+        (targetCards.some((card) => card.id === c.accountId) || (!c.accountId && targetCards.length > 0))
+    );
     activeSubsCount = cardSubs.length;
     activeSubs = cardSubs.reduce(
       (sum, c) => sum + (c.myShareAmount || c.installmentAmount || 0),
@@ -325,22 +363,26 @@ export const MobileDashboardView: React.FC<MobileDashboardViewProps> = ({
 
       {/* 2. KPIs Financieros Principales (Grid 2x2 Bento) */}
       <section className="grid grid-cols-2 gap-2.5">
-        {/* KPI 1: Saldo Disponible */}
+        {/* KPI 1: Saldo Disponible / Cupo Disponible */}
         <div
           onClick={onOpenAccounts}
           className="bg-[#141422] border border-[#302840] hover:border-[#00FFCC]/50 rounded-xl p-3 transition-colors cursor-pointer relative overflow-hidden"
         >
           <div className="flex items-center justify-between text-[#A098B0] mb-1">
-            <span className="font-mono text-[11px] tracking-tight">Saldo Disponible</span>
+            <span className="font-mono text-[11px] tracking-tight">
+              {selectedAccount?.type === 'credit_card' ? 'Cupo Disponible' : 'Saldo Disponible'}
+            </span>
             <Landmark className="w-4 h-4 text-[#00FFCC]" />
           </div>
           <div className="font-headline text-base font-bold text-[#E8E0F0] tracking-tight leading-snug">
             {formatCLP(availableBalance)}
           </div>
-          <div className="mt-1 flex items-center gap-1 font-mono text-[10px] text-[#00FFCC] font-medium">
-            <TrendingUp className="w-3 h-3" />
-            <span>
-              {accounts.filter((a) => a.type !== 'credit_card').length} cta(s) activa(s)
+          <div className="mt-1 flex items-center gap-1 font-mono text-[10px] text-[#00FFCC] font-medium truncate">
+            <TrendingUp className="w-3 h-3 shrink-0" />
+            <span className="truncate">
+              {selectedAccount
+                ? selectedAccount.name
+                : `${activeDebitCount} cta(s) activa(s)`}
             </span>
           </div>
         </div>
@@ -428,30 +470,41 @@ export const MobileDashboardView: React.FC<MobileDashboardViewProps> = ({
               Mis Cuentas & Tarjetas
             </h2>
           </div>
-          <button
-            type="button"
-            onClick={onOpenAccounts}
-            className="text-xs font-mono text-[#00FFCC] hover:underline flex items-center gap-0.5"
-          >
-            <span>Gestionar</span>
-            <ChevronRight className="w-3.5 h-3.5" />
-          </button>
+          <div className="flex items-center gap-2">
+            {activeAccountId !== 'ALL' && (
+              <button
+                type="button"
+                onClick={() => onSelectAccount('ALL')}
+                className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-[#FF2D78]/15 text-[#FF2D78] border border-[#FF2D78]/40 active:scale-95 transition"
+              >
+                Ver todas
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={onOpenAccounts}
+              className="text-xs font-mono text-[#00FFCC] hover:underline flex items-center gap-0.5"
+            >
+              <span>Gestionar</span>
+              <ChevronRight className="w-3.5 h-3.5" />
+            </button>
+          </div>
         </div>
 
         <div className="flex gap-3 overflow-x-auto no-scrollbar pb-1 -mx-3 px-3 snap-x snap-mandatory">
-          {accountSummaries.map(({ account, isTC, balanceOrUsed, limit, pct }, idx) => {
-            const isPrimaryGlow = isTC && idx === 0;
+          {accountSummaries.map(({ account, isTC, balanceOrUsed, limit, pct }) => {
+            const isSelected = activeAccountId === account.id;
             return (
               <div
                 key={account.id}
                 onClick={() => onSelectAccount(account.id)}
                 className={`snap-center flex-shrink-0 w-64 rounded-xl p-3.5 flex flex-col justify-between relative overflow-hidden cursor-pointer transition-all active:scale-[0.98] ${
-                  isPrimaryGlow
+                  isSelected
                     ? 'bg-gradient-to-br from-[#141422] to-[#1e1e30] border-glow-primary'
                     : 'bg-[#141422] border border-[#302840] hover:border-[#00FFCC]/50'
                 }`}
               >
-                {isPrimaryGlow && (
+                {isSelected && (
                   <div className="absolute -right-6 -top-6 w-20 h-20 bg-[#FF2D78]/20 rounded-full blur-xl pointer-events-none" />
                 )}
 
@@ -459,12 +512,12 @@ export const MobileDashboardView: React.FC<MobileDashboardViewProps> = ({
                   <div className="flex items-center justify-between mb-2 gap-2">
                     <span
                       className={`font-mono text-[10px] uppercase font-bold tracking-wider flex items-center gap-1.5 truncate ${
-                        isTC ? (isPrimaryGlow ? 'text-[#FF2D78]' : 'text-[#00FFCC]') : 'text-[#A098B0]'
+                        isSelected ? 'text-[#FF2D78]' : isTC ? 'text-[#00FFCC]' : 'text-[#A098B0]'
                       }`}
                     >
                       <span
                         className={`w-1.5 h-1.5 rounded-full shrink-0 ${
-                          isTC ? (isPrimaryGlow ? 'bg-[#FF2D78]' : 'bg-[#00FFCC]') : 'bg-[#5a5068]'
+                          isSelected ? 'bg-[#FF2D78]' : isTC ? 'bg-[#00FFCC]' : 'bg-[#5a5068]'
                         }`}
                       />
                       <span className="truncate">{account.name}</span>
@@ -501,14 +554,16 @@ export const MobileDashboardView: React.FC<MobileDashboardViewProps> = ({
                       <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-[#FFE04A]/15 text-[#FFE04A] border border-[#FFE04A]/30">
                         Corte día {account.closingDay || 24}
                       </span>
-                      <span className={`font-bold ${isPrimaryGlow ? 'text-[#FF2D78]' : 'text-[#00FFCC]'}`}>
+                      <span className={`font-bold ${isSelected ? 'text-[#FF2D78]' : 'text-[#00FFCC]'}`}>
                         {pct}% de cupo
                       </span>
                     </>
                   ) : (
                     <>
                       <span className="text-[#A098B0] capitalize">{account.bank}</span>
-                      <span className="text-[#00FFCC] font-medium">Disponible</span>
+                      <span className="text-[#00FFCC] font-medium">
+                        {isSelected ? 'Filtrada ✓' : 'Disponible'}
+                      </span>
                     </>
                   )}
                 </div>
@@ -539,7 +594,9 @@ export const MobileDashboardView: React.FC<MobileDashboardViewProps> = ({
               Liquidación Próxima
             </span>
             <h3 className="font-headline text-sm font-bold text-[#E8E0F0]">
-              Facturación al Corte (Día {billingProjection.closingDay})
+              {selectedAccount?.type === 'credit_card'
+                ? `Facturación ${selectedAccount.name} (Día ${billingProjection.closingDay})`
+                : `Facturación al Corte (Día ${billingProjection.closingDay})`}
             </h3>
           </div>
           <div className="text-right">

@@ -1890,6 +1890,7 @@ export function App() {
               <div className="md:hidden">
                 <MobileDashboardView
                   accounts={accounts}
+                  activeAccountId={filters.accountId}
                   allTransactions={transactions}
                   filteredTransactions={filteredTransactions}
                   credits={credits}
@@ -1905,8 +1906,10 @@ export function App() {
                   onOpenBillingModal={() => setIsBillingModalOpen(true)}
                   onOpenAddTransaction={() => setIsAddTransactionModalOpen(true)}
                   onSelectAccount={(accId) => {
-                    setFilters((prev) => ({ ...prev, accountId: accId }));
-                    setActiveTab('transactions');
+                    setFilters((prev) => ({
+                      ...prev,
+                      accountId: accId === 'ALL' || prev.accountId === accId ? 'ALL' : accId
+                    }));
                   }}
                 />
               </div>
