@@ -17,7 +17,9 @@ import {
   Repeat,
   Laptop,
   TrendingUp,
-  PlusCircle
+  PlusCircle,
+  X,
+  Layers
 } from 'lucide-react';
 import {
   Account,
@@ -123,7 +125,14 @@ export const MobileDashboardView: React.FC<MobileDashboardViewProps> = ({
         }
       });
 
-      const isIncluded = activeAccountId === 'ALL' || activeAccountId === acc.id;
+      const includeInTc =
+        activeAccountId === 'ALL' ||
+        selectedAccount?.type !== 'credit_card' ||
+        activeAccountId === acc.id;
+      const includeInLiquid =
+        activeAccountId === 'ALL' ||
+        selectedAccount?.type === 'credit_card' ||
+        activeAccountId === acc.id;
 
       if (acc.type === 'credit_card') {
         const paidBillings = creditBillings
@@ -134,7 +143,7 @@ export const MobileDashboardView: React.FC<MobileDashboardViewProps> = ({
         const limit = acc.creditLimit || 0;
         const pct = limit > 0 ? Math.min(100, Math.round((used / limit) * 1000) / 10) : 0;
 
-        if (isIncluded) {
+        if (includeInTc) {
           tcDebt += used;
           tcLimit += limit;
         }
@@ -148,7 +157,7 @@ export const MobileDashboardView: React.FC<MobileDashboardViewProps> = ({
         };
       } else {
         const balance = (acc.initialBalance || 0) + income - spent;
-        if (isIncluded) {
+        if (includeInLiquid) {
           liquid += balance;
           debitCount += 1;
         }
@@ -161,14 +170,6 @@ export const MobileDashboardView: React.FC<MobileDashboardViewProps> = ({
         };
       }
     });
-
-    // If a specific credit card is selected, show its available credit in KPI 1
-    if (selectedAccount?.type === 'credit_card') {
-      const cardSummary = summaries.find((s) => s.account.id === selectedAccount.id);
-      if (cardSummary && cardSummary.limit > 0) {
-        liquid = Math.max(0, cardSummary.limit - cardSummary.balanceOrUsed);
-      }
-    }
 
     const overallPct = tcLimit > 0 ? Math.min(100, Math.round((tcDebt / tcLimit) * 1000) / 10) : 0;
 
@@ -185,11 +186,7 @@ export const MobileDashboardView: React.FC<MobileDashboardViewProps> = ({
   const billingProjection = useMemo(() => {
     const allCards = accounts.filter((a) => a.type === 'credit_card');
     const targetCards =
-      selectedAccount?.type === 'credit_card'
-        ? [selectedAccount]
-        : activeAccountId !== 'ALL'
-        ? []
-        : allCards;
+      selectedAccount?.type === 'credit_card' ? [selectedAccount] : allCards;
     const primaryCard = targetCards[0] || allCards[0];
 
     let cyclePurchases = 0;
@@ -361,17 +358,61 @@ export const MobileDashboardView: React.FC<MobileDashboardViewProps> = ({
         </section>
       )}
 
-      {/* 2. KPIs Financieros Principales (Grid 2x2 Bento) */}
-      <section className="grid grid-cols-2 gap-2.5">
-        {/* KPI 1: Saldo Disponible / Cupo Disponible */}
+      {/* 2. Indicador de Cuenta/Tarjeta Activa + KPIs Financieros Principales (Grid 2x2 Bento) */}
+      <section className="space-y-2">
+        <div
+          className={`flex items-center justify-between px-3 py-1.5 rounded-xl border text-[11px] font-mono transition-colors ${
+            selectedAccount
+              ? selectedAccount.type === 'credit_card'
+                ? 'bg-[#FF2D78]/10 border-[#FF2D78]/35 text-[#E8E0F0]'
+                : 'bg-[#00FFCC]/10 border-[#00FFCC]/35 text-[#E8E0F0]'
+              : 'bg-[#141422] border-[#302840] text-[#A098B0]'
+          }`}
+        >
+          <div className="flex items-center gap-2 min-w-0">
+            {selectedAccount ? (
+              selectedAccount.type === 'credit_card' ? (
+                <CreditCard className="w-3.5 h-3.5 text-[#FF2D78] shrink-0" />
+              ) : (
+                <Landmark className="w-3.5 h-3.5 text-[#00FFCC] shrink-0" />
+              )
+            ) : (
+              <Layers className="w-3.5 h-3.5 text-[#00FFCC] shrink-0" />
+            )}
+            <span className="truncate">
+              {selectedAccount ? (
+                <>
+                  Mostrando:{' '}
+                  <strong className="text-[#E8E0F0] font-semibold">
+                    {selectedAccount.name}
+                  </strong>
+                </>
+              ) : (
+                'Mostrando: Todas las cuentas y tarjetas'
+              )}
+            </span>
+          </div>
+
+          {selectedAccount && (
+            <button
+              type="button"
+              onClick={() => onSelectAccount('ALL')}
+              className="inline-flex items-center gap-1 text-[10px] font-bold text-[#E8E0F0] hover:text-white bg-[#1e1e30] hover:bg-[#2a2a42] px-2 py-0.5 rounded-md border border-[#302840] shrink-0 ml-2 transition-colors"
+            >
+              <span>Ver todas</span>
+              <X className="w-3 h-3" />
+            </button>
+          )}
+        </div>
+
+        <div className="grid grid-cols-2 gap-2.5">
+        {/* KPI 1: Saldo Disponible (siempre muestra saldo líquido de cuentas corrientes/débito) */}
         <div
           onClick={onOpenAccounts}
           className="bg-[#141422] border border-[#302840] hover:border-[#00FFCC]/50 rounded-xl p-3 transition-colors cursor-pointer relative overflow-hidden"
         >
           <div className="flex items-center justify-between text-[#A098B0] mb-1">
-            <span className="font-mono text-[11px] tracking-tight">
-              {selectedAccount?.type === 'credit_card' ? 'Cupo Disponible' : 'Saldo Disponible'}
-            </span>
+            <span className="font-mono text-[11px] tracking-tight">Saldo Disponible</span>
             <Landmark className="w-4 h-4 text-[#00FFCC]" />
           </div>
           <div className="font-headline text-base font-bold text-[#E8E0F0] tracking-tight leading-snug">
@@ -380,7 +421,7 @@ export const MobileDashboardView: React.FC<MobileDashboardViewProps> = ({
           <div className="mt-1 flex items-center gap-1 font-mono text-[10px] text-[#00FFCC] font-medium truncate">
             <TrendingUp className="w-3 h-3 shrink-0" />
             <span className="truncate">
-              {selectedAccount
+              {selectedAccount && selectedAccount.type !== 'credit_card'
                 ? selectedAccount.name
                 : `${activeDebitCount} cta(s) activa(s)`}
             </span>
@@ -400,9 +441,11 @@ export const MobileDashboardView: React.FC<MobileDashboardViewProps> = ({
             {formatCLP(totalTcDebt)}
           </div>
           <div className="mt-1.5">
-            <div className="flex justify-between text-[10px] font-mono text-[#A098B0] mb-1">
-              <span>Uso de cupo</span>
-              <span className="text-[#FF2D78] font-bold">{tcUsagePct}%</span>
+            <div className="flex justify-between gap-1 text-[10px] font-mono text-[#A098B0] mb-1">
+              <span className="truncate">
+                {selectedAccount?.type === 'credit_card' ? selectedAccount.name : 'Todas las TC'}
+              </span>
+              <span className="text-[#FF2D78] font-bold shrink-0">{tcUsagePct}%</span>
             </div>
             <div className="w-full bg-[#28283e] h-1 rounded-full overflow-hidden">
               <div
@@ -425,9 +468,12 @@ export const MobileDashboardView: React.FC<MobileDashboardViewProps> = ({
           <div className="font-headline text-base font-bold text-[#E8E0F0] tracking-tight leading-snug">
             {formatCLP(billingProjection.totalEstimated)}
           </div>
-          <div className="mt-1.5">
-            <span className="inline-flex items-center gap-1 text-[10px] font-mono font-bold px-1.5 py-0.5 rounded bg-[#FFE04A]/10 text-[#FFE04A] border border-[#FFE04A]/30">
+          <div className="mt-1.5 flex items-center justify-between gap-1">
+            <span className="inline-flex items-center gap-1 text-[10px] font-mono font-bold px-1.5 py-0.5 rounded bg-[#FFE04A]/10 text-[#FFE04A] border border-[#FFE04A]/30 shrink-0">
               Corte día {billingProjection.closingDay}
+            </span>
+            <span className="text-[10px] font-mono text-[#A098B0] truncate">
+              {selectedAccount?.type === 'credit_card' ? selectedAccount.name : 'Todas las TC'}
             </span>
           </div>
         </div>
@@ -458,6 +504,7 @@ export const MobileDashboardView: React.FC<MobileDashboardViewProps> = ({
               />
             </div>
           </div>
+        </div>
         </div>
       </section>
 
