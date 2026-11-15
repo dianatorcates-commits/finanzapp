@@ -101,8 +101,77 @@ export const TopBar: React.FC<TopBarProps> = ({
     availableMonths.indexOf(selectedMonth) !== -1;
 
   return (
-    <header className="h-16 bg-[#0A0A12]/90 backdrop-blur-xl border-b border-[#302840]/60 flex items-center justify-between px-3 sm:px-6 w-full sticky top-0 z-30 shadow-sm font-sans gap-3">
+    <header className="h-14 md:h-16 bg-[#0A0A12]/90 backdrop-blur-xl border-b border-[#302840]/60 flex items-center justify-between px-3 sm:px-6 w-full sticky top-0 z-30 shadow-sm font-sans gap-2 md:gap-3">
       
+      {/* ========================================== */}
+      {/* MOBILE TOP BAR (Stitch Neon Tokyo Spec)    */}
+      {/* ========================================== */}
+      <div className="flex md:hidden items-center justify-between w-full gap-2">
+        {/* Left: Brand Cluster + Live Dot */}
+        <div className="flex items-center gap-1.5 shrink-0">
+          <span className="font-headline text-base font-bold text-[#FF2D78] tracking-wider neon-glow-primary">
+            FinanzApp
+          </span>
+          <span className="font-mono text-[9px] font-bold px-1.5 py-0.5 rounded bg-[#28283e] text-[#00FFCC] border border-[#00FFCC]/40 tracking-wider">
+            v2.0 PRO
+          </span>
+          <span className="relative flex h-2 w-2 ml-0.5">
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#00FFCC] opacity-75" />
+            <span className="relative inline-flex rounded-full h-2 w-2 bg-[#00FFCC]" />
+          </span>
+        </div>
+
+        {/* Center: Compact Period Pill */}
+        <div className="flex items-center gap-1 bg-[#1e1e30]/80 border border-[#302840] px-2.5 py-1 rounded-full text-xs font-mono text-[#E8E0F0]">
+          <Calendar className="w-3.5 h-3.5 text-[#00FFCC] shrink-0" />
+          <select
+            value={selectedMonth}
+            onChange={(e) => onSelectMonth(e.target.value)}
+            className="bg-transparent text-[11px] font-semibold text-[#E8E0F0] focus:outline-none cursor-pointer max-w-[92px] truncate"
+            aria-label="Seleccionar período"
+          >
+            <option value="ALL" className="bg-[#0F0F1A] text-[#E8E0F0]">
+              Todos
+            </option>
+            {availableMonths.map((m) => (
+              <option key={m} value={m} className="bg-[#0F0F1A] text-[#E8E0F0]">
+                {formatMonthLabel(m)}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        {/* Right: Sync Indicator + Notifications */}
+        <div className="flex items-center gap-1.5 shrink-0">
+          <div
+            className="p-1.5 rounded-full text-[#00FFCC]"
+            title={currentUser ? (isCloudLoading ? 'Sincronizando...' : 'Conectado a la nube') : 'Modo Demo'}
+          >
+            <RefreshCw className={`w-4 h-4 ${isCloudLoading ? 'animate-spin text-[#FFE04A]' : 'text-[#00FFCC]'}`} />
+          </div>
+
+          <div className="relative">
+            <button
+              type="button"
+              onClick={onToggleMobileMenu}
+              className="p-1.5 rounded-full text-[#A098B0] hover:text-[#FF2D78] transition flex items-center justify-center"
+              aria-label="Notificaciones y Menú"
+            >
+              <Bell className="w-4 h-4" />
+            </button>
+            {notificationCount > 0 && (
+              <span className="absolute -top-0.5 -right-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-[#FF2D78] text-[9px] font-bold font-mono text-white ring-2 ring-[#0A0A12]">
+                {notificationCount}
+              </span>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* ========================================== */}
+      {/* DESKTOP TOP BAR (Original Full Experience) */}
+      {/* ========================================== */}
+      <div className="hidden md:flex items-center justify-between w-full gap-3">
       {/* Left Section: Mobile Menu Toggle + Account Selector */}
       <div className="flex items-center gap-2 sm:gap-3 shrink-0">
         {onToggleMobileMenu && (
@@ -233,6 +302,7 @@ export const TopBar: React.FC<TopBarProps> = ({
           </div>
         )}
 
+      </div>
       </div>
 
     </header>

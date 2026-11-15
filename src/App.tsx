@@ -81,6 +81,7 @@ import { LandingPage } from './components/LandingPage';
 import { BottomNavBar } from './components/BottomNavBar';
 import { DuplicateAlertBanner } from './components/DuplicateAlertBanner';
 import { WakingMascotWidget } from './components/WakingMascotWidget';
+import { MobileDashboardView } from './components/MobileDashboardView';
 
 const STORAGE_KEY_ACCOUNTS = 'finanzapp_accounts_v1';
 const STORAGE_KEY_TRANSACTIONS = 'finanzapp_transactions_v1';
@@ -1884,22 +1885,51 @@ export function App() {
         <div className="flex-1 overflow-y-auto flex flex-col scrollbar-thin scrollbar-thumb-slate-800">
           <main className="w-full max-w-7xl mx-auto p-4 sm:p-6 space-y-6 flex-1 pb-24 md:pb-6">
             
-            {/* Duplicate Alert Banner in Dashboard (RF-09 & Issue #23) */}
-            {activeTab === 'dashboard' && potentialDuplicates.length > 0 && (
-              <DuplicateAlertBanner
-                duplicates={potentialDuplicates}
-                accounts={accounts}
-                onDismissDuplicate={handleDismissDuplicate}
-                onDeleteDuplicate={handleDeleteDuplicate}
-                onResolveAll={handleResolveAllDuplicates}
-                onOpenTransactions={() => setActiveTab('transactions')}
-              />
+            {/* Mobile Dedicated Dashboard (Issue #64) */}
+            {activeTab === 'dashboard' && (
+              <div className="md:hidden">
+                <MobileDashboardView
+                  accounts={accounts}
+                  allTransactions={transactions}
+                  filteredTransactions={filteredTransactions}
+                  credits={credits}
+                  budgets={budgets}
+                  creditBillings={creditBillings}
+                  currentPeriod={filters.month !== 'ALL' ? filters.month : new Date().toISOString().slice(0, 7)}
+                  potentialDuplicates={potentialDuplicates}
+                  onDismissDuplicate={handleDismissDuplicate}
+                  onDeleteDuplicate={handleDeleteDuplicate}
+                  onOpenTransactions={() => setActiveTab('transactions')}
+                  onOpenAccounts={() => setActiveTab('accounts')}
+                  onOpenBudgets={() => setActiveTab('budgets')}
+                  onOpenBillingModal={() => setIsBillingModalOpen(true)}
+                  onOpenAddTransaction={() => setIsAddTransactionModalOpen(true)}
+                  onSelectAccount={(accId) => {
+                    setFilters((prev) => ({ ...prev, accountId: accId }));
+                    setActiveTab('transactions');
+                  }}
+                />
+              </div>
             )}
 
-            {/* 1 & 2. Metric Cards & Filters (Only in Dashboard & Transactions) */}
+            {/* Duplicate Alert Banner in Dashboard (Desktop) */}
+            {activeTab === 'dashboard' && potentialDuplicates.length > 0 && (
+              <div className="hidden md:block">
+                <DuplicateAlertBanner
+                  duplicates={potentialDuplicates}
+                  accounts={accounts}
+                  onDismissDuplicate={handleDismissDuplicate}
+                  onDeleteDuplicate={handleDeleteDuplicate}
+                  onResolveAll={handleResolveAllDuplicates}
+                  onOpenTransactions={() => setActiveTab('transactions')}
+                />
+              </div>
+            )}
+
+            {/* 1 & 2. Metric Cards & Filters (Desktop Dashboard & Transactions) */}
             {activeTab !== 'categories' && activeTab !== 'budgets' && activeTab !== 'accounts' && activeTab !== 'credits' && (
-              <>
-                <div className="flex items-center justify-between pb-1">
+              <div className={activeTab === 'dashboard' ? 'hidden md:block space-y-6' : 'space-y-6'}>
+                <div className="hidden md:flex items-center justify-between pb-1">
                   <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">
                     Resumen Financiero
                   </span>
@@ -1913,18 +1943,20 @@ export function App() {
                   </button>
                 </div>
 
-                <MetricCards
-                  computedTransactions={filteredTransactions}
-                  accounts={accounts}
-                  activeAccountId={filters.accountId}
-                  credits={credits}
-                  budgets={budgets}
-                  creditBillings={creditBillings}
-                  currentPeriod={filters.month !== 'ALL' ? filters.month : new Date().toISOString().slice(0, 7)}
-                  onOpenBillingModal={() => setIsBillingModalOpen(true)}
-                  onQuickAdd={() => setIsAddTransactionModalOpen(true)}
-                  metrics={dashboardConfig.metrics}
-                />
+                <div className="hidden md:block">
+                  <MetricCards
+                    computedTransactions={filteredTransactions}
+                    accounts={accounts}
+                    activeAccountId={filters.accountId}
+                    credits={credits}
+                    budgets={budgets}
+                    creditBillings={creditBillings}
+                    currentPeriod={filters.month !== 'ALL' ? filters.month : new Date().toISOString().slice(0, 7)}
+                    onOpenBillingModal={() => setIsBillingModalOpen(true)}
+                    onQuickAdd={() => setIsAddTransactionModalOpen(true)}
+                    metrics={dashboardConfig.metrics}
+                  />
+                </div>
 
                 <Filters
                   filters={filters}
@@ -1945,23 +1977,25 @@ export function App() {
                     })
                   }
                 />
-              </>
+              </div>
             )}
 
             {/* 3. Active Tab Content (Dashboard, Transactions, Categories, Budgets, or Accounts) */}
             {activeTab === 'dashboard' ? (
-              <ChartsDashboard
-                computedTransactions={filteredTransactions}
-                accounts={accounts}
-                budgets={budgets}
-                credits={credits}
-                currentPeriod={filters.month !== 'ALL' ? filters.month : new Date().toISOString().slice(0, 7)}
-                onOpenBudgetModal={() => setActiveTab('budgets')}
-                onOpenBillingModal={() => setIsBillingModalOpen(true)}
-                onSelectAccount={(accId) => setFilters((prev) => ({ ...prev, accountId: accId }))}
-                charts={dashboardConfig.charts}
-                onOpenCustomizeModal={() => setIsCustomizeDashboardModalOpen(true)}
-              />
+              <div className="hidden md:block">
+                <ChartsDashboard
+                  computedTransactions={filteredTransactions}
+                  accounts={accounts}
+                  budgets={budgets}
+                  credits={credits}
+                  currentPeriod={filters.month !== 'ALL' ? filters.month : new Date().toISOString().slice(0, 7)}
+                  onOpenBudgetModal={() => setActiveTab('budgets')}
+                  onOpenBillingModal={() => setIsBillingModalOpen(true)}
+                  onSelectAccount={(accId) => setFilters((prev) => ({ ...prev, accountId: accId }))}
+                  charts={dashboardConfig.charts}
+                  onOpenCustomizeModal={() => setIsCustomizeDashboardModalOpen(true)}
+                />
+              </div>
             ) : activeTab === 'transactions' ? (
               <TransactionTable
                 transactions={filteredTransactions}
