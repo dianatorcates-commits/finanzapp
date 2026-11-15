@@ -493,74 +493,77 @@ export const BudgetAndGoalsView: React.FC<BudgetAndGoalsViewProps> = ({
     <div className="space-y-6 animate-fadeIn pb-14">
       
       {/* 1. Header Stitch Spec */}
-      <div className="bg-[#141422] border border-[#302840] panel-rim rounded-2xl p-5 sm:p-6 shadow-xl flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div className="flex items-start sm:items-center gap-3.5">
-          <div className="p-3 bg-gradient-to-br from-[#00FFCC]/20 via-[#38bdf8]/20 to-[#FF2D78]/20 text-[#00FFCC] rounded-2xl border border-[#00FFCC]/30 shadow-inner shrink-0">
-            <Target className="w-6 h-6 stroke-[2.2]" />
+      <div className="bg-[#141422] border border-[#302840] panel-rim rounded-2xl p-3.5 sm:p-6 shadow-xl flex flex-col md:flex-row md:items-center justify-between gap-3 sm:gap-4">
+        <div className="flex items-center gap-3 sm:gap-3.5">
+          <div className="p-2.5 sm:p-3 bg-gradient-to-br from-[#00FFCC]/20 via-[#38bdf8]/20 to-[#FF2D78]/20 text-[#00FFCC] rounded-xl sm:rounded-2xl border border-[#00FFCC]/30 shadow-inner shrink-0">
+            <Target className="w-5 h-5 sm:w-6 sm:h-6 stroke-[2.2]" />
           </div>
-          <div>
+          <div className="min-w-0">
             <div className="flex items-center gap-2.5">
-              <h2 className="text-xl sm:text-2xl font-headline font-black text-white tracking-tight">
+              <h2 className="text-base sm:text-2xl font-headline font-black text-white tracking-tight truncate">
                 Presupuestos & Metas de Ahorro
               </h2>
             </div>
-            <p className="text-xs sm:text-sm text-[#A098B0] mt-1 max-w-2xl font-sans">
+            <p className="hidden sm:block text-xs sm:text-sm text-[#A098B0] mt-1 max-w-2xl font-sans">
               Monitoreo multi-categoría agrupable con radiografía en vivo línea por línea y fondos de ahorro programados.
             </p>
           </div>
         </div>
 
         {/* Action Buttons */}
-        <div className="flex flex-wrap items-center gap-2.5 self-start md:self-center">
+        <div className="grid grid-cols-2 sm:flex sm:flex-wrap items-center gap-2 sm:gap-2.5 w-full md:w-auto">
           <button
             onClick={handleOpenCreateBudgetModal}
-            className="flex items-center gap-2 bg-[#00FFCC] hover:bg-[#00e6b8] text-black font-headline font-bold text-xs py-2.5 px-4 rounded-xl shadow-lg shadow-[#00FFCC]/20 transition transform hover:scale-[1.02] active:scale-95"
+            className="flex items-center justify-center gap-1.5 sm:gap-2 bg-[#00FFCC] hover:bg-[#00e6b8] text-black font-headline font-bold text-xs py-2 sm:py-2.5 px-3 sm:px-4 rounded-xl shadow-lg shadow-[#00FFCC]/20 transition transform hover:scale-[1.02] active:scale-95"
           >
-            <Plus className="w-4 h-4 stroke-[3]" />
-            <span>Nuevo Presupuesto</span>
+            <Plus className="w-3.5 h-3.5 sm:w-4 sm:h-4 stroke-[3] shrink-0" />
+            <span className="truncate">Nuevo Presupuesto</span>
           </button>
           <button
             onClick={handleOpenCreateGoalModal}
-            className="flex items-center gap-2 bg-[#1A1A2E] hover:bg-[#25253E] border border-[#302840] hover:border-[#FF2D78]/50 text-white font-headline font-bold text-xs py-2.5 px-4 rounded-xl transition shadow transform hover:scale-[1.02] active:scale-95"
+            className="flex items-center justify-center gap-1.5 sm:gap-2 bg-[#1A1A2E] hover:bg-[#25253E] border border-[#302840] hover:border-[#FF2D78]/50 text-white font-headline font-bold text-xs py-2 sm:py-2.5 px-3 sm:px-4 rounded-xl transition shadow transform hover:scale-[1.02] active:scale-95"
           >
-            <PiggyBank className="w-4 h-4 text-[#FF2D78]" />
-            <span>Nueva Meta</span>
+            <PiggyBank className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#FF2D78] shrink-0" />
+            <span className="truncate">Nueva Meta</span>
           </button>
         </div>
       </div>
 
-      {/* 2. Resumen Superior: 4 Tarjetas de Indicadores (Pantalla6.html Spec) */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      {/* 2. Resumen Superior: 4 Tarjetas de Indicadores (2x2 Bento en Mobile, 4 cols en Desktop) */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-4">
         
         {/* Card 1: Presupuesto Total Consolidado */}
-        <div className="bg-[#141422] border border-[#302840] panel-rim rounded-2xl p-5 relative overflow-hidden transition-all hover:border-[#00FFCC]/40 hover:shadow-lg hover:shadow-[#00FFCC]/5 group">
+        <div className="bg-[#141422] border border-[#302840] panel-rim rounded-xl sm:rounded-2xl p-3 sm:p-5 relative overflow-hidden transition-all hover:border-[#00FFCC]/40 hover:shadow-lg hover:shadow-[#00FFCC]/5 group">
           <div className="absolute top-0 right-0 w-24 h-24 bg-[#00FFCC]/5 rounded-full blur-xl pointer-events-none" />
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-xs font-mono font-bold uppercase tracking-wider text-[#A098B0]">
+          <div className="flex items-center justify-between gap-1.5 mb-1.5 sm:mb-2">
+            <span className="text-[10px] sm:text-xs font-mono font-bold uppercase tracking-tight sm:tracking-wider text-[#A098B0] truncate">
               Presupuesto Total
             </span>
-            <div className="p-2 bg-[#00FFCC]/15 text-[#00FFCC] border border-[#00FFCC]/30 rounded-xl">
-              <DollarSign className="w-4 h-4" />
+            <div className="p-1.5 sm:p-2 bg-[#00FFCC]/15 text-[#00FFCC] border border-[#00FFCC]/30 rounded-lg sm:rounded-xl shrink-0">
+              <DollarSign className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
             </div>
           </div>
-          <p className="text-2xl font-headline font-black text-white tracking-tight">
+          <p className="text-base sm:text-2xl font-headline font-black text-white tracking-tight leading-snug">
             {formatCLP(totalBudgeted)}
           </p>
-          <div className="mt-2 flex items-center justify-between text-xs text-[#A098B0]">
-            <span>Límite mensual consolidado</span>
-            <span className="font-mono text-white font-bold">{budgets.length} topes</span>
+          <div className="mt-1.5 sm:mt-2 flex items-center justify-between gap-1 text-[10px] sm:text-xs text-[#A098B0]">
+            <span className="truncate">
+              <span className="hidden sm:inline">Límite mensual consolidado</span>
+              <span className="sm:hidden">Límite mensual</span>
+            </span>
+            <span className="font-mono text-white font-bold shrink-0">{budgets.length} topes</span>
           </div>
         </div>
 
         {/* Card 2: Gasto Ejecutado */}
-        <div className="bg-[#141422] border border-[#302840] panel-rim rounded-2xl p-5 relative overflow-hidden transition-all hover:border-[#38bdf8]/40 hover:shadow-lg group">
+        <div className="bg-[#141422] border border-[#302840] panel-rim rounded-xl sm:rounded-2xl p-3 sm:p-5 relative overflow-hidden transition-all hover:border-[#38bdf8]/40 hover:shadow-lg group">
           <div className="absolute top-0 right-0 w-24 h-24 bg-sky-500/5 rounded-full blur-xl pointer-events-none" />
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-xs font-mono font-bold uppercase tracking-wider text-[#A098B0]">
+          <div className="flex items-center justify-between gap-1.5 mb-1.5 sm:mb-2">
+            <span className="text-[10px] sm:text-xs font-mono font-bold uppercase tracking-tight sm:tracking-wider text-[#A098B0] truncate">
               Gasto Ejecutado
             </span>
             <span
-              className={`text-[11px] font-mono font-bold px-2 py-0.5 rounded-full border ${
+              className={`text-[9px] sm:text-[11px] font-mono font-bold px-1.5 sm:px-2 py-0.5 rounded-full border shrink-0 ${
                 globalHealthPct >= 100
                   ? 'bg-[#FF2D78]/20 text-[#FF2D78] border-[#FF2D78]/40 animate-pulse'
                   : globalHealthPct >= 80
@@ -568,22 +571,30 @@ export const BudgetAndGoalsView: React.FC<BudgetAndGoalsViewProps> = ({
                   : 'bg-[#00FFCC]/20 text-[#00FFCC] border-[#00FFCC]/40'
               }`}
             >
-              {globalHealthPct >= 100
-                ? `${globalHealthPct}% excedido`
-                : globalHealthPct >= 80
-                ? `${globalHealthPct}% atención`
-                : `${globalHealthPct}% en rango`}
+              <span className="sm:hidden">{globalHealthPct}%</span>
+              <span className="hidden sm:inline">
+                {globalHealthPct >= 100
+                  ? `${globalHealthPct}% excedido`
+                  : globalHealthPct >= 80
+                  ? `${globalHealthPct}% atención`
+                  : `${globalHealthPct}% en rango`}
+              </span>
             </span>
           </div>
-          <p className="text-2xl font-headline font-black text-white tracking-tight">
+          <p className="text-base sm:text-2xl font-headline font-black text-white tracking-tight leading-snug">
             {formatCLP(totalSpentInBudgeted)}
           </p>
-          <div className="mt-2 flex items-center justify-between text-xs text-[#A098B0]">
-            <span>
-              {globalRemaining >= 0 ? 'Margen restante:' : 'Exceso consolidado:'}
+          <div className="mt-1.5 sm:mt-2 flex items-center justify-between gap-1 text-[10px] sm:text-xs text-[#A098B0]">
+            <span className="truncate">
+              <span className="hidden sm:inline">
+                {globalRemaining >= 0 ? 'Margen restante:' : 'Exceso consolidado:'}
+              </span>
+              <span className="sm:hidden">
+                {globalRemaining >= 0 ? 'Margen:' : 'Exceso:'}
+              </span>
             </span>
             <span
-              className={`font-mono font-bold ${
+              className={`font-mono font-bold shrink-0 ${
                 globalRemaining >= 0 ? 'text-[#00FFCC]' : 'text-[#FF2D78]'
               }`}
             >
@@ -593,42 +604,48 @@ export const BudgetAndGoalsView: React.FC<BudgetAndGoalsViewProps> = ({
         </div>
 
         {/* Card 3: Ahorro en Metas */}
-        <div className="bg-[#141422] border border-[#302840] panel-rim rounded-2xl p-5 relative overflow-hidden transition-all hover:border-emerald-500/40 hover:shadow-lg group">
+        <div className="bg-[#141422] border border-[#302840] panel-rim rounded-xl sm:rounded-2xl p-3 sm:p-5 relative overflow-hidden transition-all hover:border-emerald-500/40 hover:shadow-lg group">
           <div className="absolute top-0 right-0 w-24 h-24 bg-emerald-500/5 rounded-full blur-xl pointer-events-none" />
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-xs font-mono font-bold uppercase tracking-wider text-[#A098B0]">
+          <div className="flex items-center justify-between gap-1.5 mb-1.5 sm:mb-2">
+            <span className="text-[10px] sm:text-xs font-mono font-bold uppercase tracking-tight sm:tracking-wider text-[#A098B0] truncate">
               Ahorro en Metas
             </span>
-            <div className="p-2 bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 rounded-xl">
-              <PiggyBank className="w-4 h-4" />
+            <div className="p-1.5 sm:p-2 bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 rounded-lg sm:rounded-xl shrink-0">
+              <PiggyBank className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
             </div>
           </div>
-          <p className="text-2xl font-headline font-black text-[#00FFCC] tracking-tight">
+          <p className="text-base sm:text-2xl font-headline font-black text-[#00FFCC] tracking-tight leading-snug">
             {formatCLP(totalSavingsCurrent)}
           </p>
-          <div className="mt-2 flex items-center justify-between text-xs text-[#A098B0]">
-            <span>Total acumulado en fondos</span>
-            <span className="font-mono text-emerald-400 font-bold">{savingsGoals.length} activas</span>
+          <div className="mt-1.5 sm:mt-2 flex items-center justify-between gap-1 text-[10px] sm:text-xs text-[#A098B0]">
+            <span className="truncate">
+              <span className="hidden sm:inline">Total acumulado en fondos</span>
+              <span className="sm:hidden">Acumulado</span>
+            </span>
+            <span className="font-mono text-emerald-400 font-bold shrink-0">{savingsGoals.length} activas</span>
           </div>
         </div>
 
         {/* Card 4: Aporte Programado del Mes */}
-        <div className="bg-[#141422] border border-[#302840] panel-rim rounded-2xl p-5 relative overflow-hidden transition-all hover:border-[#FF2D78]/40 hover:shadow-lg group">
+        <div className="bg-[#141422] border border-[#302840] panel-rim rounded-xl sm:rounded-2xl p-3 sm:p-5 relative overflow-hidden transition-all hover:border-[#FF2D78]/40 hover:shadow-lg group">
           <div className="absolute top-0 right-0 w-24 h-24 bg-[#FF2D78]/5 rounded-full blur-xl pointer-events-none" />
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-xs font-mono font-bold uppercase tracking-wider text-[#A098B0]">
+          <div className="flex items-center justify-between gap-1.5 mb-1.5 sm:mb-2">
+            <span className="text-[10px] sm:text-xs font-mono font-bold uppercase tracking-tight sm:tracking-wider text-[#A098B0] truncate">
               Aporte Programado
             </span>
-            <div className="p-2 bg-[#FF2D78]/15 text-[#FF2D78] border border-[#FF2D78]/30 rounded-xl">
-              <Sparkles className="w-4 h-4" />
+            <div className="p-1.5 sm:p-2 bg-[#FF2D78]/15 text-[#FF2D78] border border-[#FF2D78]/30 rounded-lg sm:rounded-xl shrink-0">
+              <Sparkles className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
             </div>
           </div>
-          <p className="text-2xl font-headline font-black text-white tracking-tight">
+          <p className="text-base sm:text-2xl font-headline font-black text-white tracking-tight leading-snug">
             {formatCLP(monthlySavingsPace)}
           </p>
-          <div className="mt-2 flex items-center justify-between text-xs text-[#A098B0]">
-            <span>Meta total acumulada:</span>
-            <span className="font-mono text-white font-bold">{formatCompactCLP(totalTargetSavings)}</span>
+          <div className="mt-1.5 sm:mt-2 flex items-center justify-between gap-1 text-[10px] sm:text-xs text-[#A098B0]">
+            <span className="truncate">
+              <span className="hidden sm:inline">Meta total acumulada:</span>
+              <span className="sm:hidden">Meta total:</span>
+            </span>
+            <span className="font-mono text-white font-bold shrink-0">{formatCompactCLP(totalTargetSavings)}</span>
           </div>
         </div>
 
