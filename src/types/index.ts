@@ -67,6 +67,7 @@ export interface ComputedTransaction extends Transaction {
   netAmount: number;
   isFullyPaid: boolean;
   unallocatedPaymentBalance?: number;
+  allocatedPaymentUsage?: number;
 }
 
 export interface FilterState {

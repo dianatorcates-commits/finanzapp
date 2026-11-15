@@ -13,7 +13,8 @@ import {
   Calendar,
   Layers,
   ArrowUpDown,
-  Check
+  Check,
+  Unlink
 } from 'lucide-react';
 import { ComputedTransaction, Account, CategoryMapping, TransactionType } from '../types';
 import { getParentCategory, TRANSACTION_TYPES } from '../utils/categorizer';
@@ -168,6 +169,7 @@ interface TransactionTableProps {
   onDeleteTransactionsBatch?: (ids: string[]) => void;
   onAddTransaction: (newTx: any) => void;
   onOpenBillingModal?: () => void;
+  onRemoveAllocationsByPayment?: (paymentId: string) => void;
 }
 
 export const TransactionTable: React.FC<TransactionTableProps> = ({
@@ -179,7 +181,8 @@ export const TransactionTable: React.FC<TransactionTableProps> = ({
   onDeleteTransaction,
   onDeleteTransactionsBatch,
   onAddTransaction,
-  onOpenBillingModal
+  onOpenBillingModal,
+  onRemoveAllocationsByPayment
 }) => {
   // Quick Filter Chips State: 'all' | 'pending' | 'credit_card' | 'debit_transfer' | 'installments'
   const [quickFilter, setQuickFilter] = useState<'all' | 'pending' | 'credit_card' | 'debit_transfer' | 'installments'>('all');
@@ -964,6 +967,11 @@ export const TransactionTable: React.FC<TransactionTableProps> = ({
                           Neto Real: {formatCLP(tx.netAmount)}
                         </div>
                       )}
+                      {isPaymentOrIncome && (tx.allocatedPaymentUsage ?? 0) > 0 && (
+                        <div className="text-[10px] font-mono text-emerald-400 mt-0.5" title="Monto de este pago imputado a compras">
+                          Imputado: {formatCLP(tx.allocatedPaymentUsage || 0)}
+                        </div>
+                      )}
                       {tx.isFullyPaid && !isPaymentOrIncome && (
                         <span className="inline-block text-[10px] font-bold text-emerald-400 bg-emerald-500/10 px-1.5 py-0.2 rounded border border-emerald-500/30 mt-0.5">
                           Pagada 100%
@@ -992,10 +1000,31 @@ export const TransactionTable: React.FC<TransactionTableProps> = ({
                         {isCreditCard && isPurchase && (
                           <button
                             onClick={() => onOpenPaymentModal(tx)}
-                            className="p-1.5 bg-sky-500/10 hover:bg-sky-500/20 text-sky-400 border border-sky-500/30 rounded-lg transition"
-                            title="Vinculación FIFO: Asociar abonos / pagos a esta compra"
+                            className={`p-1.5 rounded-lg transition border ${
+                              tx.totalAllocated > 0
+                                ? 'bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-400 border-emerald-500/40'
+                                : 'bg-sky-500/10 hover:bg-sky-500/20 text-sky-400 border-sky-500/30'
+                            }`}
+                            title={
+                              tx.totalAllocated > 0
+                                ? `Pagos asociados: ${formatCLP(tx.totalAllocated)} (Clic para ver o desvincular)`
+                                : 'Asociar abonos / pagos a esta compra'
+                            }
                           >
                             <Link2 className="w-3.5 h-3.5" />
+                          </button>
+                        )}
+                        {(tx.allocatedPaymentUsage ?? 0) > 0 && onRemoveAllocationsByPayment && (
+                          <button
+                            onClick={() => {
+                              if (window.confirm(`¿Desasociar todas las compras imputadas a este pago (${formatCLP(tx.allocatedPaymentUsage || 0)})?`)) {
+                                onRemoveAllocationsByPayment(tx.id);
+                              }
+                            }}
+                            className="p-1.5 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/30 rounded-lg transition"
+                            title={`Pago imputado a compras: ${formatCLP(tx.allocatedPaymentUsage || 0)}. Clic para desasociar/reversar todas las imputaciones.`}
+                          >
+                            <Unlink className="w-3.5 h-3.5" />
                           </button>
                         )}
                         <button
@@ -1107,6 +1136,11 @@ export const TransactionTable: React.FC<TransactionTableProps> = ({
                         Real: {formatCLP(tx.netAmount)}
                       </div>
                     )}
+                    {isPaymentOrIncome && (tx.allocatedPaymentUsage ?? 0) > 0 && (
+                      <div className="text-[10px] font-mono text-emerald-400">
+                        Imputado: {formatCLP(tx.allocatedPaymentUsage || 0)}
+                      </div>
+                    )}
                     {tx.isFullyPaid && !isPaymentOrIncome && (
                       <span className="inline-block text-[10px] font-bold text-emerald-400 bg-emerald-500/10 px-1.5 py-0.5 rounded border border-emerald-500/30">
                         Pagada 100%
@@ -1159,10 +1193,31 @@ export const TransactionTable: React.FC<TransactionTableProps> = ({
                     {isCreditCard && isPurchase && (
                       <button
                         onClick={() => onOpenPaymentModal(tx)}
-                        className="p-2 rounded-xl bg-sky-500/10 text-sky-400 border border-sky-500/30 hover:bg-sky-500/20"
-                        title="Asociar Pago FIFO"
+                        className={`p-2 rounded-xl border ${
+                          tx.totalAllocated > 0
+                            ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/40 hover:bg-emerald-500/25'
+                            : 'bg-sky-500/10 text-sky-400 border-sky-500/30 hover:bg-sky-500/20'
+                        }`}
+                        title={
+                          tx.totalAllocated > 0
+                            ? `Pagos asociados: ${formatCLP(tx.totalAllocated)} (Ver o desvincular)`
+                            : 'Asociar Pago'
+                        }
                       >
                         <Link2 className="w-4 h-4" />
+                      </button>
+                    )}
+                    {(tx.allocatedPaymentUsage ?? 0) > 0 && onRemoveAllocationsByPayment && (
+                      <button
+                        onClick={() => {
+                          if (window.confirm(`¿Desasociar todas las compras imputadas a este pago (${formatCLP(tx.allocatedPaymentUsage || 0)})?`)) {
+                            onRemoveAllocationsByPayment(tx.id);
+                          }
+                        }}
+                        className="p-2 rounded-xl bg-rose-500/10 text-rose-400 border border-rose-500/30 hover:bg-rose-500/20"
+                        title="Desasociar todas las compras imputadas a este pago"
+                      >
+                        <Unlink className="w-4 h-4" />
                       </button>
                     )}
                     <button

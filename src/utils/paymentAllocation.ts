@@ -185,11 +185,13 @@ export function computeTransactions(transactions: Transaction[]): ComputedTransa
     }
 
     let unallocatedPaymentBalance = 0;
+    let allocatedPaymentUsage = 0;
     // unallocatedPaymentBalance is ONLY available for genuine credit card payments/abonos
     const isEligibleCreditCardPayment = isCreditCardPaymentTransaction(tx);
     if (isEligibleCreditCardPayment) {
       const positivePaymentAmount = Math.abs(tx.amount);
       const usedAmount = paymentUsageMap.get(tx.id) || 0;
+      allocatedPaymentUsage = usedAmount;
       unallocatedPaymentBalance = Math.max(0, positivePaymentAmount - usedAmount);
     }
 
@@ -198,17 +200,21 @@ export function computeTransactions(transactions: Transaction[]): ComputedTransa
       totalAllocated,
       netAmount,
       isFullyPaid,
-      unallocatedPaymentBalance
+      unallocatedPaymentBalance,
+      allocatedPaymentUsage
     };
   });
 }
 
 /**
- * Automatically allocates available payments to open credit card purchases using FIFO strategy.
+ * Allocates available payments to open credit card purchases using FIFO strategy strictly within the same billing cycle.
+ * Payments from one period will NEVER be allocated to purchases from another period (Issue #63).
  */
 export function autoAllocatePayments(
   transactions: Transaction[],
-  targetAccountId?: string
+  targetAccountId?: string,
+  targetPeriod?: string,
+  cardClosingDay?: number
 ): Transaction[] {
   // Copy transactions to mutate allocations
   const updatedTransactions: Transaction[] = transactions.map((tx) => ({
@@ -237,20 +243,28 @@ export function autoAllocatePayments(
       })
       .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
-    // Reset auto-allocations or build on existing
     payments.forEach((payment) => {
+      const paymentPeriod = payment.period || calculateTransactionPeriod(payment.date, cardClosingDay);
+      if (targetPeriod && paymentPeriod !== targetPeriod) return;
+
       const paymentCapacity = Math.abs(payment.amount);
-      let paymentUsed = (payment.id
+      const paymentUsed = payment.id
         ? updatedTransactions.flatMap((t) => t.allocations || [])
             .filter((a) => a.paymentTransactionId === payment.id)
             .reduce((s, a) => s + a.amount, 0)
-        : 0);
+        : 0;
 
       let remainingPayment = paymentCapacity - paymentUsed;
       if (remainingPayment <= 0) return;
 
       for (const purchase of purchases) {
         if (remainingPayment <= 0) break;
+
+        // STRICT PERIOD CHECK: Never jump across billing cycles or periods (Issue #63)
+        const purchasePeriod = purchase.period || calculateTransactionPeriod(purchase.date, cardClosingDay);
+        if (paymentPeriod && purchasePeriod && purchasePeriod !== paymentPeriod) {
+          continue;
+        }
 
         const currentAllocated = (purchase.allocations || []).reduce((s, a) => s + a.amount, 0);
         const purchaseNeeded = purchase.amount - currentAllocated;
@@ -285,13 +299,30 @@ export function autoAllocatePayments(
 
 /**
  * Manually allocates an amount from a payment transaction to a purchase transaction.
+ * Strictly verifies that both transactions belong to the same billing cycle (Issue #63).
  */
 export function addPaymentAllocation(
   transactions: Transaction[],
   purchaseId: string,
   paymentId: string,
-  amountToAllocate: number
+  amountToAllocate: number,
+  cardClosingDay?: number
 ): Transaction[] {
+  const purchaseTx = transactions.find((t) => t.id === purchaseId);
+  const paymentTx = transactions.find((t) => t.id === paymentId);
+  if (!purchaseTx || !paymentTx || amountToAllocate <= 0) {
+    return transactions;
+  }
+
+  // Strict period validation: cannot link transactions from different billing cycles
+  const purchasePeriod = purchaseTx.period || calculateTransactionPeriod(purchaseTx.date, cardClosingDay);
+  const paymentPeriod = paymentTx.period || calculateTransactionPeriod(paymentTx.date, cardClosingDay);
+
+  if (purchasePeriod && paymentPeriod && purchasePeriod !== paymentPeriod) {
+    console.warn(`[PaymentAllocation] Cannot allocate payment from period ${paymentPeriod} to purchase in period ${purchasePeriod}. Allocations are strictly restricted to the same billing cycle (Issue #63).`);
+    return transactions;
+  }
+
   return transactions.map((tx) => {
     if (tx.id === purchaseId) {
       const existingAllocations = tx.allocations ? [...tx.allocations] : [];
@@ -335,6 +366,42 @@ export function removePaymentAllocation(
       return {
         ...tx,
         allocations: tx.allocations.filter((a) => a.id !== allocationId)
+      };
+    }
+    return tx;
+  });
+}
+
+/**
+ * Cleans all allocation links from a specific purchase (Issue #63).
+ */
+export function removeAllAllocationsFromPurchase(
+  transactions: Transaction[],
+  purchaseId: string
+): Transaction[] {
+  return transactions.map((tx) => {
+    if (tx.id === purchaseId) {
+      return {
+        ...tx,
+        allocations: []
+      };
+    }
+    return tx;
+  });
+}
+
+/**
+ * Removes all allocation links across all purchases that originate from a specific payment (Issue #63).
+ */
+export function removeAllocationsByPayment(
+  transactions: Transaction[],
+  paymentId: string
+): Transaction[] {
+  return transactions.map((tx) => {
+    if (tx.allocations && tx.allocations.some((a) => a.paymentTransactionId === paymentId)) {
+      return {
+        ...tx,
+        allocations: tx.allocations.filter((a) => a.paymentTransactionId !== paymentId)
       };
     }
     return tx;

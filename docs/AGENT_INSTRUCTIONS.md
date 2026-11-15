@@ -85,8 +85,11 @@ FinanzAPP/
 > **Regla de Oro**: NUNCA programes cambios directamente sobre la rama `main`. Cada nueva funcionalidad o corrección debe vivir en su propia rama antes de ser fusionada.
 
 ### Ciclo de Desarrollo Estándar:
-1. **Crear y cambiar a una rama de funcionalidad**:
+1. **Sincronizar repositorio, Crear y cambiar a una rama de funcionalidad**:
+   - Asegurarse de estar en la rama principal (`main` o `develop` según corresponda) y actualizada antes de ramificar:
    ```bash
+   git checkout main
+   git pull origin main
    git checkout main
    git checkout -b feature/nombre-de-la-funcionalidad
    ```

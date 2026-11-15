@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 import { Account, Transaction, Credit, CreditCardBillingRecord } from '../types';
 import { getBillingCycleSummary } from '../utils/billingCycleUtils';
+import { calculateTransactionPeriod } from '../utils/dateUtils';
 import {
   isPaymentOrIncomeTransaction,
   isCreditCardPaymentTransaction,
@@ -110,6 +111,10 @@ export const PayCreditCardModal: React.FC<PayCreditCardModalProps> = ({
         const unallocated = tx.unallocatedPaymentBalance ?? Math.abs(tx.amount);
         if (unallocated <= 0) return false;
 
+        // Strict Period Restriction: Payment must belong strictly to the target billing cycle (Issue #63)
+        const paymentPeriod = tx.period || calculateTransactionPeriod(tx.date, card.closingDay);
+        if (paymentPeriod !== selectedPeriod) return false;
+
         // Is it classified as payment / abono?
         if (
           isCreditCardPaymentTransaction(tx) ||
@@ -139,7 +144,7 @@ export const PayCreditCardModal: React.FC<PayCreditCardModalProps> = ({
         return isDescPayment;
       })
       .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-  }, [computedAllTransactions, card]);
+  }, [computedAllTransactions, card, selectedPeriod]);
 
   const [selectedLinkedPaymentId, setSelectedLinkedPaymentId] = useState<string>(
     candidatePayments[0]?.id || ''

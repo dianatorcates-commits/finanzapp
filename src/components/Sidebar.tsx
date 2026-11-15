@@ -39,7 +39,6 @@ interface SidebarProps {
   onOpenTelegramModal: () => void;
   onOpenAuthModal: () => void;
   onSignOut: () => void;
-  onAutoAllocate: () => void;
   onResetDemo: () => void;
   onExport: () => void;
   isOpenMobile?: boolean;
@@ -61,7 +60,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onOpenTelegramModal,
   onOpenAuthModal,
   onSignOut,
-  onAutoAllocate,
   onResetDemo,
   onExport,
   isOpenMobile = false,
@@ -278,18 +276,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
           <p className="text-[10px] font-mono font-bold text-[#A098B0] uppercase tracking-wider px-3 mb-1">
             // Utilidades
           </p>
-
-          <button
-            onClick={() => {
-              onAutoAllocate();
-              if (onCloseMobile) onCloseMobile();
-            }}
-            className="w-full flex items-center gap-2.5 px-3 py-1.5 rounded-xl text-xs font-medium text-[#A098B0] hover:text-[#00FFCC] hover:bg-[#111118] transition group"
-            title="Asociar pagos cronológicamente a compras en tarjeta de crédito"
-          >
-            <Link2 className="w-3.5 h-3.5 text-[#A098B0] group-hover:text-[#00FFCC] transition" />
-            <span>Auto-asociar Pagos</span>
-          </button>
 
           <button
             onClick={() => {

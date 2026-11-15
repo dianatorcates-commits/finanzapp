@@ -19,7 +19,7 @@ import {
 } from './types';
 import { INITIAL_ACCOUNTS, INITIAL_TRANSACTIONS, DEMO_ACCOUNTS, DEMO_TRANSACTIONS, isDemoAccount } from './utils/demoData';
 import { DEFAULT_CATEGORY_MAPPINGS, DEFAULT_AUTO_RULES, getParentCategory, autoCategorize, applyAutoRulesToTransaction } from './utils/categorizer';
-import { computeTransactions, autoAllocatePayments, addPaymentAllocation, removePaymentAllocation, isPaymentOrIncomeTransaction, allocateExistingPaymentToCycle } from './utils/paymentAllocation';
+import { computeTransactions, autoAllocatePayments, addPaymentAllocation, removePaymentAllocation, removeAllAllocationsFromPurchase, removeAllocationsByPayment, isPaymentOrIncomeTransaction, allocateExistingPaymentToCycle } from './utils/paymentAllocation';
 import { supabase } from './utils/supabaseClient';
 import {
   fetchUserData,
@@ -823,14 +823,6 @@ export function App() {
   }, [computedTransactions, filters, accounts, categoryMappings]);
 
   // Handlers
-  const handleAutoAllocate = () => {
-    const updated = autoAllocatePayments(
-      transactions,
-      filters.accountId === 'ALL' ? undefined : filters.accountId
-    );
-    setTransactions(updated);
-  };
-
   const handleResetDemo = () => {
     if (window.confirm('¿Restablecer todos los datos a la cartola de ejemplo original?')) {
       setAccounts(INITIAL_ACCOUNTS);
@@ -1439,12 +1431,51 @@ export function App() {
     }
   };
 
-  const handleAddAllocation = (purchaseId: string, paymentId: string, amount: number) => {
-    setTransactions((prev) => addPaymentAllocation(prev, purchaseId, paymentId, amount));
+  const handleAddAllocation = async (purchaseId: string, paymentId: string, amount: number) => {
+    const cardAcc = accounts.find((a) => a.id === selectedPurchaseForPayment?.accountId);
+    const updated = addPaymentAllocation(transactions, purchaseId, paymentId, amount, cardAcc?.closingDay);
+    setTransactions(updated);
+    if (currentUser) {
+      const updatedPurchase = updated.find((t) => t.id === purchaseId);
+      if (updatedPurchase) {
+        await saveCloudTransaction(currentUser.id, updatedPurchase);
+      }
+    }
   };
 
-  const handleRemoveAllocation = (purchaseId: string, allocationId: string) => {
-    setTransactions((prev) => removePaymentAllocation(prev, purchaseId, allocationId));
+  const handleRemoveAllocation = async (purchaseId: string, allocationId: string) => {
+    const updated = removePaymentAllocation(transactions, purchaseId, allocationId);
+    setTransactions(updated);
+    if (currentUser) {
+      const updatedPurchase = updated.find((t) => t.id === purchaseId);
+      if (updatedPurchase) {
+        await saveCloudTransaction(currentUser.id, updatedPurchase);
+      }
+    }
+  };
+
+  const handleRemoveAllAllocationsFromPurchase = async (purchaseId: string) => {
+    const updated = removeAllAllocationsFromPurchase(transactions, purchaseId);
+    setTransactions(updated);
+    if (currentUser) {
+      const updatedPurchase = updated.find((t) => t.id === purchaseId);
+      if (updatedPurchase) {
+        await saveCloudTransaction(currentUser.id, updatedPurchase);
+      }
+    }
+  };
+
+  const handleRemoveAllocationsByPayment = async (paymentId: string) => {
+    const updated = removeAllocationsByPayment(transactions, paymentId);
+    setTransactions(updated);
+    if (currentUser) {
+      const touchedPurchases = updated.filter((t) =>
+        transactions.some((prev) => prev.id === t.id && prev.allocations?.some((a) => a.paymentTransactionId === paymentId))
+      );
+      if (touchedPurchases.length > 0) {
+        await saveCloudTransactionsBatch(currentUser.id, touchedPurchases, accounts);
+      }
+    }
   };
 
   const handleConfirmBillingPayment = async (data: ConfirmBillingPaymentData) => {
@@ -1494,14 +1525,12 @@ export function App() {
       created_at: new Date().toISOString()
     };
 
-    // 3. Integración y auto-imputación en compras pendientes de la tarjeta
+    // 3. Integración de transacciones sin auto-imputación ciega ni silenciosa (Issue #63)
     const combinedTxs = [egresoTx, abonoTx, ...transactions];
-    const allocatedTxs = autoAllocatePayments(combinedTxs, cardAcc.id);
-
-    setTransactions(allocatedTxs);
+    setTransactions(combinedTxs);
 
     // 4. Conciliación formal en credit_card_billings (Issue #57)
-    const computedAllocated = computeTransactions(allocatedTxs);
+    const computedAllocated = computeTransactions(combinedTxs);
     const cardCycleTxs = computedAllocated.filter((tx) => {
       if (tx.accountId !== cardAcc.id) return false;
       const txPeriod = tx.period || calculateTransactionPeriod(tx.date, cardAcc.closingDay);
@@ -1510,7 +1539,7 @@ export function App() {
       return true;
     });
     const totalBilled = cardCycleTxs.reduce((sum, tx) => sum + Math.abs(tx.amount), 0);
-    const pendingBalance = cardCycleTxs.reduce((sum, tx) => sum + tx.netAmount, 0);
+    const pendingBalance = Math.max(0, totalBilled - Math.abs(data.amount));
 
     const billingStatus: 'paid' | 'min_paid' | 'partial' =
       pendingBalance === 0 ? 'paid' : data.paymentType === 'min' ? 'min_paid' : 'partial';
@@ -1730,7 +1759,6 @@ export function App() {
         onOpenTelegramModal={() => (currentUser ? setIsTelegramModalOpen(true) : setIsAuthModalOpen(true))}
         onOpenAuthModal={() => setIsAuthModalOpen(true)}
         onSignOut={handleSignOut}
-        onAutoAllocate={handleAutoAllocate}
         onResetDemo={handleResetDemo}
         onExport={handleExportExcel}
         isOpenMobile={isMobileSidebarOpen}
@@ -1880,6 +1908,7 @@ export function App() {
                 onDeleteTransactionsBatch={handleDeleteTransactionsBatch}
                 onAddTransaction={handleAddManualTransaction}
                 onOpenBillingModal={() => setIsBillingModalOpen(true)}
+                onRemoveAllocationsByPayment={handleRemoveAllocationsByPayment}
               />
             ) : activeTab === 'categories' ? (
               <CategoryManagementView
@@ -1984,7 +2013,6 @@ export function App() {
         isTelegramLinked={Boolean(telegramProfile?.telegram_chat_id)}
         onOpenAddTransaction={() => setIsAddTransactionModalOpen(true)}
         onOpenImport={() => setIsImportModalOpen(true)}
-        onOpenAutoAllocate={handleAutoAllocate}
         onOpenTelegramModal={() => (currentUser ? setIsTelegramModalOpen(true) : setIsAuthModalOpen(true))}
         onOpenAuthModal={() => setIsAuthModalOpen(true)}
         onSignOut={handleSignOut}
@@ -2003,6 +2031,7 @@ export function App() {
           onClose={() => setSelectedPurchaseForPayment(null)}
           onAddAllocation={handleAddAllocation}
           onRemoveAllocation={handleRemoveAllocation}
+          onRemoveAllAllocations={handleRemoveAllAllocationsFromPurchase}
           onOpenRulesConfig={() => setIsBudgetModalOpen(true)}
         />
       )}

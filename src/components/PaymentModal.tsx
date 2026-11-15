@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { X, Link2, Trash2, CheckCircle2, AlertCircle, ArrowRight, Building2, CreditCard, Settings } from 'lucide-react';
 import { ComputedTransaction, Account, AutoCategoryRule } from '../types';
 import { isCreditCardPaymentTransaction } from '../utils/paymentAllocation';
+import { calculateTransactionPeriod } from '../utils/dateUtils';
 import { formatCLP } from './MetricCards';
 
 interface PaymentModalProps {
@@ -13,6 +14,7 @@ interface PaymentModalProps {
   onClose: () => void;
   onAddAllocation: (purchaseId: string, paymentId: string, amount: number) => void;
   onRemoveAllocation: (purchaseId: string, allocationId: string) => void;
+  onRemoveAllAllocations?: (purchaseId: string) => void;
   onOpenRulesConfig?: () => void;
 }
 
@@ -25,6 +27,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
   onClose,
   onAddAllocation,
   onRemoveAllocation,
+  onRemoveAllAllocations,
   onOpenRulesConfig
 }) => {
   // Cross-account filter toggle (defaults to false to only show payments on this card by default)
@@ -100,10 +103,21 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
     return false;
   };
 
-  // Filter available payments based on eligibility and selected account scope
+  // Determine strict billing cycle period of the selected purchase
+  const purchasePeriod = purchase.period || calculateTransactionPeriod(purchase.date, account?.closingDay);
+
+  // Filter available payments strictly within the same billing cycle (Issue #63)
   const availablePayments = allTransactions.filter((tx) => {
     if (!isEligiblePayment(tx)) return false;
     if (!showAllAccounts && tx.accountId !== purchase.accountId) return false;
+
+    // Strict Period Restriction: Payment must match the same billing cycle period as the purchase (Issue #63)
+    const originAcc = accounts.find((a) => a.id === tx.accountId);
+    const txPeriod = tx.period || calculateTransactionPeriod(tx.date, originAcc?.closingDay || account?.closingDay);
+    if (purchasePeriod && txPeriod && txPeriod !== purchasePeriod) {
+      return false;
+    }
+
     return true;
   });
 
@@ -200,10 +214,23 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
           
           {/* Active Allocations List */}
           <div>
-            <h5 className="text-xs font-bold text-slate-700 uppercase tracking-wider mb-2 flex items-center gap-1">
-              <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-              <span>Pagos Asociados Actualmente</span>
-            </h5>
+            <div className="flex items-center justify-between mb-2">
+              <h5 className="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1">
+                <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                <span>Pagos Asociados Actualmente</span>
+              </h5>
+              {purchase.allocations.length > 0 && onRemoveAllAllocations && (
+                <button
+                  type="button"
+                  onClick={() => onRemoveAllAllocations(purchase.id)}
+                  className="text-[11px] font-bold text-rose-600 hover:text-rose-700 hover:bg-rose-50 px-2 py-0.5 rounded border border-rose-200 flex items-center gap-1 transition"
+                  title="Quitar todas las asociaciones e imputaciones de esta compra"
+                >
+                  <Trash2 className="w-3 h-3" />
+                  <span>Desasociar todas</span>
+                </button>
+              )}
+            </div>
             
             {purchase.allocations.length > 0 ? (
               <div className="space-y-2">
@@ -262,6 +289,12 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
                 <span className="text-[11px] text-slate-400">
                   {availablePayments.length} abono(s) disponible(s)
                 </span>
+              </div>
+
+              {/* Cycle Restriction Notice (Issue #63) */}
+              <div className="px-3 py-1.5 rounded-lg bg-sky-50 border border-sky-200 text-sky-800 text-[11px] flex items-center justify-between">
+                <span>Ciclo de facturación: <strong className="font-mono">{purchasePeriod}</strong></span>
+                <span className="text-[10px] text-sky-600 font-medium">Imputaciones restringidas exclusivamente al ciclo</span>
               </div>
 
               {/* Cross-Account Filter Switch & Rules Config Button */}
@@ -368,11 +401,10 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
                 <div className="bg-amber-50 border border-amber-200 p-3.5 rounded-xl flex items-start gap-2.5 text-amber-800 text-xs">
                   <AlertCircle className="w-5 h-5 flex-shrink-0 text-amber-600 mt-0.5" />
                   <div className="space-y-2 flex-1">
-                    <p className="font-bold">No hay pagos con saldo disponible para asociar.</p>
+                    <p className="font-bold">No hay pagos con saldo disponible en el ciclo {purchasePeriod}.</p>
                     <p className="text-amber-700 leading-relaxed">
-                      {!showAllAccounts
-                        ? 'Activa el interruptor superior para buscar pagos o transferencias en tu Cuenta Corriente u otras cuentas.'
-                        : 'Puedes registrar un abono manualmente con monto negativo o cargar una cartola con el pago de tu tarjeta.'}
+                      Las imputaciones están estrictamente limitadas al mismo ciclo de facturación (<strong className="font-mono">{purchasePeriod}</strong>) para evitar desajustes contables entre meses.
+                      {!showAllAccounts && ' Si pagaste desde tu Cuenta Corriente, activa el interruptor superior para buscar pagos en otras cuentas.'}
                     </p>
                     {onOpenRulesConfig && (
                       <button

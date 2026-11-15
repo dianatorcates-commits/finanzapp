@@ -35,7 +35,6 @@ export interface BottomNavBarProps {
   isTelegramLinked?: boolean;
   onOpenImport: () => void;
   onOpenAddTransaction?: () => void;
-  onOpenAutoAllocate: () => void;
   onOpenTelegramModal: () => void;
   onOpenAuthModal: () => void;
   onSignOut: () => void;
@@ -53,7 +52,6 @@ export const BottomNavBar: React.FC<BottomNavBarProps> = ({
   isTelegramLinked = false,
   onOpenImport,
   onOpenAddTransaction,
-  onOpenAutoAllocate,
   onOpenTelegramModal,
   onOpenAuthModal,
   onSignOut,
@@ -247,17 +245,6 @@ export const BottomNavBar: React.FC<BottomNavBarProps> = ({
             <div className="space-y-1 pt-2 border-t border-[#302840]/60">
               <button
                 onClick={() => {
-                  onOpenAutoAllocate();
-                  setIsMenuOpen(false);
-                }}
-                className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs text-slate-300 hover:text-emerald-400 transition"
-              >
-                <Link2 className="w-4 h-4 text-emerald-400" />
-                <span>Auto-asociar Pagos de TC</span>
-              </button>
-
-              <button
-                onClick={() => {
                   onExport();
                   setIsMenuOpen(false);
                 }}
@@ -336,12 +323,13 @@ export const BottomNavBar: React.FC<BottomNavBarProps> = ({
 
           {/* 4. Conciliar (con Badge de Duplicados) */}
           <button
-            onClick={() => {
-              onSelectTab('transactions');
-              onOpenAutoAllocate();
-            }}
-            className="flex flex-col items-center justify-center flex-1 h-full min-h-[48px] rounded-xl transition-all select-none touch-manipulation text-[#A098B0] hover:text-[#00FFCC] relative"
-            title="Conciliar y auto-asociar pagos de TC"
+            onClick={() => onSelectTab('transactions')}
+            className={`flex flex-col items-center justify-center flex-1 h-full min-h-[48px] rounded-xl transition-all select-none touch-manipulation relative ${
+              activeTab === 'transactions'
+                ? 'text-[#00FFCC] font-bold'
+                : 'text-[#A098B0] hover:text-[#00FFCC]'
+            }`}
+            title="Ver transacciones y conciliar"
           >
             <div className="p-1 rounded-xl relative">
               <Scale className="w-5 h-5" />
