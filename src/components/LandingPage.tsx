@@ -335,10 +335,10 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onOpenAuth, onTryDemo 
 
             {/* NÚCLEO CENTRAL (FinanzApp Central Engine) */}
             <div className="md:col-span-6 my-2 md:my-0 order-1 md:order-2">
-              <div className="relative p-5 sm:p-7 rounded-3xl bg-[#0B0F19]/90 border-2 border-[#00F2FE]/40 backdrop-blur-2xl shadow-[0_0_40px_rgba(0,242,254,0.2)] panel-rim text-left transition transform hover:scale-[1.01]">
+              <div className="relative p-4 sm:p-5 md:p-7 rounded-3xl bg-[#0B0F19]/90 border-2 border-[#00F2FE]/40 backdrop-blur-2xl shadow-[0_0_40px_rgba(0,242,254,0.2)] panel-rim text-left transition transform hover:scale-[1.01]">
                 
                 {/* Engine Glowing Pulse Badge */}
-                <div className="flex items-center justify-between border-b border-[#302840] pb-3 mb-4">
+                <div className="flex items-center justify-between border-b border-[#302840] pb-2.5 mb-3 md:pb-3 md:mb-4">
                   <div className="flex items-center gap-2.5">
                     <div className="p-2 rounded-xl bg-gradient-to-tr from-[#00F2FE] to-[#FF2D78] text-[#05070E] shadow-md shadow-[#00F2FE]/30">
                       <Zap className="w-4 h-4 stroke-[3]" />
@@ -357,8 +357,8 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onOpenAuth, onTryDemo 
                 </div>
 
                 {/* Main Hero Metric: Monto Real Utilizado */}
-                <div className="bg-[#05070E]/90 p-4 rounded-2xl border border-[#00F2FE]/30 mb-4 shadow-inner">
-                  <div className="flex items-center justify-between text-xs text-[#A098B0] mb-1.5">
+                <div className="bg-[#05070E]/90 p-3.5 md:p-4 rounded-2xl border border-[#00F2FE]/30 mb-0 md:mb-4 shadow-inner">
+                  <div className="flex flex-wrap items-center justify-between gap-1.5 text-xs text-[#A098B0] mb-1.5">
                     <span className="font-mono font-bold uppercase tracking-wider text-[#00F2FE] text-[10px]">
                       Monto Real Utilizado Calculado
                     </span>
@@ -370,13 +370,13 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onOpenAuth, onTryDemo 
                     $340.000 <span className="text-xs font-normal text-[#A098B0] font-sans">CLP a pagar</span>
                   </div>
                   <p className="text-[11px] text-[#00FF88] font-mono font-bold mt-1.5 flex items-center gap-1.5">
-                    <CheckCircle2 className="w-3.5 h-3.5" />
+                    <CheckCircle2 className="w-3.5 h-3.5 flex-shrink-0" />
                     <span>3 compras cubiertas al 100% por abonos parciales</span>
                   </p>
                 </div>
 
-                {/* Budget Progress Bar */}
-                <div className="space-y-1.5 mb-4">
+                {/* Budget Progress Bar (Hidden on mobile < md to keep card compact) */}
+                <div className="hidden md:block space-y-1.5 mb-4">
                   <div className="flex justify-between text-xs font-semibold">
                     <span className="text-[#A098B0] text-[11px] font-headline">Presupuesto Mensual</span>
                     <span className="text-[#00F2FE] text-[11px] font-mono font-bold">56% ($340.000 / $600.000)</span>
@@ -389,8 +389,8 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onOpenAuth, onTryDemo 
                   </div>
                 </div>
 
-                {/* Live Processed Transactions Stream */}
-                <div className="space-y-2 pt-2.5 border-t border-[#302840]">
+                {/* Live Processed Transactions Stream (Hidden on mobile < md to keep card compact) */}
+                <div className="hidden md:block space-y-2 pt-2.5 border-t border-[#302840]">
                   <span className="text-[10px] font-mono font-bold text-[#A098B0] uppercase tracking-wider block">
                     Flujo de transacciones asociadas:
                   </span>
