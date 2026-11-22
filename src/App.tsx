@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import * as XLSX from 'xlsx';
-import { SlidersHorizontal, Lock, Clock, X } from 'lucide-react';
+import { SlidersHorizontal, Lock, Clock, X, CheckCircle2 } from 'lucide-react';
 import { useSessionTimeout } from './hooks/useSessionTimeout';
 import {
   Account,
@@ -16,8 +16,16 @@ import {
   DashboardConfig,
   DEFAULT_DASHBOARD_CONFIG,
   CreditCardBillingRecord,
-  SavingsGoalContribution
+  SavingsGoalContribution,
+  LegalTab,
+  LegalConsentRecord
 } from './types';
+import {
+  LEGAL_TERMS_VERSION,
+  LEGAL_PRIVACY_VERSION,
+  COOKIE_NOTICE_STORAGE_KEY,
+  PENDING_LEGAL_CONSENT_KEY
+} from './constants/legal';
 import { INITIAL_ACCOUNTS, INITIAL_TRANSACTIONS, DEMO_ACCOUNTS, DEMO_TRANSACTIONS, isDemoAccount } from './utils/demoData';
 import { DEFAULT_CATEGORY_MAPPINGS, DEFAULT_AUTO_RULES, getParentCategory, autoCategorize, applyAutoRulesToTransaction } from './utils/categorizer';
 import { computeTransactions, autoAllocatePayments, addPaymentAllocation, removePaymentAllocation, removeAllAllocationsFromPurchase, removeAllocationsByPayment, isPaymentOrIncomeTransaction } from './utils/paymentAllocation';
@@ -55,7 +63,10 @@ import {
   deleteCreditCardBilling,
   fetchGoalContributions,
   saveGoalContribution,
-  deleteGoalContribution
+  deleteGoalContribution,
+  fetchLatestLegalConsent,
+  recordLegalConsent,
+  deleteUserAccountCompletely
 } from './services/supabaseService';
 import { calculateTransactionPeriod } from './utils/dateUtils';
 import { Sidebar } from './components/Sidebar';
@@ -82,6 +93,10 @@ import { BottomNavBar } from './components/BottomNavBar';
 import { DuplicateAlertBanner } from './components/DuplicateAlertBanner';
 import { WakingMascotWidget } from './components/WakingMascotWidget';
 import { MobileDashboardView } from './components/MobileDashboardView';
+import { LegalModal } from './components/LegalModal';
+import { ConsentGateModal } from './components/ConsentGateModal';
+import { AccountPrivacyModal } from './components/AccountPrivacyModal';
+import { CookieNoticeBanner } from './components/CookieNoticeBanner';
 
 const STORAGE_KEY_ACCOUNTS = 'finanzapp_accounts_v1';
 const STORAGE_KEY_TRANSACTIONS = 'finanzapp_transactions_v1';
@@ -131,6 +146,15 @@ export function App() {
   const [viewMode, setViewMode] = useState<'landing' | 'app'>('landing');
   const [isCloudLoading, setIsCloudLoading] = useState(false);
   const [sessionExpiredMessage, setSessionExpiredMessage] = useState<string | null>(null);
+
+  // Legal Compliance, Consent Gate & Account Deletion State (Issue #72)
+  const [legalModalTab, setLegalModalTab] = useState<LegalTab | null>(null);
+  const [isAccountPrivacyOpen, setIsAccountPrivacyOpen] = useState(false);
+  const [latestLegalConsent, setLatestLegalConsent] = useState<LegalConsentRecord | null>(null);
+  const [requiresLegalConsent, setRequiresLegalConsent] = useState(false);
+  const [isSavingLegalConsent, setIsSavingLegalConsent] = useState(false);
+  const [legalConsentError, setLegalConsentError] = useState<string | null>(null);
+  const [accountDeletedMessage, setAccountDeletedMessage] = useState<string | null>(null);
 
   // Security: Clean up legacy un-isolated keys from localStorage on startup to prevent contamination
   useEffect(() => {
@@ -560,6 +584,132 @@ export function App() {
     };
   }, [currentUser?.id]);
 
+  // Verify and sync legal consent record on authenticated session (Issue #72)
+  const verifyAndSyncLegalConsent = useCallback(async (user: any) => {
+    if (!user?.id) return;
+
+    // 1. Check pending OAuth / signup consent captured before redirect
+    try {
+      const pendingRaw = sessionStorage.getItem(PENDING_LEGAL_CONSENT_KEY);
+      if (pendingRaw) {
+        const pending = JSON.parse(pendingRaw);
+        if (
+          pending?.termsVersion === LEGAL_TERMS_VERSION &&
+          pending?.privacyVersion === LEGAL_PRIVACY_VERSION
+        ) {
+          sessionStorage.removeItem(PENDING_LEGAL_CONSENT_KEY);
+          const acceptedAt = pending.acceptedAt || new Date().toISOString();
+          const source = pending.source === 'google_oauth' ? 'google_oauth' : 'email_signup';
+          await recordLegalConsent({
+            userId: user.id,
+            email: user.email,
+            termsVersion: LEGAL_TERMS_VERSION,
+            privacyVersion: LEGAL_PRIVACY_VERSION,
+            acceptedAt,
+            source
+          });
+          setLatestLegalConsent({
+            userId: user.id,
+            email: user.email || undefined,
+            termsVersion: LEGAL_TERMS_VERSION,
+            privacyVersion: LEGAL_PRIVACY_VERSION,
+            isAdultConfirmed: true,
+            acceptedAt,
+            source
+          });
+          setRequiresLegalConsent(false);
+          return;
+        }
+      }
+    } catch {
+      // Continue with cloud/metadata check
+    }
+
+    // 2. Check auditable table user_legal_consents
+    const { record, tableMissing } = await fetchLatestLegalConsent(user.id);
+    if (
+      record &&
+      record.termsVersion === LEGAL_TERMS_VERSION &&
+      record.privacyVersion === LEGAL_PRIVACY_VERSION
+    ) {
+      setLatestLegalConsent(record);
+      setRequiresLegalConsent(false);
+      return;
+    }
+
+    // 3. Fallback: check Supabase auth user_metadata (e.g. email confirmation signup or pre-migration fallback)
+    const meta = user.user_metadata || {};
+    if (
+      meta.terms_version === LEGAL_TERMS_VERSION &&
+      meta.privacy_version === LEGAL_PRIVACY_VERSION
+    ) {
+      const acceptedAt = meta.terms_accepted_at || new Date().toISOString();
+      const metaRecord: LegalConsentRecord = {
+        userId: user.id,
+        email: user.email || undefined,
+        termsVersion: LEGAL_TERMS_VERSION,
+        privacyVersion: LEGAL_PRIVACY_VERSION,
+        isAdultConfirmed: Boolean(meta.is_adult_confirmed ?? true),
+        acceptedAt,
+        source: 'email_signup'
+      };
+      if (!tableMissing) {
+        void recordLegalConsent({
+          userId: user.id,
+          email: user.email,
+          termsVersion: LEGAL_TERMS_VERSION,
+          privacyVersion: LEGAL_PRIVACY_VERSION,
+          acceptedAt,
+          source: 'email_signup'
+        });
+      }
+      setLatestLegalConsent(metaRecord);
+      setRequiresLegalConsent(false);
+      return;
+    }
+
+    // 4. Existing/OAuth user without valid consent for current versions -> trigger ConsentGateModal
+    setLatestLegalConsent(record);
+    setRequiresLegalConsent(true);
+  }, []);
+
+  const handleAcceptLegalConsent = async () => {
+    if (!currentUser?.id) return;
+    setIsSavingLegalConsent(true);
+    setLegalConsentError(null);
+    try {
+      const nowIso = new Date().toISOString();
+      const result = await recordLegalConsent({
+        userId: currentUser.id,
+        email: currentUser.email,
+        termsVersion: LEGAL_TERMS_VERSION,
+        privacyVersion: LEGAL_PRIVACY_VERSION,
+        acceptedAt: nowIso,
+        source: 'post_login_modal'
+      });
+
+      if (!result.savedToTable && !result.savedToAuthMeta) {
+        setLegalConsentError(
+          'No pudimos registrar tu aceptación en la nube. Verifica tu conexión e inténtalo nuevamente.'
+        );
+        return;
+      }
+
+      setLatestLegalConsent({
+        userId: currentUser.id,
+        email: currentUser.email || undefined,
+        termsVersion: LEGAL_TERMS_VERSION,
+        privacyVersion: LEGAL_PRIVACY_VERSION,
+        isAdultConfirmed: true,
+        acceptedAt: nowIso,
+        source: 'post_login_modal'
+      });
+      setRequiresLegalConsent(false);
+    } finally {
+      setIsSavingLegalConsent(false);
+    }
+  };
+
   // Auth Listener with Protection against Session Refresh Overwriting
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -575,8 +725,10 @@ export function App() {
           setCreditBillings([]);
           setGoalContributions([]);
           setTelegramProfile(null);
+          setAccountDeletedMessage(null);
           lastLoadedUserIdRef.current = user.id;
           loadCloudData(user.id);
+          void verifyAndSyncLegalConsent(user);
         }
         setCurrentUser(user);
         setViewMode('app');
@@ -608,6 +760,13 @@ export function App() {
         setGoalContributions([]);
         setTelegramProfile(null);
         setDashboardConfig(DEFAULT_DASHBOARD_CONFIG);
+        setLatestLegalConsent(null);
+        setRequiresLegalConsent(false);
+        setIsAccountPrivacyOpen(false);
+        setLegalConsentError(null);
+        try {
+          sessionStorage.removeItem(PENDING_LEGAL_CONSENT_KEY);
+        } catch {}
         hasAutoSelectedMonth.current = false;
         setFilters({
           month: 'ALL',
@@ -634,8 +793,10 @@ export function App() {
           setCreditBillings([]);
           setGoalContributions([]);
           setTelegramProfile(null);
+          setAccountDeletedMessage(null);
           lastLoadedUserIdRef.current = user.id;
           loadCloudData(user.id);
+          void verifyAndSyncLegalConsent(user);
         }
         setCurrentUser(user);
         setViewMode('app');
@@ -647,7 +808,7 @@ export function App() {
     });
 
     return () => subscription.unsubscribe();
-  }, []);
+  }, [verifyAndSyncLegalConsent]);
 
   const handleSignOut = async () => {
     const signingOutUserId = currentUser?.id;
@@ -682,10 +843,15 @@ export function App() {
     lastLoadedUserIdRef.current = null;
     setIsCloudLoading(false);
     setTelegramProfile(null);
+    setLatestLegalConsent(null);
+    setRequiresLegalConsent(false);
+    setIsAccountPrivacyOpen(false);
+    setLegalConsentError(null);
     setViewMode('landing');
 
     // 2. Comprehensive cleanup of user-specific and generic cache keys from localStorage
     try {
+      sessionStorage.removeItem(PENDING_LEGAL_CONSENT_KEY);
       if (signingOutUserId) {
         localStorage.removeItem(`${STORAGE_KEY_ACCOUNTS}_${signingOutUserId}`);
         localStorage.removeItem(`${STORAGE_KEY_TRANSACTIONS}_${signingOutUserId}`);
@@ -708,11 +874,15 @@ export function App() {
       localStorage.removeItem(STORAGE_KEY_SAVINGS_GOALS);
       localStorage.removeItem(`${STORAGE_KEY_SAVINGS_GOALS}_demo`);
 
-      // Collect and remove any localStorage keys containing finanzapp transactions or accounts
+      // Collect and remove any localStorage keys containing finanzapp transactions or accounts (preserving technical cookie notice ack)
       const keysToRemove: string[] = [];
       for (let i = 0; i < localStorage.length; i++) {
         const key = localStorage.key(i);
-        if (key && (key.startsWith('finanzapp_') || key.includes('transactions') || key.includes('accounts'))) {
+        if (
+          key &&
+          key !== COOKIE_NOTICE_STORAGE_KEY &&
+          (key.startsWith('finanzapp_') || key.includes('transactions') || key.includes('accounts'))
+        ) {
           keysToRemove.push(key);
         }
       }
@@ -723,6 +893,74 @@ export function App() {
 
     // 3. Complete Supabase signOut
     await signOutUser();
+  };
+
+  // Permanent & Complete Account + Data Deletion (Issue #72)
+  const handleDeleteUserAccount = async () => {
+    const res = await deleteUserAccountCompletely();
+    if (!res.success) {
+      throw new Error(res.error || 'No se pudo eliminar la cuenta.');
+    }
+
+    hasAutoSelectedMonth.current = false;
+    setFilters({
+      month: 'ALL',
+      accountId: 'ALL',
+      accountType: 'ALL',
+      transactionType: 'ALL',
+      categories: [],
+      subcategories: [],
+      searchQuery: '',
+      onlyPendingTC: false
+    });
+
+    setAccounts([]);
+    setTransactions([]);
+    setCategoryMappings(DEFAULT_CATEGORY_MAPPINGS);
+    setAutoRules(DEFAULT_AUTO_RULES);
+    setBudgets([
+      { id: 'b-1', categoryName: 'Alimentación', monthlyLimit: 350000 },
+      { id: 'b-2', categoryName: 'Transporte', monthlyLimit: 120000 },
+      { id: 'b-3', categoryName: 'Compras', monthlyLimit: 200000 }
+    ]);
+    setSavingsGoals([]);
+    setCredits([]);
+    setCreditBillings([]);
+    setGoalContributions([]);
+    setDashboardConfig(DEFAULT_DASHBOARD_CONFIG);
+    setTelegramProfile(null);
+    setCurrentUser(null);
+    lastLoadedUserIdRef.current = null;
+    setIsCloudLoading(false);
+    setLatestLegalConsent(null);
+    setRequiresLegalConsent(false);
+    setIsAccountPrivacyOpen(false);
+    setLegalConsentError(null);
+
+    try {
+      const keysToRemove: string[] = [];
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (
+          key &&
+          (key.startsWith('finanzapp_') ||
+            key.includes('transactions') ||
+            key.includes('accounts') ||
+            key.startsWith('sb-'))
+        ) {
+          keysToRemove.push(key);
+        }
+      }
+      keysToRemove.forEach((k) => localStorage.removeItem(k));
+      sessionStorage.clear();
+    } catch (e) {
+      console.warn('Error clearing browser storage after account deletion', e);
+    }
+
+    setViewMode('landing');
+    setAccountDeletedMessage(
+      'Tu cuenta y todos tus datos personales y financieros han sido eliminados permanentemente.'
+    );
   };
 
   // Keep a stable ref to handleSignOut for inactivity auto-logout (Issue #46)
@@ -1729,6 +1967,30 @@ export function App() {
   if (!currentUser && viewMode === 'landing') {
     return (
       <>
+        {accountDeletedMessage && (
+          <div
+            role="status"
+            className="fixed top-4 left-1/2 -translate-x-1/2 z-[60] w-[calc(100%-2rem)] max-w-xl bg-[#141422]/95 backdrop-blur-md border border-[#00FFCC]/50 text-[#E8E0F0] rounded-2xl shadow-2xl shadow-[#00FFCC]/10 p-4 flex items-start sm:items-center justify-between gap-3 animate-fadeIn"
+          >
+            <div className="flex items-start sm:items-center gap-3">
+              <div className="p-2 rounded-xl bg-[#00FFCC]/15 text-[#00FFCC] border border-[#00FFCC]/30 shrink-0">
+                <CheckCircle2 className="w-4 h-4" />
+              </div>
+              <p className="text-xs sm:text-sm font-medium leading-relaxed text-[#E8E0F0]">
+                {accountDeletedMessage}
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setAccountDeletedMessage(null)}
+              className="p-1.5 rounded-lg text-[#A098B0] hover:text-white hover:bg-[#1E1E32] transition shrink-0"
+              aria-label="Cerrar confirmación"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        )}
+
         {sessionExpiredMessage && (
           <div
             role="alert"
@@ -1769,10 +2031,12 @@ export function App() {
           onOpenAuth={() => setIsAuthModalOpen(true)}
           onTryDemo={() => {
             setSessionExpiredMessage(null);
+            setAccountDeletedMessage(null);
             setAccounts(INITIAL_ACCOUNTS);
             setTransactions(INITIAL_TRANSACTIONS);
             setViewMode('app');
           }}
+          onOpenLegal={(tab) => setLegalModalTab(tab)}
         />
 
         {/* Auth Modal */}
@@ -1781,10 +2045,23 @@ export function App() {
             onClose={() => setIsAuthModalOpen(false)}
             onSuccess={() => {
               setSessionExpiredMessage(null);
+              setAccountDeletedMessage(null);
               setIsAuthModalOpen(false);
             }}
+            onOpenLegal={(tab) => setLegalModalTab(tab)}
           />
         )}
+
+        {/* Technical Cookie Notice Banner (No Tracking) */}
+        <CookieNoticeBanner onOpenCookies={() => setLegalModalTab('cookies')} />
+
+        {/* Legal & Privacy Center Modal */}
+        <LegalModal
+          isOpen={legalModalTab !== null}
+          initialTab={legalModalTab || 'privacy'}
+          onClose={() => setLegalModalTab(null)}
+          isAuthenticated={false}
+        />
       </>
     );
   }
@@ -1850,6 +2127,8 @@ export function App() {
         onSignOut={handleSignOut}
         onResetDemo={handleResetDemo}
         onExport={handleExportExcel}
+        onOpenAccountPrivacy={() => setIsAccountPrivacyOpen(true)}
+        onOpenLegal={(tab) => setLegalModalTab(tab)}
         isOpenMobile={isMobileSidebarOpen}
         onCloseMobile={() => setIsMobileSidebarOpen(false)}
       />
@@ -2144,6 +2423,8 @@ export function App() {
         onSignOut={handleSignOut}
         onExport={handleExportExcel}
         onResetDemo={handleResetDemo}
+        onOpenAccountPrivacy={() => setIsAccountPrivacyOpen(true)}
+        onOpenLegal={(tab) => setLegalModalTab(tab)}
       />
 
       {/* Payment Association Modal */}
@@ -2268,10 +2549,56 @@ export function App() {
           onClose={() => setIsAuthModalOpen(false)}
           onSuccess={() => {
             setSessionExpiredMessage(null);
+            setAccountDeletedMessage(null);
             setIsAuthModalOpen(false);
           }}
+          onOpenLegal={(tab) => setLegalModalTab(tab)}
         />
       )}
+
+      {/* Mandatory Post-Login / OAuth Legal Consent Gate Modal (Issue #72) */}
+      {currentUser && !isCloudLoading && requiresLegalConsent && (
+        <ConsentGateModal
+          userEmail={currentUser.email}
+          isSubmitting={isSavingLegalConsent}
+          errorMessage={legalConsentError}
+          onAccept={handleAcceptLegalConsent}
+          onSignOut={() => {
+            void handleSignOut();
+          }}
+          onOpenLegal={(tab) => setLegalModalTab(tab)}
+        />
+      )}
+
+      {/* Account Privacy, Consent History & Complete Account Deletion Modal (Issue #72) */}
+      {currentUser && isAccountPrivacyOpen && (
+        <AccountPrivacyModal
+          isOpen={isAccountPrivacyOpen}
+          userEmail={currentUser.email}
+          userName={
+            currentUser.user_metadata?.full_name ||
+            currentUser.email?.split('@')[0]
+          }
+          consentRecord={latestLegalConsent}
+          onClose={() => setIsAccountPrivacyOpen(false)}
+          onOpenLegal={(tab) => setLegalModalTab(tab)}
+          onExportData={handleExportExcel}
+          onDeleteAccount={handleDeleteUserAccount}
+        />
+      )}
+
+      {/* Legal & Privacy Center Modal (Always above other modals at z-[80]) */}
+      <LegalModal
+        isOpen={legalModalTab !== null}
+        initialTab={legalModalTab || 'privacy'}
+        onClose={() => setLegalModalTab(null)}
+        isAuthenticated={Boolean(currentUser)}
+        onOpenAccountPrivacy={() => {
+          setLegalModalTab(null);
+          setIsAccountPrivacyOpen(true);
+        }}
+        onExportData={handleExportExcel}
+      />
 
       {/* Session Inactivity Warning Modal (Issue #46) */}
       {currentUser && isSessionWarningOpen && (

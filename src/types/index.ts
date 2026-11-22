@@ -343,4 +343,24 @@ export const DEFAULT_DASHBOARD_CONFIG: DashboardConfig = {
   ]
 };
 
+// ==========================================
+// LEGAL COMPLIANCE & CONSENT TYPES (ISSUE #72)
+// ==========================================
+
+export type LegalTab = 'privacy' | 'terms' | 'cookies' | 'contact';
+
+export type LegalConsentSource = 'email_signup' | 'google_oauth' | 'post_login_modal';
+
+export interface LegalConsentRecord {
+  id?: string;
+  userId: string;
+  email?: string;
+  termsVersion: string;
+  privacyVersion: string;
+  isAdultConfirmed: boolean;
+  acceptedAt: string;
+  source: LegalConsentSource;
+}
+
+
 

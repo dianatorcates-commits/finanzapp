@@ -1,5 +1,12 @@
 import { supabase } from '../utils/supabaseClient';
-import { Account, Transaction, CategoryMapping, AutoCategoryRule, CategoryBudget, PaymentAllocation, TelegramProfile, SavingsGoal, Credit, DashboardConfig, CreditCardBillingRecord, SavingsGoalContribution } from '../types';
+import { Account, Transaction, CategoryMapping, AutoCategoryRule, CategoryBudget, PaymentAllocation, TelegramProfile, SavingsGoal, Credit, DashboardConfig, CreditCardBillingRecord, SavingsGoalContribution, LegalConsentRecord, LegalConsentSource } from '../types';
+
+export interface SignupLegalMetadata {
+  terms_version: string;
+  privacy_version: string;
+  terms_accepted_at: string;
+  is_adult_confirmed: boolean;
+}
 
 // ==========================================
 // 1. AUTHENTICATION SERVICES
@@ -25,10 +32,11 @@ export async function signInWithEmail(email: string, pass: string) {
   return data;
 }
 
-export async function signUpWithEmail(email: string, pass: string) {
+export async function signUpWithEmail(email: string, pass: string, legalMeta?: SignupLegalMetadata) {
   const { data, error } = await supabase.auth.signUp({
     email,
-    password: pass
+    password: pass,
+    options: legalMeta ? { data: legalMeta } : undefined
   });
   if (error) throw error;
   return data;
@@ -1359,6 +1367,152 @@ export async function deleteCreditCardBilling(userId: string, billingId: string)
     return false;
   }
 }
+
+// ==========================================
+// 5. LEGAL CONSENTS & ACCOUNT DELETION SERVICES (ISSUE #72)
+// ==========================================
+
+function isMissingRelationError(error: { code?: string; message?: string } | null): boolean {
+  if (!error) return false;
+  if (error.code === '42P01' || error.code === 'PGRST205') return true;
+  return /does not exist|not found|schema cache/i.test(error.message || '');
+}
+
+export async function fetchLatestLegalConsent(
+  userId: string
+): Promise<{ record: LegalConsentRecord | null; tableMissing: boolean }> {
+  try {
+    const { data, error } = await supabase
+      .from('user_legal_consents')
+      .select('id, user_id, email, terms_version, privacy_version, is_adult_confirmed, accepted_at, source')
+      .eq('user_id', userId)
+      .order('accepted_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (error) {
+      if (isMissingRelationError(error)) {
+        return { record: null, tableMissing: true };
+      }
+      console.warn('Notice fetching legal consent:', error.message);
+      return { record: null, tableMissing: false };
+    }
+
+    if (!data) {
+      return { record: null, tableMissing: false };
+    }
+
+    return {
+      record: {
+        id: data.id,
+        userId: data.user_id,
+        email: data.email || undefined,
+        termsVersion: data.terms_version,
+        privacyVersion: data.privacy_version,
+        isAdultConfirmed: Boolean(data.is_adult_confirmed),
+        acceptedAt: data.accepted_at,
+        source: (data.source as LegalConsentSource) || 'post_login_modal'
+      },
+      tableMissing: false
+    };
+  } catch (err) {
+    console.warn('Unexpected error fetching legal consent:', err);
+    return { record: null, tableMissing: false };
+  }
+}
+
+export async function recordLegalConsent(params: {
+  userId: string;
+  email?: string;
+  termsVersion: string;
+  privacyVersion: string;
+  acceptedAt?: string;
+  source: LegalConsentSource;
+}): Promise<{ savedToTable: boolean; savedToAuthMeta: boolean }> {
+  const acceptedAt = params.acceptedAt || new Date().toISOString();
+  let savedToTable = false;
+  let savedToAuthMeta = false;
+
+  try {
+    const userAgent = typeof navigator !== 'undefined' ? navigator.userAgent : null;
+    const { error } = await supabase.from('user_legal_consents').insert({
+      user_id: params.userId,
+      email: params.email || null,
+      terms_version: params.termsVersion,
+      privacy_version: params.privacyVersion,
+      is_adult_confirmed: true,
+      accepted_at: acceptedAt,
+      user_agent: userAgent,
+      source: params.source
+    });
+
+    if (error) {
+      if (!isMissingRelationError(error)) {
+        console.warn('Notice recording legal consent in table:', error.message);
+      }
+    } else {
+      savedToTable = true;
+    }
+  } catch (err) {
+    console.warn('Unexpected error inserting legal consent:', err);
+  }
+
+  try {
+    const { error } = await supabase.auth.updateUser({
+      data: {
+        terms_version: params.termsVersion,
+        privacy_version: params.privacyVersion,
+        terms_accepted_at: acceptedAt,
+        is_adult_confirmed: true
+      }
+    });
+
+    if (error) {
+      console.warn('Notice updating user_metadata with legal consent:', error.message);
+    } else {
+      savedToAuthMeta = true;
+    }
+  } catch (err) {
+    console.warn('Unexpected error updating auth metadata for legal consent:', err);
+  }
+
+  return { savedToTable, savedToAuthMeta };
+}
+
+export async function deleteUserAccountCompletely(): Promise<{ success: boolean; error?: string }> {
+  try {
+    const { error } = await supabase.rpc('delete_user_account');
+
+    if (error) {
+      const isMissingRpc =
+        error.code === '42883' ||
+        error.code === 'PGRST202' ||
+        /does not exist|could not find|schema cache/i.test(error.message || '');
+
+      if (isMissingRpc) {
+        return {
+          success: false,
+          error:
+            'La función delete_user_account() aún no está instalada en Supabase. Ejecuta el script docs/migration_issue_72_legal_compliance.sql en el SQL Editor de Supabase y vuelve a intentarlo.'
+        };
+      }
+
+      return { success: false, error: error.message || 'No se pudo completar la eliminación de la cuenta.' };
+    }
+
+    try {
+      await supabase.auth.signOut({ scope: 'local' });
+    } catch {
+      // Ignore post-deletion local signOut warnings since auth.users row is already removed
+    }
+
+    return { success: true };
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : 'Error inesperado al eliminar la cuenta.';
+    return { success: false, error: msg };
+  }
+}
+
 
 
 

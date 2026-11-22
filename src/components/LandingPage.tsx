@@ -21,13 +21,15 @@ import {
   Play,
   Database
 } from 'lucide-react';
+import { LegalTab } from '../types';
 
 interface LandingPageProps {
   onOpenAuth: () => void;
   onTryDemo: () => void;
+  onOpenLegal?: (tab: LegalTab) => void;
 }
 
-export const LandingPage: React.FC<LandingPageProps> = ({ onOpenAuth, onTryDemo }) => {
+export const LandingPage: React.FC<LandingPageProps> = ({ onOpenAuth, onTryDemo, onOpenLegal }) => {
   // State for interactive Bento Card 1 simulation
   const [demoAbonoApplied, setDemoAbonoApplied] = useState(false);
 
@@ -1003,27 +1005,65 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onOpenAuth, onTryDemo 
       {/* 8. FOOTER                                                                 */}
       {/* ========================================================================= */}
       <footer className="relative z-10 border-t border-[#302840] py-8 text-xs text-[#A098B0] bg-[#05070E]">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row justify-between items-center gap-4">
-          
-          <div className="flex items-center space-x-2">
-            <img
-              src="/images/wallet_mascot_logo_64x64.png"
-              alt="FinanzApp Logo"
-              className="w-6 h-6 object-contain"
-            />
-            <span className="font-headline font-black text-white text-sm">FinanzApp</span>
-            <span className="text-[#302840]">|</span>
-            <span className="text-[#A098B0]">Control Inteligente de Finanzas y Tarjetas de Crédito</span>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-5">
+          <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
+            <div className="flex items-center space-x-2">
+              <img
+                src="/images/wallet_mascot_logo_64x64.png"
+                alt="FinanzApp Logo"
+                className="w-6 h-6 object-contain"
+              />
+              <span className="font-headline font-black text-white text-sm">FinanzApp</span>
+              <span className="text-[#302840]">|</span>
+              <span className="text-[#A098B0]">Control Inteligente de Finanzas y Tarjetas de Crédito</span>
+            </div>
+
+            <div className="flex items-center space-x-6 text-[#A098B0]">
+              <span className="flex items-center gap-1 text-[#00FF88] font-mono font-bold">
+                <Lock className="w-3.5 h-3.5" /> PostgreSQL y Supabase RLS
+              </span>
+              <span>Hecho para Chile 🇨🇱</span>
+              <span className="font-mono">© 2026 FinanzApp</span>
+            </div>
           </div>
 
-          <div className="flex items-center space-x-6 text-[#A098B0]">
-            <span className="flex items-center gap-1 text-[#00FF88] font-mono font-bold">
-              <Lock className="w-3.5 h-3.5" /> PostgreSQL y Supabase RLS
-            </span>
-            <span>Hecho para Chile 🇨🇱</span>
-            <span className="font-mono">© 2026 FinanzApp</span>
-          </div>
-
+          {onOpenLegal && (
+            <div className="pt-4 border-t border-[#302840]/60 flex flex-wrap items-center justify-center sm:justify-between gap-3 text-[11px] text-[#A098B0]">
+              <div className="flex flex-wrap items-center justify-center gap-4 sm:gap-6">
+                <button
+                  type="button"
+                  onClick={() => onOpenLegal('privacy')}
+                  className="hover:text-[#00FFCC] transition hover:underline"
+                >
+                  Política de Privacidad
+                </button>
+                <button
+                  type="button"
+                  onClick={() => onOpenLegal('terms')}
+                  className="hover:text-[#00FFCC] transition hover:underline"
+                >
+                  Términos y Condiciones
+                </button>
+                <button
+                  type="button"
+                  onClick={() => onOpenLegal('cookies')}
+                  className="hover:text-[#00FFCC] transition hover:underline"
+                >
+                  Cookies
+                </button>
+                <button
+                  type="button"
+                  onClick={() => onOpenLegal('contact')}
+                  className="hover:text-[#00FFCC] transition hover:underline"
+                >
+                  Contacto y Reclamos
+                </button>
+              </div>
+              <span className="text-[10px] font-mono text-[#A098B0]/80">
+                Exclusivo para mayores de 18 años · Sin rastreadores publicitarios
+              </span>
+            </div>
+          )}
         </div>
       </footer>
 

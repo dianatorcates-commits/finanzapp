@@ -21,7 +21,7 @@ import {
   Zap,
   Bot
 } from 'lucide-react';
-import { Transaction, Account } from '../types';
+import { Transaction, Account, LegalTab } from '../types';
 import { WakingMascotWidget } from './WakingMascotWidget';
 
 interface SidebarProps {
@@ -41,6 +41,8 @@ interface SidebarProps {
   onSignOut: () => void;
   onResetDemo: () => void;
   onExport: () => void;
+  onOpenAccountPrivacy?: () => void;
+  onOpenLegal?: (tab: LegalTab) => void;
   isOpenMobile?: boolean;
   onCloseMobile?: () => void;
 }
@@ -62,6 +64,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onSignOut,
   onResetDemo,
   onExport,
+  onOpenAccountPrivacy,
+  onOpenLegal,
   isOpenMobile = false,
   onCloseMobile
 }) => {
@@ -288,6 +292,19 @@ export const Sidebar: React.FC<SidebarProps> = ({
             <span>Exportar a Excel</span>
           </button>
 
+          {currentUser && onOpenAccountPrivacy && (
+            <button
+              onClick={() => {
+                onOpenAccountPrivacy();
+                if (onCloseMobile) onCloseMobile();
+              }}
+              className="w-full flex items-center gap-2.5 px-3 py-1.5 rounded-xl text-xs font-medium text-[#A098B0] hover:text-[#00FFCC] hover:bg-[#111118] transition group"
+            >
+              <ShieldCheck className="w-3.5 h-3.5 text-[#A098B0] group-hover:text-[#00FFCC] transition" />
+              <span>Mi Cuenta y Privacidad</span>
+            </button>
+          )}
+
           <button
             onClick={() => {
               onResetDemo();
@@ -359,6 +376,43 @@ export const Sidebar: React.FC<SidebarProps> = ({
               className="w-full bg-[#FF2D78] hover:bg-[#ff1a6c] text-white text-xs font-headline font-bold py-1.5 px-3 rounded-xl shadow-md transition transform hover:scale-[1.02]"
             >
               Iniciar Sesión
+            </button>
+          </div>
+        )}
+
+        {onOpenLegal && (
+          <div className="flex items-center justify-center gap-1.5 pt-2.5 text-[10px] text-[#A098B0]/80">
+            <button
+              type="button"
+              onClick={() => {
+                onOpenLegal('privacy');
+                if (onCloseMobile) onCloseMobile();
+              }}
+              className="hover:text-[#00FFCC] transition hover:underline"
+            >
+              Privacidad
+            </button>
+            <span>·</span>
+            <button
+              type="button"
+              onClick={() => {
+                onOpenLegal('terms');
+                if (onCloseMobile) onCloseMobile();
+              }}
+              className="hover:text-[#00FFCC] transition hover:underline"
+            >
+              Términos
+            </button>
+            <span>·</span>
+            <button
+              type="button"
+              onClick={() => {
+                onOpenLegal('contact');
+                if (onCloseMobile) onCloseMobile();
+              }}
+              className="hover:text-[#00FFCC] transition hover:underline"
+            >
+              Reclamos
             </button>
           </div>
         )}

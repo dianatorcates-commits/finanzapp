@@ -19,9 +19,10 @@ import {
   RefreshCw,
   PlusCircle,
   Plus,
-  Link2
+  Link2,
+  ShieldCheck
 } from 'lucide-react';
-import { Transaction, Account } from '../types';
+import { Transaction, Account, LegalTab } from '../types';
 import { WakingMascotWidget } from './WakingMascotWidget';
 import { getMascotState } from '../utils/mascotEngine';
 
@@ -40,6 +41,8 @@ export interface BottomNavBarProps {
   onSignOut: () => void;
   onExport: () => void;
   onResetDemo: () => void;
+  onOpenAccountPrivacy?: () => void;
+  onOpenLegal?: (tab: LegalTab) => void;
 }
 
 export const BottomNavBar: React.FC<BottomNavBarProps> = ({
@@ -56,7 +59,9 @@ export const BottomNavBar: React.FC<BottomNavBarProps> = ({
   onOpenAuthModal,
   onSignOut,
   onExport,
-  onResetDemo
+  onResetDemo,
+  onOpenAccountPrivacy,
+  onOpenLegal
 }) => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const mascot = getMascotState(transactions || []);
@@ -243,6 +248,19 @@ export const BottomNavBar: React.FC<BottomNavBarProps> = ({
 
             {/* Utility Actions */}
             <div className="space-y-1 pt-2 border-t border-[#302840]/60">
+              {currentUser && onOpenAccountPrivacy && (
+                <button
+                  onClick={() => {
+                    onOpenAccountPrivacy();
+                    setIsMenuOpen(false);
+                  }}
+                  className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs text-slate-300 hover:text-[#00FFCC] transition"
+                >
+                  <ShieldCheck className="w-4 h-4 text-[#00FFCC]" />
+                  <span>Mi Cuenta y Privacidad</span>
+                </button>
+              )}
+
               <button
                 onClick={() => {
                   onExport();
@@ -264,6 +282,43 @@ export const BottomNavBar: React.FC<BottomNavBarProps> = ({
                 <RefreshCw className="w-3.5 h-3.5 text-slate-600" />
                 <span>Restablecer Datos Demo</span>
               </button>
+
+              {onOpenLegal && (
+                <div className="flex items-center justify-center gap-2 pt-2 mt-1 border-t border-[#302840]/40 text-[10px] text-[#A098B0]/80">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onOpenLegal('privacy');
+                      setIsMenuOpen(false);
+                    }}
+                    className="hover:text-[#00FFCC] transition"
+                  >
+                    Privacidad
+                  </button>
+                  <span>·</span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onOpenLegal('terms');
+                      setIsMenuOpen(false);
+                    }}
+                    className="hover:text-[#00FFCC] transition"
+                  >
+                    Términos
+                  </button>
+                  <span>·</span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onOpenLegal('contact');
+                      setIsMenuOpen(false);
+                    }}
+                    className="hover:text-[#00FFCC] transition"
+                  >
+                    Reclamos
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         </div>
