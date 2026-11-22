@@ -20,7 +20,7 @@ import {
 } from './types';
 import { INITIAL_ACCOUNTS, INITIAL_TRANSACTIONS, DEMO_ACCOUNTS, DEMO_TRANSACTIONS, isDemoAccount } from './utils/demoData';
 import { DEFAULT_CATEGORY_MAPPINGS, DEFAULT_AUTO_RULES, getParentCategory, autoCategorize, applyAutoRulesToTransaction } from './utils/categorizer';
-import { computeTransactions, autoAllocatePayments, addPaymentAllocation, removePaymentAllocation, removeAllAllocationsFromPurchase, removeAllocationsByPayment, isPaymentOrIncomeTransaction, allocateExistingPaymentToCycle } from './utils/paymentAllocation';
+import { computeTransactions, autoAllocatePayments, addPaymentAllocation, removePaymentAllocation, removeAllAllocationsFromPurchase, removeAllocationsByPayment, isPaymentOrIncomeTransaction } from './utils/paymentAllocation';
 import { supabase } from './utils/supabaseClient';
 import {
   fetchUserData,
@@ -758,10 +758,10 @@ export function App() {
     });
   }, [transactions, categoryMappings]);
 
-  // Compute transactions with payment allocations
+  // Compute transactions with payment allocations (separating reimbursements from billing payments per Issue #70)
   const computedTransactions = useMemo(() => {
-    return computeTransactions(normalizedTransactions);
-  }, [normalizedTransactions]);
+    return computeTransactions(normalizedTransactions, creditBillings);
+  }, [normalizedTransactions, creditBillings]);
 
   // Pending potential duplicates
   const potentialDuplicates = useMemo(() => {
@@ -1459,7 +1459,14 @@ export function App() {
 
   const handleAddAllocation = async (purchaseId: string, paymentId: string, amount: number) => {
     const cardAcc = accounts.find((a) => a.id === selectedPurchaseForPayment?.accountId);
-    const updated = addPaymentAllocation(transactions, purchaseId, paymentId, amount, cardAcc?.closingDay);
+    const updated = addPaymentAllocation(
+      transactions,
+      purchaseId,
+      paymentId,
+      amount,
+      cardAcc?.closingDay,
+      'reimbursement'
+    );
     setTransactions(updated);
     if (currentUser) {
       const updatedPurchase = updated.find((t) => t.id === purchaseId);
@@ -1555,8 +1562,8 @@ export function App() {
     const combinedTxs = [egresoTx, abonoTx, ...transactions];
     setTransactions(combinedTxs);
 
-    // 4. Conciliación formal en credit_card_billings (Issue #57)
-    const computedAllocated = computeTransactions(combinedTxs);
+    // 4. Conciliación formal en credit_card_billings (Issue #57, #70)
+    const computedAllocated = computeTransactions(combinedTxs, creditBillings);
     const cardCycleTxs = computedAllocated.filter((tx) => {
       if (tx.accountId !== cardAcc.id) return false;
       const txPeriod = tx.period || calculateTransactionPeriod(tx.date, cardAcc.closingDay);
@@ -1600,37 +1607,56 @@ export function App() {
     setPayBillingPeriod(undefined);
   };
 
-  // Link existing cartola/abono payment to credit card billing cycle (Issue #48)
+  // Link existing cartola/abono payment to credit card billing cycle without touching purchase net amounts (Issue #48, #70)
   const handleLinkExistingPaymentToBilling = async (data: LinkExistingPaymentData) => {
     const cardAcc = accounts.find((a) => a.id === data.cardId);
-    if (!cardAcc) return;
+    const paymentTx = transactions.find((t) => t.id === data.paymentTransactionId);
+    if (!cardAcc || !paymentTx) return;
 
-    const result = allocateExistingPaymentToCycle(
-      transactions,
-      data.cardId,
-      data.period,
-      data.paymentTransactionId,
-      data.amount,
-      cardAcc.closingDay
+    // Normalize payment transaction metadata without injecting allocations into purchases (Issue #70)
+    const updatedPaymentTx: Transaction = {
+      ...paymentTx,
+      period: paymentTx.period || data.period,
+      transactionType: paymentTx.accountId !== cardAcc.id ? 'pago_tc' : paymentTx.transactionType
+    };
+
+    const updatedTransactions = transactions.map((tx) =>
+      tx.id === updatedPaymentTx.id ? updatedPaymentTx : tx
     );
+    setTransactions(updatedTransactions);
 
-    setTransactions(result.updatedTransactions);
-
-    // Conciliación formal en credit_card_billings para pago vinculado (Issue #57)
-    const computedUpdated = computeTransactions(result.updatedTransactions);
-    const cardCycleTxs = computedUpdated.filter((tx) => {
+    // Conciliación formal en credit_card_billings para pago vinculado (Issue #57, #70)
+    const computedUpdated = computeTransactions(updatedTransactions, creditBillings);
+    const cardCyclePurchases = computedUpdated.filter((tx) => {
       if (tx.accountId !== cardAcc.id) return false;
       const txPeriod = tx.period || calculateTransactionPeriod(tx.date, cardAcc.closingDay);
       if (txPeriod !== data.period) return false;
       if (isPaymentOrIncomeTransaction(tx) || tx.amount <= 0) return false;
       return true;
     });
-    const totalBilled = cardCycleTxs.reduce((sum, tx) => sum + Math.abs(tx.amount), 0);
-    const pendingBalance = cardCycleTxs.reduce((sum, tx) => sum + tx.netAmount, 0);
+    const totalBilled = cardCyclePurchases.reduce((sum, tx) => sum + Math.abs(tx.amount), 0);
 
-    const paymentTx = transactions.find((t) => t.id === data.paymentTransactionId);
-    const sourceAccountId = paymentTx?.accountId !== cardAcc.id ? paymentTx?.accountId : undefined;
+    const otherDirectCardPaid = computedUpdated
+      .filter((tx) => {
+        if (tx.id === updatedPaymentTx.id) return false;
+        if (tx.accountId !== cardAcc.id) return false;
+        const txPeriod = tx.period || calculateTransactionPeriod(tx.date, cardAcc.closingDay);
+        if (txPeriod !== data.period) return false;
+        return isPaymentOrIncomeTransaction(tx);
+      })
+      .reduce((sum, tx) => sum + Math.abs(tx.amount), 0);
 
+    const existingBilling = creditBillings.find(
+      (b) => b.cardId === cardAcc.id && b.period === data.period
+    );
+    const previousPaid =
+      existingBilling && existingBilling.paymentTransactionId !== data.paymentTransactionId
+        ? existingBilling.totalPaid
+        : 0;
+    const totalPaid = Math.max(otherDirectCardPaid, previousPaid) + Math.abs(data.amount);
+    const pendingBalance = Math.max(0, totalBilled - totalPaid);
+
+    const sourceAccountId = paymentTx.accountId !== cardAcc.id ? paymentTx.accountId : undefined;
     const billingStatus: 'paid' | 'partial' = pendingBalance === 0 ? 'paid' : 'partial';
 
     const linkedBillingRecord: CreditCardBillingRecord = {
@@ -1639,12 +1665,12 @@ export function App() {
       cardId: cardAcc.id,
       period: data.period,
       totalBilled,
-      totalPaid: data.amount,
+      totalPaid,
       pendingBalance,
       status: billingStatus,
       paymentTransactionId: data.paymentTransactionId,
       sourceAccountId,
-      paidAt: paymentTx?.date ? new Date(paymentTx.date).toISOString() : new Date().toISOString(),
+      paidAt: paymentTx.date ? new Date(paymentTx.date).toISOString() : new Date().toISOString(),
       createdAt: new Date().toISOString()
     };
 
@@ -1653,12 +1679,9 @@ export function App() {
       return [linkedBillingRecord, ...filtered];
     });
 
-    // Persist touched transactions and billing record in cloud if authenticated
-    if (currentUser?.id && result.touchedTransactionIds.length > 0) {
-      const touchedTxs = result.updatedTransactions.filter((tx) =>
-        result.touchedTransactionIds.includes(tx.id)
-      );
-      await saveCloudTransactionsBatch(currentUser.id, touchedTxs, accounts);
+    // Persist updated payment transaction and billing record in cloud if authenticated
+    if (currentUser?.id) {
+      await saveCloudTransaction(currentUser.id, updatedPaymentTx);
       await saveCreditCardBilling(currentUser.id, linkedBillingRecord);
     }
 
@@ -2130,6 +2153,7 @@ export function App() {
           account={accounts.find((a) => a.id === selectedPurchaseForPayment.accountId)}
           accounts={accounts}
           autoRules={autoRules}
+          creditBillings={creditBillings}
           onClose={() => setSelectedPurchaseForPayment(null)}
           onAddAllocation={handleAddAllocation}
           onRemoveAllocation={handleRemoveAllocation}

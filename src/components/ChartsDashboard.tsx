@@ -522,7 +522,7 @@ export const ChartsDashboard: React.FC<ChartsDashboardProps> = ({
                   <h3 className="text-sm font-headline font-bold text-white">
                     Gastos Netos por {pieViewMode === 'category' ? 'Categoría' : 'Subcategoría'}
                   </h3>
-                  <p className="text-xs text-[#A098B0]">Distribución del Monto Real Utilizado</p>
+                  <p className="text-xs text-[#A098B0]">Distribución del Gasto Real Consumido (neto de reintegros)</p>
                 </div>
                 
                 <div className="flex bg-[#0A0A12] p-1 rounded-xl border border-[#302840] text-xs self-start sm:self-auto font-headline font-semibold">
@@ -596,8 +596,8 @@ export const ChartsDashboard: React.FC<ChartsDashboardProps> = ({
           {showTrend && (
             <div className="bg-[#111118] border border-[#302840] panel-rim p-5 rounded-2xl shadow-xl flex flex-col justify-between">
               <div className="border-b border-[#302840]/60 pb-3 mb-4">
-                <h3 className="text-sm font-headline font-bold text-white">Evolución Mensual: Gastos vs Monto Real Utilizado</h3>
-                <p className="text-xs text-[#A098B0]">Comparativa de compras brutas y uso real por período</p>
+                <h3 className="text-sm font-headline font-bold text-white">Evolución Mensual: Gastos Brutos vs Gasto Real Consumido</h3>
+                <p className="text-xs text-[#A098B0]">Comparativa de compras brutas, gasto real (neto de reintegros) y abonos por período</p>
               </div>
               {monthlyData.length > 0 ? (
                 <div className="h-64 w-full">
@@ -609,8 +609,8 @@ export const ChartsDashboard: React.FC<ChartsDashboardProps> = ({
                       <Tooltip content={<CustomTooltip />} />
                       <Legend wrapperStyle={{ fontSize: '11px', color: '#E8E0F0' }} />
                       <Bar dataKey="gastosBrutos" name="Gastos Brutos" fill="#FF2D78" radius={[4, 4, 0, 0]} />
-                      <Bar dataKey="montoRealUtilizado" name="Monto Real Utilizado" fill="#00FFCC" radius={[4, 4, 0, 0]} />
-                      <Bar dataKey="abonos" name="Abonos Realizados" fill="#FFE04A" radius={[4, 4, 0, 0]} />
+                      <Bar dataKey="montoRealUtilizado" name="Gasto Real Consumido" fill="#00FFCC" radius={[4, 4, 0, 0]} />
+                      <Bar dataKey="abonos" name="Pagos / Abonos" fill="#FFE04A" radius={[4, 4, 0, 0]} />
                     </BarChart>
                   </ResponsiveContainer>
                 </div>

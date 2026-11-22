@@ -1,4 +1,10 @@
-import { Transaction, ComputedTransaction, PaymentAllocation } from '../types';
+import {
+  Transaction,
+  ComputedTransaction,
+  PaymentAllocation,
+  PaymentAllocationType,
+  CreditCardBillingRecord
+} from '../types';
 import { calculateTransactionPeriod } from './dateUtils';
 
 /**
@@ -155,13 +161,70 @@ export function isPaymentOrIncomeTransaction(tx: {
 }
 
 /**
- * Computes allocation stats, net amounts (Monto Real Utilizado), and payment balances.
+ * Determines whether a payment allocation comes from a monthly credit card billing payment
+ * rather than a genuine reimbursement/refund from a third party or merchant (Issue #70).
+ * Monthly billing payments cancel bank debt without reducing historical real spending to $0.
  */
-export function computeTransactions(transactions: Transaction[]): ComputedTransaction[] {
-  // Map of payment transaction ID -> sum of allocated amount
+export function isBillingPaymentAllocation(
+  alloc: PaymentAllocation,
+  txById: Map<string, Transaction>,
+  billingPaymentIds: Set<string>
+): boolean {
+  if (alloc.allocationType === 'billing_payment') return true;
+  if (alloc.allocationType === 'reimbursement') return false;
+
+  const pid = alloc.paymentTransactionId;
+  if (billingPaymentIds.has(pid)) return true;
+  if (pid.startsWith('tx-pago-in-') || pid.startsWith('tx-pago-out-')) return true;
+
+  const paymentTx = txById.get(pid);
+  if (paymentTx) {
+    const desc = (paymentTx.description || '').toLowerCase();
+    const rawDesc = (paymentTx.rawDescription || '').toLowerCase();
+    if (
+      desc.startsWith('abono facturación') ||
+      desc.startsWith('abono facturacion') ||
+      desc.startsWith('pago facturación') ||
+      desc.startsWith('pago facturacion') ||
+      rawDesc.startsWith('abono facturación') ||
+      rawDesc.startsWith('abono facturacion') ||
+      rawDesc.startsWith('pago facturación') ||
+      rawDesc.startsWith('pago facturacion')
+    ) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+/**
+ * Computes allocation stats, net real spending (Gasto Real Consumido, net of reimbursements only),
+ * and unallocated payment balances (Issue #70).
+ */
+export function computeTransactions(
+  transactions: Transaction[],
+  creditBillings: CreditCardBillingRecord[] = []
+): ComputedTransaction[] {
+  const txById = new Map<string, Transaction>(transactions.map((t) => [t.id, t]));
+  const billingPaymentIds = new Set<string>(
+    creditBillings
+      .map((b) => b.paymentTransactionId)
+      .filter((id): id is string => Boolean(id))
+  );
+
+  // Track billing payments recorded formally in credit_card_billings
+  const billingPaidMap = new Map<string, number>();
+  creditBillings.forEach((b) => {
+    if (b.paymentTransactionId) {
+      const current = billingPaidMap.get(b.paymentTransactionId) || 0;
+      billingPaidMap.set(b.paymentTransactionId, current + (b.totalPaid || 0));
+    }
+  });
+
+  // Map of payment transaction ID -> sum of allocated amounts across purchases
   const paymentUsageMap = new Map<string, number>();
 
-  // Calculate allocated sums
   transactions.forEach((tx) => {
     if (tx.allocations && tx.allocations.length > 0) {
       tx.allocations.forEach((alloc) => {
@@ -173,12 +236,23 @@ export function computeTransactions(transactions: Transaction[]): ComputedTransa
 
   return transactions.map((tx) => {
     const isPaymentOrIncome = isPaymentOrIncomeTransaction(tx);
-    const totalAllocated = (tx.allocations || []).reduce((sum, a) => sum + a.amount, 0);
+    const allocs = tx.allocations || [];
+
+    // Separate third-party reimbursements/refunds from monthly card billing payments
+    let totalAllocated = 0;
+    let totalBillingAllocated = 0;
+    allocs.forEach((a) => {
+      if (isBillingPaymentAllocation(a, txById, billingPaymentIds)) {
+        totalBillingAllocated += a.amount;
+      } else {
+        totalAllocated += a.amount;
+      }
+    });
 
     let netAmount = 0;
     let isFullyPaid = false;
 
-    // netAmount > 0 must ONLY exist for real positive purchases/charges
+    // netAmount reflects Gasto Real Consumido (gross purchase minus genuine reimbursements/refunds)
     if (!isPaymentOrIncome && tx.amount > 0) {
       netAmount = Math.max(0, tx.amount - totalAllocated);
       isFullyPaid = netAmount === 0;
@@ -190,14 +264,19 @@ export function computeTransactions(transactions: Transaction[]): ComputedTransa
     const isEligibleCreditCardPayment = isCreditCardPaymentTransaction(tx);
     if (isEligibleCreditCardPayment) {
       const positivePaymentAmount = Math.abs(tx.amount);
-      const usedAmount = paymentUsageMap.get(tx.id) || 0;
-      allocatedPaymentUsage = usedAmount;
-      unallocatedPaymentBalance = Math.max(0, positivePaymentAmount - usedAmount);
+      const usedByAllocs = paymentUsageMap.get(tx.id) || 0;
+      const usedByBillings = billingPaidMap.get(tx.id) || 0;
+      allocatedPaymentUsage = usedByAllocs;
+      unallocatedPaymentBalance = Math.max(
+        0,
+        positivePaymentAmount - Math.max(usedByAllocs, usedByBillings)
+      );
     }
 
     return {
       ...tx,
       totalAllocated,
+      totalBillingAllocated,
       netAmount,
       isFullyPaid,
       unallocatedPaymentBalance,
@@ -298,15 +377,17 @@ export function autoAllocatePayments(
 }
 
 /**
- * Manually allocates an amount from a payment transaction to a purchase transaction.
- * Strictly verifies that both transactions belong to the same billing cycle (Issue #63).
+ * Manually allocates an amount from a payment/reimbursement transaction to a purchase transaction.
+ * Strictly verifies that both transactions belong to the same billing cycle (Issue #63)
+ * and records the allocation type (defaults to 'reimbursement' per Issue #70).
  */
 export function addPaymentAllocation(
   transactions: Transaction[],
   purchaseId: string,
   paymentId: string,
   amountToAllocate: number,
-  cardClosingDay?: number
+  cardClosingDay?: number,
+  allocationType: PaymentAllocationType = 'reimbursement'
 ): Transaction[] {
   const purchaseTx = transactions.find((t) => t.id === purchaseId);
   const paymentTx = transactions.find((t) => t.id === paymentId);
@@ -333,14 +414,16 @@ export function addPaymentAllocation(
       if (existingIdx >= 0) {
         existingAllocations[existingIdx] = {
           ...existingAllocations[existingIdx],
-          amount: existingAllocations[existingIdx].amount + amountToAllocate
+          amount: existingAllocations[existingIdx].amount + amountToAllocate,
+          allocationType
         };
       } else {
         existingAllocations.push({
           id: `alloc-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
           paymentTransactionId: paymentId,
           amount: amountToAllocate,
-          allocatedAt: new Date().toISOString()
+          allocatedAt: new Date().toISOString(),
+          allocationType
         });
       }
 

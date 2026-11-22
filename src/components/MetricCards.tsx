@@ -125,7 +125,30 @@ export const MetricCards: React.FC<MetricCardsProps> = ({
       targetCards.some((a) => a.id === tx.accountId) && !isPaymentOrIncomeTransaction(tx) && tx.amount > 0
     );
 
-    const totalDebt = cardTxs.reduce((sum, tx) => sum + (tx.netAmount !== undefined ? tx.netAmount : tx.amount), 0);
+    // Calculate debt per (cardId, period) so paid closed cycles don't bleed into open cycles (Issue #70)
+    const cycleDebtMap = new Map<string, { cardId: string; period: string; rawDebt: number }>();
+    cardTxs.forEach((tx) => {
+      const period = tx.period || (tx.date ? tx.date.substring(0, 7) : '');
+      const key = `${tx.accountId}::${period}`;
+      const cur = cycleDebtMap.get(key) || { cardId: tx.accountId, period, rawDebt: 0 };
+      cur.rawDebt += (tx.netAmount !== undefined ? tx.netAmount : tx.amount);
+      cycleDebtMap.set(key, cur);
+    });
+
+    let totalDebt = 0;
+    cycleDebtMap.forEach(({ cardId, period, rawDebt }) => {
+      const billing = creditBillings.find((b) => b.cardId === cardId && b.period === period);
+      if (billing) {
+        if (billing.status === 'paid' || billing.pendingBalance === 0) {
+          totalDebt += 0;
+        } else {
+          totalDebt += Math.max(0, rawDebt - billing.totalPaid);
+        }
+      } else {
+        totalDebt += rawDebt;
+      }
+    });
+
     const availableCredit = Math.max(0, totalLimit - totalDebt);
     const usedPercentage = totalLimit > 0 ? Math.min(100, Math.round((totalDebt / totalLimit) * 100)) : 0;
 
@@ -135,7 +158,7 @@ export const MetricCards: React.FC<MetricCardsProps> = ({
       available: availableCredit,
       percentage: usedPercentage
     };
-  }, [accounts, transactions, activeAccountId]);
+  }, [accounts, transactions, activeAccountId, creditBillings]);
 
   // 3. Data Calculation: Facturación Estimada al Corte (TC)
   const billingProjectionData = useMemo(() => {
@@ -691,12 +714,12 @@ export const MetricCards: React.FC<MetricCardsProps> = ({
                         {formatCLP(netAmountUsed)}
                       </p>
                       <p className="text-[11px] text-[#A098B0] mt-0.5 font-sans">
-                        Gasto neto imputable tras aplicar abonos FIFO
+                        Gasto real consumido (neto de reintegros de terceros)
                       </p>
                     </div>
                   </div>
                   <div className="mt-4 pt-3 border-t border-[#302840]/60 flex items-center justify-between text-[10px] font-mono text-[#A098B0]">
-                    <span>Abonos aplicados</span>
+                    <span>Reintegros aplicados</span>
                     <span className="text-sky-400 font-bold">{formatCLP(Math.max(0, grossExpenses - netAmountUsed))}</span>
                   </div>
                 </div>

@@ -29,11 +29,14 @@ export interface CategoryMapping {
   subcategories: string[]; // Subcategorías asociadas
 }
 
+export type PaymentAllocationType = 'reimbursement' | 'billing_payment';
+
 export interface PaymentAllocation {
   id: string;
   paymentTransactionId: string;
   amount: number;
   allocatedAt: string;
+  allocationType?: PaymentAllocationType;
 }
 
 export interface Transaction {
@@ -64,6 +67,7 @@ export interface Transaction {
 
 export interface ComputedTransaction extends Transaction {
   totalAllocated: number;
+  totalBillingAllocated?: number;
   netAmount: number;
   isFullyPaid: boolean;
   unallocatedPaymentBalance?: number;

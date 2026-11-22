@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { X, Link2, Trash2, CheckCircle2, AlertCircle, ArrowRight, Building2, CreditCard, Settings } from 'lucide-react';
-import { ComputedTransaction, Account, AutoCategoryRule } from '../types';
-import { isCreditCardPaymentTransaction } from '../utils/paymentAllocation';
+import { ComputedTransaction, Account, AutoCategoryRule, CreditCardBillingRecord } from '../types';
+import { isBillingPaymentAllocation } from '../utils/paymentAllocation';
 import { calculateTransactionPeriod } from '../utils/dateUtils';
 import { formatCLP } from './MetricCards';
 
@@ -11,6 +11,7 @@ interface PaymentModalProps {
   account?: Account;
   accounts?: Account[];
   autoRules?: AutoCategoryRule[];
+  creditBillings?: CreditCardBillingRecord[];
   onClose: () => void;
   onAddAllocation: (purchaseId: string, paymentId: string, amount: number) => void;
   onRemoveAllocation: (purchaseId: string, allocationId: string) => void;
@@ -24,19 +25,44 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
   account,
   accounts = [],
   autoRules = [],
+  creditBillings = [],
   onClose,
   onAddAllocation,
   onRemoveAllocation,
   onRemoveAllAllocations,
   onOpenRulesConfig
 }) => {
+  const txById = useMemo(
+    () => new Map(allTransactions.map((t) => [t.id, t])),
+    [allTransactions]
+  );
+
+  const billingPaymentIds = useMemo(
+    () =>
+      new Set(
+        creditBillings
+          .map((b) => b.paymentTransactionId)
+          .filter((id): id is string => Boolean(id))
+      ),
+    [creditBillings]
+  );
+
   // Cross-account filter toggle (defaults to false to only show payments on this card by default)
   const [showAllAccounts, setShowAllAccounts] = useState<boolean>(false);
 
-  // Helper to determine if a transaction qualifies as a payment / abono
+  // Helper to determine if a transaction qualifies as a reimbursement / abono
   const isEligiblePayment = (tx: ComputedTransaction): boolean => {
     // Cannot associate a purchase to itself
     if (tx.id === purchase.id) return false;
+
+    // Monthly billing settlement transactions cancel bank debt and must never reduce real spending (Issue #70)
+    if (
+      billingPaymentIds.has(tx.id) ||
+      tx.id.startsWith('tx-pago-in-') ||
+      tx.id.startsWith('tx-pago-out-')
+    ) {
+      return false;
+    }
 
     // Must have available balance to allocate
     if ((tx.unallocatedPaymentBalance || 0) <= 0) return false;
@@ -164,10 +190,10 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
               <Link2 className="w-5 h-5" />
             </div>
             <div>
-              <h3 className="font-bold text-base text-white">Asociar Pago o Abono a Compra</h3>
+              <h3 className="font-bold text-base text-white">Asociar Reintegro o Abono a Compra</h3>
               <p className="text-xs text-slate-400 flex items-center gap-1">
                 <CreditCard className="w-3.5 h-3.5 text-sky-400" />
-                <span>{account?.name || 'Tarjeta de Crédito'}</span>
+                <span>{account?.name || 'Tarjeta de Crédito'} • Reduce Gasto Real</span>
               </p>
             </div>
           </div>
@@ -199,11 +225,11 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
               <span className="text-xs font-bold text-slate-800">{formatCLP(purchase.amount)}</span>
             </div>
             <div className="bg-emerald-50 p-2 rounded-lg border border-emerald-200">
-              <span className="text-[11px] text-emerald-700 block">Pagos Asociados</span>
+              <span className="text-[11px] text-emerald-700 block">Reintegros Asociados</span>
               <span className="text-xs font-bold text-emerald-700">{formatCLP(purchase.totalAllocated)}</span>
             </div>
             <div className="bg-sky-50 p-2 rounded-lg border border-sky-200">
-              <span className="text-[11px] text-sky-800 block">Monto Real Utilizado</span>
+              <span className="text-[11px] text-sky-800 block">Gasto Real Consumido</span>
               <span className="text-xs font-bold text-sky-700">{formatCLP(purchase.netAmount)}</span>
             </div>
           </div>
@@ -217,7 +243,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
             <div className="flex items-center justify-between mb-2">
               <h5 className="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1">
                 <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-                <span>Pagos Asociados Actualmente</span>
+                <span>Reintegros y Vínculos Actuales</span>
               </h5>
               {purchase.allocations.length > 0 && onRemoveAllAllocations && (
                 <button
@@ -237,28 +263,46 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
                 {purchase.allocations.map((alloc) => {
                   const paymentTx = allTransactions.find((t) => t.id === alloc.paymentTransactionId);
                   const originAcc = accounts.find((a) => a.id === paymentTx?.accountId);
+                  const isBillingAlloc = isBillingPaymentAllocation(alloc, txById, billingPaymentIds);
                   return (
                     <div
                       key={alloc.id}
-                      className="flex items-center justify-between bg-emerald-50/60 border border-emerald-200 p-2.5 rounded-xl text-xs"
+                      className={`flex items-center justify-between p-2.5 rounded-xl text-xs border ${
+                        isBillingAlloc
+                          ? 'bg-amber-50/70 border-amber-200'
+                          : 'bg-emerald-50/60 border-emerald-200'
+                      }`}
                     >
                       <div>
-                        <div className="flex items-center gap-1.5">
+                        <div className="flex items-center gap-1.5 flex-wrap">
                           {originAcc && (
-                            <span className="px-1.5 py-0.5 text-[10px] font-bold rounded bg-emerald-200/60 text-emerald-900">
+                            <span
+                              className={`px-1.5 py-0.5 text-[10px] font-bold rounded ${
+                                isBillingAlloc
+                                  ? 'bg-amber-200/70 text-amber-900'
+                                  : 'bg-emerald-200/60 text-emerald-900'
+                              }`}
+                            >
                               {originAcc.name}
                             </span>
                           )}
-                          <p className="font-semibold text-emerald-900">
+                          <p className={`font-semibold ${isBillingAlloc ? 'text-amber-950' : 'text-emerald-900'}`}>
                             {paymentTx ? paymentTx.description : 'Pago / Abono'}
                           </p>
+                          {isBillingAlloc && (
+                            <span className="px-1.5 py-0.5 text-[10px] font-semibold rounded bg-amber-100 text-amber-800 border border-amber-300">
+                              Pago de facturación (no rebaja gasto real)
+                            </span>
+                          )}
                         </div>
-                        <p className="text-[11px] text-emerald-700 mt-0.5">
+                        <p className={`text-[11px] mt-0.5 ${isBillingAlloc ? 'text-amber-700' : 'text-emerald-700'}`}>
                           Fecha: {paymentTx?.date || 'N/A'} • {paymentTx?.category}
                         </p>
                       </div>
                       <div className="flex items-center gap-3">
-                        <span className="font-bold text-emerald-800">{formatCLP(alloc.amount)}</span>
+                        <span className={`font-bold ${isBillingAlloc ? 'text-amber-900' : 'text-emerald-800'}`}>
+                          {formatCLP(alloc.amount)}
+                        </span>
                         <button
                           onClick={() => onRemoveAllocation(purchase.id, alloc.id)}
                           title="Eliminar asociación"
@@ -273,7 +317,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
               </div>
             ) : (
               <p className="text-xs text-slate-400 italic bg-slate-50 p-3 rounded-lg border border-slate-100 text-center">
-                Aún no hay abonos o pagos asociados a esta compra.
+                Aún no hay reintegros o abonos de terceros asociados a esta compra.
               </p>
             )}
           </div>
@@ -284,10 +328,10 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
               <div className="flex items-center justify-between">
                 <h5 className="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1">
                   <ArrowRight className="w-4 h-4 text-sky-600" />
-                  <span>Asociar Nuevo Pago Disponible</span>
+                  <span>Asociar Nuevo Reintegro Disponible</span>
                 </h5>
                 <span className="text-[11px] text-slate-400">
-                  {availablePayments.length} abono(s) disponible(s)
+                  {availablePayments.length} reintegro(s) disponible(s)
                 </span>
               </div>
 
@@ -422,7 +466,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
             </div>
           ) : (
             <div className="bg-emerald-50 border border-emerald-200 p-3 rounded-xl text-center text-emerald-800 text-xs font-semibold">
-              🎉 ¡Esta compra ha sido totalmente pagada/cubierta por abonos! Monto Real Utilizado restante = $0.
+              🎉 ¡Esta compra ha sido totalmente cubierta por reintegros o devoluciones! Gasto Real restante = $0.
             </div>
           )}
 

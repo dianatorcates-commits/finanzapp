@@ -100,8 +100,8 @@ export const PayCreditCardModal: React.FC<PayCreditCardModalProps> = ({
   // TAB 2: LINK EXISTING PAYMENT FROM CARTOLA (Issue #48)
   // -------------------------------------------------------------
   const computedAllTransactions = useMemo(() => {
-    return computeTransactions(transactions);
-  }, [transactions]);
+    return computeTransactions(transactions, creditBillings);
+  }, [transactions, creditBillings]);
 
   // Find candidate existing payments / abonos with unallocated balance
   const candidatePayments = useMemo(() => {
