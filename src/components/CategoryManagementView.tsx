@@ -385,10 +385,11 @@ export const CategoryManagementView: React.FC<CategoryManagementViewProps> = ({
     setTestResult(null);
 
     try {
-      const res = await fetch(`/api/wallet-webhook?token=${webhookToken}`, {
+      const res = await fetch('/api/wallet-webhook', {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${webhookToken}`
         },
         body: JSON.stringify({
           title: testNotificationTitle,

@@ -1,12 +1,55 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { createClient } from '@supabase/supabase-js';
+import crypto from 'crypto';
 
 // ============================================================
 // CONFIGURATION & SUPABASE ADMIN CLIENT (SERVICE ROLE)
 // ============================================================
 const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
+const TELEGRAM_WEBHOOK_SECRET = process.env.TELEGRAM_WEBHOOK_SECRET;
 const SUPABASE_URL = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL;
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+// In-memory sliding window rate limiter per IP (Issue #73)
+const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
+
+function getClientIp(req: VercelRequest): string {
+  const forwarded = req.headers['x-forwarded-for'];
+  if (typeof forwarded === 'string' && forwarded.length > 0) {
+    return forwarded.split(',')[0].trim();
+  }
+  if (Array.isArray(forwarded) && forwarded.length > 0) {
+    return forwarded[0].trim();
+  }
+  return req.socket?.remoteAddress || 'unknown';
+}
+
+function checkRateLimit(key: string, maxRequests: number, windowMs: number): boolean {
+  const now = Date.now();
+  // Periodic cleanup to keep memory bounded
+  if (rateLimitMap.size > 1000) {
+    for (const [k, entry] of rateLimitMap.entries()) {
+      if (now > entry.resetAt) rateLimitMap.delete(k);
+    }
+  }
+  const current = rateLimitMap.get(key);
+  if (!current || now > current.resetAt) {
+    rateLimitMap.set(key, { count: 1, resetAt: now + windowMs });
+    return true;
+  }
+  if (current.count >= maxRequests) {
+    return false;
+  }
+  current.count += 1;
+  return true;
+}
+
+function isValidSecretToken(provided: string, expected: string): boolean {
+  const providedBuf = Buffer.from(provided, 'utf8');
+  const expectedBuf = Buffer.from(expected, 'utf8');
+  if (providedBuf.length !== expectedBuf.length) return false;
+  return crypto.timingSafeEqual(providedBuf, expectedBuf);
+}
 
 function getSupabaseAdmin() {
   if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
@@ -345,6 +388,25 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method Not Allowed' });
+  }
+
+  // Rate limiting & suspicious activity logging (Issue #73)
+  const clientIp = getClientIp(req);
+  if (!checkRateLimit(`tg:${clientIp}`, 60, 60_000)) {
+    console.warn(`[SECURITY][telegram-webhook] Rate limit exceeded from IP ${clientIp}`);
+    return res.status(429).json({ error: 'Too Many Requests' });
+  }
+
+  // Verify Telegram webhook secret token header if TELEGRAM_WEBHOOK_SECRET is configured
+  if (TELEGRAM_WEBHOOK_SECRET) {
+    const rawHeader = req.headers['x-telegram-bot-api-secret-token'];
+    const providedSecret = Array.isArray(rawHeader) ? rawHeader[0] : rawHeader || '';
+    if (!providedSecret || !isValidSecretToken(providedSecret, TELEGRAM_WEBHOOK_SECRET)) {
+      console.warn(`[SECURITY][telegram-webhook] Rejected POST with invalid or missing secret token from IP ${clientIp}`);
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+  } else {
+    console.warn('[SECURITY][telegram-webhook] TELEGRAM_WEBHOOK_SECRET is not set; consider configuring it in Vercel + Telegram setWebhook.');
   }
 
   try {

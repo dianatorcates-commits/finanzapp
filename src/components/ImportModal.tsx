@@ -51,8 +51,12 @@ export const ImportModal: React.FC<ImportModalProps> = ({
   const [omittedExactCount, setOmittedExactCount] = useState<number>(0);
   const [isProcessing, setIsProcessing] = useState<boolean>(false);
   const [fileName, setFileName] = useState<string>('');
+  const [fileError, setFileError] = useState<string | null>(null);
   const [showFormatGuide, setShowFormatGuide] = useState<boolean>(false);
   const [bulkPeriodInput, setBulkPeriodInput] = useState<string>('');
+
+  const MAX_IMPORT_FILE_SIZE_BYTES = 5 * 1024 * 1024; // 5 MB max (Issue #73)
+  const ALLOWED_IMPORT_EXTENSIONS = ['.csv', '.xlsx', '.xls', '.txt'];
 
   const targetAccount = accounts.find((a) => a.id === selectedAccountId);
 
@@ -91,23 +95,45 @@ export const ImportModal: React.FC<ImportModalProps> = ({
     const file = e.target.files?.[0];
     if (!file || !selectedAccountId || !targetAccount) return;
 
+    setFileError(null);
+    const lowerName = file.name.toLowerCase();
+    const hasAllowedExt = ALLOWED_IMPORT_EXTENSIONS.some((ext) => lowerName.endsWith(ext));
+
+    if (!hasAllowedExt) {
+      setFileError(
+        `Formato no permitido (${file.name}). Solo se aceptan archivos ${ALLOWED_IMPORT_EXTENSIONS.join(', ')}.`
+      );
+      setFileName('');
+      e.target.value = '';
+      return;
+    }
+
+    if (file.size > MAX_IMPORT_FILE_SIZE_BYTES) {
+      const sizeMb = (file.size / (1024 * 1024)).toFixed(2);
+      setFileError(
+        `El archivo pesa ${sizeMb} MB y supera el límite máximo de seguridad de 5 MB.`
+      );
+      setFileName('');
+      e.target.value = '';
+      return;
+    }
+
     setIsProcessing(true);
     setFileName(file.name);
 
     try {
       let txs: Transaction[] = [];
-      if (file.name.endsWith('.csv')) {
+      if (lowerName.endsWith('.csv')) {
         txs = await parseCSVFile(file, selectedAccountId, targetAccount.type, categoryMappings, autoRules);
-      } else if (file.name.endsWith('.xlsx') || file.name.endsWith('.xls')) {
+      } else if (lowerName.endsWith('.xlsx') || lowerName.endsWith('.xls')) {
         txs = await parseExcelFile(file, selectedAccountId, targetAccount.type, categoryMappings, autoRules);
-      } else {
-        // Fallback text read
+      } else if (lowerName.endsWith('.txt')) {
         const text = await file.text();
         txs = parseRawText(text, selectedAccountId, targetAccount.type, categoryMappings, autoRules);
       }
       processIncomingTransactions(txs, selectedAccountId, targetAccount.closingDay);
     } catch (err) {
-      alert('Error al leer el archivo. Revisa el formato e intenta de nuevo.');
+      setFileError('Error al leer el archivo. Revisa el formato e intenta de nuevo.');
       console.error(err);
     } finally {
       setIsProcessing(false);
@@ -348,8 +374,16 @@ export const ImportModal: React.FC<ImportModalProps> = ({
                 Arrastra tu cartola aquí o haz clic para examinar computador
               </p>
               <p className="text-[11px] text-[#A098B0] mt-1 font-sans">
-                Soporta CSV de bancos chilenos, planillas Excel (.xlsx, .xls) o texto simple (.txt)
+                Soporta CSV de bancos chilenos, planillas Excel (.xlsx, .xls) o texto simple (.txt) · Máx. 5 MB
               </p>
+              {fileError && (
+                <div
+                  role="alert"
+                  className="mt-3 p-2.5 rounded-xl bg-rose-500/15 border border-rose-500/40 text-xs text-rose-200 font-sans"
+                >
+                  {fileError}
+                </div>
+              )}
               {isProcessing && (
                 <div className="mt-3 flex items-center justify-center gap-2 text-xs font-mono text-[#00FFCC]">
                   <Loader2 className="w-4 h-4 animate-spin" />

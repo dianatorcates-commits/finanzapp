@@ -6,7 +6,59 @@ import { createClient } from '@supabase/supabase-js';
 // ============================================================
 const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
 const SUPABASE_URL = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL;
-const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_ANON_KEY;
+const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
+const ALLOWED_ORIGIN = process.env.ALLOWED_ORIGIN;
+
+// In-memory sliding window rate limiter per IP (Issue #73)
+const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
+
+function getClientIp(req: VercelRequest): string {
+  const forwarded = req.headers['x-forwarded-for'];
+  if (typeof forwarded === 'string' && forwarded.length > 0) {
+    return forwarded.split(',')[0].trim();
+  }
+  if (Array.isArray(forwarded) && forwarded.length > 0) {
+    return forwarded[0].trim();
+  }
+  return req.socket?.remoteAddress || 'unknown';
+}
+
+function checkRateLimit(key: string, maxRequests: number, windowMs: number): boolean {
+  const now = Date.now();
+  if (rateLimitMap.size > 1000) {
+    for (const [k, entry] of rateLimitMap.entries()) {
+      if (now > entry.resetAt) rateLimitMap.delete(k);
+    }
+  }
+  const current = rateLimitMap.get(key);
+  if (!current || now > current.resetAt) {
+    rateLimitMap.set(key, { count: 1, resetAt: now + windowMs });
+    return true;
+  }
+  if (current.count >= maxRequests) {
+    return false;
+  }
+  current.count += 1;
+  return true;
+}
+
+function applyRestrictedCors(req: VercelRequest, res: VercelResponse): void {
+  const origin = req.headers.origin;
+  const host = req.headers.host;
+  if (!origin) return;
+
+  const isSameHost =
+    Boolean(host) && (origin === `https://${host}` || origin === `http://${host}`);
+  const isConfiguredOrigin = Boolean(ALLOWED_ORIGIN) && origin === ALLOWED_ORIGIN;
+  const isLocalDev = /^http:\/\/localhost(:\d+)?$/.test(origin);
+
+  if (isSameHost || isConfiguredOrigin || isLocalDev) {
+    res.setHeader('Access-Control-Allow-Origin', origin);
+    res.setHeader('Vary', 'Origin');
+  }
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+}
 
 function getSupabaseAdmin() {
   if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
@@ -636,10 +688,8 @@ export function autoCategorizePurchase(
 // MAIN VERCEL SERVERLESS HANDLER
 // ============================================================
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-  // CORS configuration for webhook
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  // Restricted CORS configuration (Issue #73: no wildcard '*')
+  applyRestrictedCors(req, res);
 
   if (req.method === 'OPTIONS') {
     return res.status(200).end();
@@ -649,8 +699,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method === 'GET') {
     return res.status(200).json({
       status: 'ok',
-      service: 'FinanzApp Android / Google Wallet Webhook',
-      instructions: 'Send HTTP POST with ?token=<TOKEN> or Authorization: Bearer <TOKEN> and JSON body { text: "...", title: "..." }',
+      service: 'FinanzApp Webhook Endpoint',
+      instructions: 'Send HTTP POST with Authorization: Bearer <TOKEN> and JSON body { text: "...", title: "..." }',
       timestamp: new Date().toISOString(),
     });
   }
@@ -659,17 +709,21 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(405).json({ error: 'Method Not Allowed' });
   }
 
+  const clientIp = getClientIp(req);
+  if (!checkRateLimit(`wallet:${clientIp}`, 30, 60_000)) {
+    console.warn(`[SECURITY][wallet-webhook] Rate limit exceeded from IP ${clientIp}`);
+    return res.status(429).json({ success: false, error: 'Too Many Requests' });
+  }
+
   try {
     const supabaseAdmin = getSupabaseAdmin();
 
     // ------------------------------------------------------------
-    // 1. EXTRACT & VALIDATE TOKEN
+    // 1. EXTRACT & VALIDATE TOKEN (Prefer Authorization: Bearer header)
     // ------------------------------------------------------------
     let token = '';
 
-    if (req.query.token && typeof req.query.token === 'string') {
-      token = req.query.token.trim();
-    } else if (req.headers.authorization) {
+    if (req.headers.authorization) {
       const authHeader = req.headers.authorization;
       if (authHeader.startsWith('Bearer ')) {
         token = authHeader.substring(7).trim();
@@ -678,12 +732,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
     } else if (req.body && typeof req.body === 'object' && req.body.token) {
       token = String(req.body.token).trim();
+    } else if (req.query.token && typeof req.query.token === 'string') {
+      token = req.query.token.trim();
     }
 
     if (!token) {
+      console.warn(`[SECURITY][wallet-webhook] Missing authorization token from IP ${clientIp}`);
       return res.status(401).json({
         success: false,
-        error: 'Token de autorización faltante. Proporciona ?token=... o header Authorization: Bearer <TOKEN>.',
+        error: 'Token de autorización faltante. Proporciona header Authorization: Bearer <TOKEN>.',
       });
     }
 
@@ -721,9 +778,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     if (!userId) {
+      console.warn(`[SECURITY][wallet-webhook] Invalid or revoked token attempt from IP ${clientIp}`);
       return res.status(401).json({
         success: false,
-        error: 'Token no reconocido o revocado. Verifica tu URL de Webhook en FinanzApp.',
+        error: 'Token no reconocido o revocado. Verifica tu configuración de Webhook en FinanzApp.',
       });
     }
 
