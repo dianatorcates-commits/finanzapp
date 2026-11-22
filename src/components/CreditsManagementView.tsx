@@ -27,14 +27,16 @@ import {
   ArrowUpRight,
   ChevronRight
 } from 'lucide-react';
-import { Credit, CreditType, Account, ComputedTransaction } from '../types';
+import { Credit, CreditType, Account, ComputedTransaction, CreditCardBillingRecord } from '../types';
 import { getBankBranding } from './AccountsManagementView';
 import { isPaymentOrIncomeTransaction } from '../utils/paymentAllocation';
+import { calculateTransactionPeriod } from '../utils/dateUtils';
 
 export interface CreditsManagementViewProps {
   credits: Credit[];
   accounts: Account[];
   transactions?: ComputedTransaction[];
+  creditBillings?: CreditCardBillingRecord[];
   currentPeriod: string; // ej. '2026-10'
   onSaveCredit: (credit: Credit) => void | Promise<void>;
   onDeleteCredit: (creditId: string) => void | Promise<void>;
@@ -152,6 +154,7 @@ export const CreditsManagementView: React.FC<CreditsManagementViewProps> = ({
   credits,
   accounts = [],
   transactions = [],
+  creditBillings = [],
   currentPeriod,
   onSaveCredit,
   onDeleteCredit,
@@ -391,20 +394,64 @@ export const CreditsManagementView: React.FC<CreditsManagementViewProps> = ({
   // =========================================================================
   // 1. Calculations for "Próxima Facturación al Corte" (Hero Card)
   // =========================================================================
-  const { cardDirectPurchases, cardCycleInstallments, cardCycleSubscriptions, totalProjectedAtClosing, directPurchasesCount } = useMemo(() => {
+  const {
+    cardDirectPurchases,
+    cardCycleInstallments,
+    cardCycleSubscriptions,
+    cardCyclePayments,
+    grossProjectedAtClosing,
+    totalProjectedAtClosing,
+    directPurchasesCount,
+    cyclePaymentsCount
+  } = useMemo(() => {
     if (!activeCard) {
-      return { cardDirectPurchases: 0, cardCycleInstallments: 0, cardCycleSubscriptions: 0, totalProjectedAtClosing: 0, directPurchasesCount: 0 };
+      return {
+        cardDirectPurchases: 0,
+        cardCycleInstallments: 0,
+        cardCycleSubscriptions: 0,
+        cardCyclePayments: 0,
+        grossProjectedAtClosing: 0,
+        totalProjectedAtClosing: 0,
+        directPurchasesCount: 0,
+        cyclePaymentsCount: 0
+      };
     }
+
+    const matchesActiveCycle = (tx: ComputedTransaction) => {
+      if (tx.accountId !== activeCard.id) return false;
+      const txPeriod = tx.period || calculateTransactionPeriod(tx.date, activeCard.closingDay);
+      return txPeriod === activePeriod;
+    };
 
     // Direct purchases registered on this card in active period
     const directTxs = transactions.filter(
       (tx) =>
-        tx.accountId === activeCard.id &&
-        (tx.period === activePeriod || tx.date?.startsWith(activePeriod)) &&
+        matchesActiveCycle(tx) &&
         !isPaymentOrIncomeTransaction(tx) &&
         tx.amount > 0
     );
     const directTotal = directTxs.reduce((sum, tx) => sum + tx.amount, 0);
+
+    // Payments / abonos / refunds registered on this card in active period (Issue #71)
+    const paymentTxs = transactions.filter(
+      (tx) =>
+        matchesActiveCycle(tx) &&
+        (isPaymentOrIncomeTransaction(tx) || tx.transactionType === 'pago_tc' || tx.amount < 0)
+    );
+    const directPaymentsTotal = paymentTxs.reduce((sum, tx) => sum + Math.abs(tx.amount), 0);
+
+    // Also account for formal reconciled payments from external bank accounts in credit_card_billings
+    const cycleBillingRecord = creditBillings.find(
+      (b) => b.cardId === activeCard.id && b.period === activePeriod
+    );
+    const reconciledExternalPaid = cycleBillingRecord?.totalPaid || 0;
+    const cyclePaymentsTotal = Math.max(directPaymentsTotal, reconciledExternalPaid);
+    const paymentsCount =
+      paymentTxs.length > 0
+        ? paymentTxs.length
+        : reconciledExternalPaid > 0
+        ? 1
+        : 0;
 
     // Active installments mapped to this card (or all active if single card)
     const activeInsts = tabInstallments.filter((inst) => {
@@ -422,14 +469,20 @@ export const CreditsManagementView: React.FC<CreditsManagementViewProps> = ({
     });
     const subsTotal = activeSubs.reduce((sum, sub) => sum + (sub.myShareAmount || 0), 0);
 
+    const grossTotal = directTotal + installmentsTotal + subsTotal;
+    const netProjected = Math.max(0, grossTotal - cyclePaymentsTotal);
+
     return {
       cardDirectPurchases: directTotal,
       cardCycleInstallments: installmentsTotal,
       cardCycleSubscriptions: subsTotal,
-      totalProjectedAtClosing: directTotal + installmentsTotal + subsTotal,
-      directPurchasesCount: directTxs.length
+      cardCyclePayments: cyclePaymentsTotal,
+      grossProjectedAtClosing: grossTotal,
+      totalProjectedAtClosing: netProjected,
+      directPurchasesCount: directTxs.length,
+      cyclePaymentsCount: paymentsCount
     };
-  }, [activeCard, transactions, activePeriod, tabInstallments, tabSubscriptions, creditCards]);
+  }, [activeCard, transactions, creditBillings, activePeriod, tabInstallments, tabSubscriptions, creditCards]);
 
   // =========================================================================
   // 2. Calculations for 4 Consolidated KPIs
@@ -690,7 +743,7 @@ export const CreditsManagementView: React.FC<CreditsManagementViewProps> = ({
             )}
           </div>
 
-          {/* Main Hero Metrics: Big Total + 3-part breakdown */}
+          {/* Main Hero Metrics: Big Total + 4-part breakdown */}
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-center">
             {/* Projected Total */}
             <div className="lg:col-span-5 space-y-1">
@@ -702,6 +755,15 @@ export const CreditsManagementView: React.FC<CreditsManagementViewProps> = ({
                   {formatCLP(totalProjectedAtClosing)}
                 </span>
               </div>
+              {cardCyclePayments > 0 && (
+                <p className="text-[11px] font-mono text-slate-400 flex items-center gap-1.5 flex-wrap pt-0.5">
+                  <span>Cargos: {formatCLP(grossProjectedAtClosing)}</span>
+                  <span className="text-slate-600">•</span>
+                  <span className="text-[#FFE04A] font-semibold">
+                    Abonos: -{formatCLP(cardCyclePayments)}
+                  </span>
+                </p>
+              )}
               <p className="text-xs text-slate-400 flex items-center gap-1.5 pt-1">
                 <Calendar className="w-3.5 h-3.5 text-[#00FFCC]" />
                 <span>
@@ -713,8 +775,8 @@ export const CreditsManagementView: React.FC<CreditsManagementViewProps> = ({
               </p>
             </div>
 
-            {/* 3 Desgloses */}
-            <div className="lg:col-span-7 grid grid-cols-3 gap-2 sm:gap-3">
+            {/* 4 Desgloses (Compras, Cuotas TC, Suscripciones, Abonos descontados) */}
+            <div className="lg:col-span-7 grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3">
               {/* Desglose 1: Compras directas */}
               <div className="p-2.5 sm:p-3.5 rounded-xl sm:rounded-2xl bg-[#0A0A12]/80 border border-[#302840] hover:border-[#38bdf8]/40 transition space-y-0.5 sm:space-y-1 min-w-0">
                 <div className="flex items-center justify-between gap-1 text-[10px] sm:text-[11px] text-slate-400 font-bold uppercase">
@@ -754,6 +816,20 @@ export const CreditsManagementView: React.FC<CreditsManagementViewProps> = ({
                 </div>
                 <div className="text-[9px] sm:text-[10px] text-slate-500 truncate">
                   {tabSubscriptions.filter((s) => s.isActive !== false).length} act.
+                </div>
+              </div>
+
+              {/* Desglose 4: Abonos y Pagos del Ciclo (Issue #71) */}
+              <div className="p-2.5 sm:p-3.5 rounded-xl sm:rounded-2xl bg-[#0A0A12]/80 border border-[#302840] hover:border-[#FFE04A]/40 transition space-y-0.5 sm:space-y-1 min-w-0">
+                <div className="flex items-center justify-between gap-1 text-[10px] sm:text-[11px] text-slate-400 font-bold uppercase">
+                  <span className="truncate">Abonos</span>
+                  <TrendingDown className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-[#FFE04A] shrink-0" />
+                </div>
+                <div className="text-xs sm:text-lg font-black text-[#FFE04A] truncate">
+                  {cardCyclePayments > 0 ? `-${formatCLP(cardCyclePayments)}` : formatCLP(0)}
+                </div>
+                <div className="text-[9px] sm:text-[10px] text-slate-500 truncate">
+                  {cyclePaymentsCount > 0 ? `${cyclePaymentsCount} desc.` : '0 reg.'}
                 </div>
               </div>
             </div>

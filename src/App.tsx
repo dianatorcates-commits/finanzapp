@@ -2095,6 +2095,7 @@ export function App() {
                 credits={credits}
                 accounts={accounts}
                 transactions={filteredTransactions}
+                creditBillings={creditBillings}
                 currentPeriod={filters.month !== 'ALL' ? filters.month : new Date().toISOString().slice(0, 7)}
                 onSaveCredit={handleSaveCredit}
                 onDeleteCredit={handleDeleteCredit}
